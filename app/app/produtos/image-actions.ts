@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { canEdit, requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { downloadRemoteImage } from "@/lib/remote-image";
 
 async function editorContext() {
   const profile = await requireProfile();
@@ -25,6 +26,46 @@ function isOpenFactsImageUrl(value: string) {
   } catch {
     return false;
   }
+}
+
+async function saveApprovedRemoteImage({
+  productId,
+  sourceUrl,
+  source,
+  prefix,
+}: {
+  productId: string;
+  sourceUrl: string;
+  source: string;
+  prefix: string;
+}) {
+  const { profile, supabase } = await editorContext();
+  const { bytes, contentType, finalUrl } = await downloadRemoteImage(sourceUrl);
+  const storagePath = `${productId}/${Date.now()}-${prefix}-${crypto.randomUUID()}.${imageExtension(contentType)}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("product-images")
+    .upload(storagePath, bytes, { contentType, upsert: false });
+  if (uploadError) throw new Error(`Falha ao salvar a imagem: ${uploadError.message}`);
+
+  await supabase.from("product_images").update({ is_primary: false }).eq("product_id", productId);
+  const { error: insertError } = await supabase.from("product_images").insert({
+    product_id: productId,
+    storage_path: storagePath,
+    source,
+    source_url: finalUrl,
+    approved: true,
+    is_primary: true,
+    created_by: profile.id,
+  });
+
+  if (insertError) {
+    await supabase.storage.from("product-images").remove([storagePath]);
+    throw new Error(insertError.message);
+  }
+
+  revalidatePath("/app/produtos");
+  revalidatePath(`/app/produtos/${productId}`);
 }
 
 export async function uploadProductImage(formData: FormData) {
@@ -68,58 +109,32 @@ export async function uploadProductImage(formData: FormData) {
 }
 
 export async function importOpenFactsImage(formData: FormData) {
-  const { profile, supabase } = await editorContext();
   const productId = String(formData.get("product_id") ?? "").trim();
   const sourceUrl = String(formData.get("source_url") ?? "").trim();
 
   if (!productId) throw new Error("Produto inválido.");
   if (!sourceUrl || !isOpenFactsImageUrl(sourceUrl)) throw new Error("URL de imagem do Open Facts inválida.");
 
-  const response = await fetch(sourceUrl, {
-    redirect: "follow",
-    cache: "no-store",
-    headers: {
-      "User-Agent": "VarejaoPopularOffers/0.1 (https://varejao-popular-app.vercel.app)",
-      Accept: "image/avif,image/webp,image/png,image/jpeg,*/*",
-    },
-  });
-
-  if (!response.ok || !isOpenFactsImageUrl(response.url)) {
-    throw new Error("Não foi possível baixar a imagem do Open Facts.");
-  }
-
-  const rawType = response.headers.get("content-type")?.split(";")[0].trim().toLowerCase() ?? "";
-  const contentType = rawType === "image/png" || rawType === "image/webp" || rawType === "image/jpeg" ? rawType : "";
-  if (!contentType) throw new Error("O arquivo retornado pelo Open Facts não é uma imagem compatível.");
-
-  const bytes = Buffer.from(await response.arrayBuffer());
-  if (!bytes.length) throw new Error("A imagem retornada pelo Open Facts está vazia.");
-  if (bytes.length > 8 * 1024 * 1024) throw new Error("A imagem do Open Facts é maior que 8 MB.");
-
-  const storagePath = `${productId}/${Date.now()}-open-facts-${crypto.randomUUID()}.${imageExtension(contentType)}`;
-  const { error: uploadError } = await supabase.storage
-    .from("product-images")
-    .upload(storagePath, bytes, { contentType, upsert: false });
-  if (uploadError) throw new Error(`Falha ao salvar a imagem: ${uploadError.message}`);
-
-  await supabase.from("product_images").update({ is_primary: false }).eq("product_id", productId);
-  const { error: insertError } = await supabase.from("product_images").insert({
-    product_id: productId,
-    storage_path: storagePath,
+  await saveApprovedRemoteImage({
+    productId,
+    sourceUrl,
     source: "open_food_facts",
-    source_url: sourceUrl,
-    approved: true,
-    is_primary: true,
-    created_by: profile.id,
+    prefix: "open-facts",
   });
+}
 
-  if (insertError) {
-    await supabase.storage.from("product-images").remove([storagePath]);
-    throw new Error(insertError.message);
-  }
+export async function importSerpApiImage(formData: FormData) {
+  const productId = String(formData.get("product_id") ?? "").trim();
+  const sourceUrl = String(formData.get("source_url") ?? "").trim();
+  if (!productId) throw new Error("Produto inválido.");
+  if (!sourceUrl) throw new Error("Imagem não informada.");
 
-  revalidatePath("/app/produtos");
-  revalidatePath(`/app/produtos/${productId}`);
+  await saveApprovedRemoteImage({
+    productId,
+    sourceUrl,
+    source: "google_images",
+    prefix: "google-images",
+  });
 }
 
 export async function setPrimaryProductImage(formData: FormData) {
