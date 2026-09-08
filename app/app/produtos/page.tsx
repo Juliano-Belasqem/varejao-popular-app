@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { canEdit, requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -164,7 +165,7 @@ export default async function Page({
               <tbody>
                 {products.map((product) => (
                   <tr key={product.id}>
-                    <td>{product.ean}</td><td>{product.name}</td><td>{product.brand || "—"}</td><td>{product.specification || product.unit || "—"}</td>
+                    <td>{product.ean}</td><td><Link href={`/app/produtos/${product.id}`} style={{ fontWeight: 700 }}>{product.name}</Link></td><td>{product.brand || "—"}</td><td>{product.specification || product.unit || "—"}</td>
                     <td>{money(product.sale_price)}</td>
                     <td>{product.stock ?? "—"}</td><td><span className="pill">{product.active ? "Ativo" : "Inativo"}</span></td>
                     {editable && <td><form action={toggleProductActive}><input type="hidden" name="id" value={product.id} /><input type="hidden" name="active" value={String(product.active)} /><button className="btn" type="submit">{product.active ? "Desativar" : "Ativar"}</button></form></td>}
