@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { canEdit, requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { addCampaignItem, createCampaign } from "./actions";
@@ -21,7 +22,7 @@ export default async function Page() {
   const [{ data: campaigns, error }, { data: products }, { data: items }] = await Promise.all([
     supabase.from("campaigns").select("id,name,start_date,end_date,theme,format,status,created_at").order("created_at", { ascending: false }).limit(100),
     supabase.from("products").select("id,ean,name,brand,specification,sale_price,active").eq("active", true).order("name").limit(500),
-    supabase.from("campaign_items").select("id,campaign_id,product_id,normal_price,offer_price,highlighted_price,ean_snapshot,name_snapshot,brand_snapshot,specification_snapshot").order("sort_order").limit(1000),
+    supabase.from("campaign_items").select("id,campaign_id").limit(5000),
   ]);
 
   const itemCount = new Map<string, number>();
@@ -76,7 +77,7 @@ export default async function Page() {
           <div style={{ overflowX: "auto" }}>
             <table className="table">
               <thead><tr><th>Campanha</th><th>Período</th><th>Tema</th><th>Formato</th><th>Itens</th><th>Status</th></tr></thead>
-              <tbody>{campaigns.map((campaign) => <tr key={campaign.id}><td>{campaign.name}</td><td>{formatDate(campaign.start_date)} — {formatDate(campaign.end_date)}</td><td>{campaign.theme}</td><td>{campaign.format}</td><td>{itemCount.get(campaign.id) ?? 0}</td><td><span className="pill">{statusLabel[campaign.status] ?? campaign.status}</span></td></tr>)}</tbody>
+              <tbody>{campaigns.map((campaign) => <tr key={campaign.id}><td><Link href={`/app/campanhas/${campaign.id}`} style={{ fontWeight: 700 }}>{campaign.name}</Link></td><td>{formatDate(campaign.start_date)} — {formatDate(campaign.end_date)}</td><td>{campaign.theme}</td><td>{campaign.format}</td><td>{itemCount.get(campaign.id) ?? 0}</td><td><span className="pill">{statusLabel[campaign.status] ?? campaign.status}</span></td></tr>)}</tbody>
             </table>
           </div>
         )}
