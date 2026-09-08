@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import * as XLSX from "xlsx";
 import { canEdit, requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -9,11 +10,17 @@ function text(value: FormDataEntryValue | null) {
   return normalized || null;
 }
 
-function numberValue(value: FormDataEntryValue | null) {
-  const normalized = String(value ?? "").trim().replace(",", ".");
+function numberValue(value: FormDataEntryValue | null | unknown) {
+  const normalized = String(value ?? "").trim().replace(/\./g, "").replace(",", ".");
   if (!normalized) return null;
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function yesNo(value: unknown) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (!normalized) return null;
+  return ["sim", "s", "true", "1", "yes"].includes(normalized);
 }
 
 export async function createProduct(formData: FormData) {
@@ -56,6 +63,137 @@ export async function toggleProductActive(formData: FormData) {
   const supabase = await createClient();
   const { error } = await supabase.from("products").update({ active: !active }).eq("id", id);
   if (error) throw new Error(error.message);
+
+  revalidatePath("/app/produtos");
+  revalidatePath("/app");
+}
+
+export async function importErpSpreadsheet(formData: FormData) {
+  const profile = await requireProfile();
+  if (!canEdit(profile.role)) throw new Error("Sem permissão para importar o ERP.");
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) throw new Error("Selecione uma planilha do ERP.");
+  if (file.size > 5 * 1024 * 1024) throw new Error("A planilha deve ter no máximo 5 MB.");
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const workbook = XLSX.read(buffer, { type: "buffer" });
+  const sheetName = workbook.SheetNames.includes("ERP_Produtos") ? "ERP_Produtos" : workbook.SheetNames[0];
+  if (!sheetName) throw new Error("A planilha não possui abas legíveis.");
+
+  const rows = XLSX.utils.sheet_to_json<unknown[]>(workbook.Sheets[sheetName], {
+    header: 1,
+    raw: true,
+    defval: "",
+  });
+
+  if (rows.length < 2) throw new Error("Nenhum produto encontrado na planilha.");
+
+  const header = rows[0].map((value) => String(value ?? "").trim().toLowerCase());
+  const findColumn = (...labels: string[]) => header.findIndex((cell) => labels.some((label) => cell === label));
+
+  const codeIndex = findColumn("código", "codigo");
+  const descriptionIndex = findColumn("descrição erp", "descricao erp", "descrição", "descricao");
+  const priceIndex = findColumn("preço de venda", "preco de venda");
+  const stockIndex = findColumn("estoque");
+  const unitIndex = findColumn("unidade");
+  const typeIndex = findColumn("tipo de código", "tipo de codigo");
+  const gtinIndex = findColumn("gtin válido?", "gtin valido?");
+  const imageIndex = findColumn("pesquisar imagem?");
+
+  if (codeIndex < 0 || descriptionIndex < 0) {
+    throw new Error("Não encontrei as colunas Código e Descrição ERP.");
+  }
+
+  const syncStarted = new Date().toISOString();
+  const parsed = rows.slice(1).flatMap((row) => {
+    const code = String(row[codeIndex] ?? "").trim();
+    const description = String(row[descriptionIndex] ?? "").trim();
+    if (!code || !description) return [];
+
+    return [{
+      code,
+      description,
+      sale_price: priceIndex >= 0 ? numberValue(row[priceIndex]) : null,
+      stock: stockIndex >= 0 ? numberValue(row[stockIndex]) : null,
+      unit: unitIndex >= 0 ? String(row[unitIndex] ?? "").trim() || null : null,
+      code_type: typeIndex >= 0 ? String(row[typeIndex] ?? "").trim() || null : null,
+      gtin_valid: gtinIndex >= 0 ? yesNo(row[gtinIndex]) : null,
+      search_image: imageIndex >= 0 ? yesNo(row[imageIndex]) ?? false : false,
+      imported_at: syncStarted,
+      updated_at: syncStarted,
+      last_seen_at: syncStarted,
+    }];
+  });
+
+  if (!parsed.length) throw new Error("Nenhuma linha válida foi encontrada para importar.");
+
+  const supabase = await createClient();
+  const chunkSize = 500;
+  for (let i = 0; i < parsed.length; i += chunkSize) {
+    const { error } = await supabase
+      .from("erp_products")
+      .upsert(parsed.slice(i, i + chunkSize), { onConflict: "code" });
+    if (error) throw new Error(`Falha na importação do ERP: ${error.message}`);
+  }
+
+  const { error: cleanupError } = await supabase
+    .from("erp_products")
+    .delete()
+    .lt("last_seen_at", syncStarted);
+  if (cleanupError) throw new Error(`Importação concluída, mas a limpeza falhou: ${cleanupError.message}`);
+
+  revalidatePath("/app/produtos");
+  revalidatePath("/app");
+}
+
+export async function addErpProductToCatalog(formData: FormData) {
+  const profile = await requireProfile();
+  if (!canEdit(profile.role)) throw new Error("Sem permissão para editar produtos.");
+
+  const code = String(formData.get("code") ?? "").trim();
+  if (!code) throw new Error("Código do ERP não informado.");
+
+  const supabase = await createClient();
+  const { data: erp, error: erpError } = await supabase
+    .from("erp_products")
+    .select("code,description,sale_price,stock,unit,code_type,gtin_valid")
+    .eq("code", code)
+    .single();
+
+  if (erpError || !erp) throw new Error("Produto não encontrado na base do ERP.");
+
+  const { data: existing } = await supabase
+    .from("products")
+    .select("id")
+    .eq("ean", erp.code)
+    .maybeSingle();
+
+  if (existing) {
+    const { error } = await supabase.from("products").update({
+      erp_description: erp.description,
+      sale_price: erp.sale_price,
+      stock: erp.stock,
+      unit: erp.unit,
+      code_type: erp.code_type,
+      gtin_valid: erp.gtin_valid,
+      active: true,
+    }).eq("id", existing.id);
+    if (error) throw new Error(error.message);
+  } else {
+    const { error } = await supabase.from("products").insert({
+      ean: erp.code,
+      name: erp.description,
+      erp_description: erp.description,
+      sale_price: erp.sale_price,
+      stock: erp.stock,
+      unit: erp.unit,
+      code_type: erp.code_type,
+      gtin_valid: erp.gtin_valid,
+      active: true,
+    });
+    if (error) throw new Error(error.message);
+  }
 
   revalidatePath("/app/produtos");
   revalidatePath("/app");
