@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { canEdit, requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { importOpenFactsImage, importSerpApiImage, removeProductImage, setPrimaryProductImage, uploadProductImage } from "../image-actions";
+import { GoogleImageSearchForm } from "./google-image-search-form";
 
 function money(value: number | null) {
   return value == null ? "—" : new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
@@ -28,6 +29,13 @@ type GoogleImageCandidate = {
 type GoogleImageSearch = {
   results: GoogleImageCandidate[];
   error: string | null;
+};
+
+type GoogleImageFilters = {
+  transparent: boolean;
+  type: string;
+  ratio: string;
+  size: string;
 };
 
 async function findOpenFactsImage(ean: string): Promise<OpenFactsCandidate> {
@@ -64,7 +72,7 @@ async function findOpenFactsImage(ean: string): Promise<OpenFactsCandidate> {
   }
 }
 
-async function findGoogleImages(query: string): Promise<GoogleImageSearch> {
+async function findGoogleImages(query: string, filters: GoogleImageFilters): Promise<GoogleImageSearch> {
   const apiKey = process.env.SERPAPI_API_KEY;
   if (!apiKey) return { results: [], error: "A busca do Google Imagens ainda não está configurada. Falta a chave da SerpApi no servidor." };
   const cleanQuery = query.trim();
@@ -78,6 +86,10 @@ async function findGoogleImages(query: string): Promise<GoogleImageSearch> {
     url.searchParams.set("hl", "pt-br");
     url.searchParams.set("google_domain", "google.com.br");
     url.searchParams.set("safe", "active");
+    if (filters.transparent) url.searchParams.set("image_color", "trans");
+    if (["photo", "clipart"].includes(filters.type)) url.searchParams.set("image_type", filters.type);
+    if (["s", "t", "w"].includes(filters.ratio)) url.searchParams.set("imgar", filters.ratio);
+    if (["m", "l"].includes(filters.size)) url.searchParams.set("imgsz", filters.size);
     url.searchParams.set("api_key", apiKey);
 
     const response = await fetch(url, { cache: "no-store", headers: { Accept: "application/json" } });
@@ -121,7 +133,14 @@ export default async function ProductDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ image_source?: string; image_q?: string }>;
+  searchParams?: Promise<{
+    image_source?: string;
+    image_q?: string;
+    image_trans?: string;
+    image_type?: string;
+    image_ratio?: string;
+    image_size?: string;
+  }>;
 }) {
   const profile = await requireProfile();
   const editable = canEdit(profile.role);
@@ -138,8 +157,14 @@ export default async function ProductDetailPage({
 
   const defaultGoogleQuery = [product.ean, product.name, product.brand, product.specification].filter(Boolean).join(" ");
   const googleQuery = (query.image_q || defaultGoogleQuery).trim();
+  const googleFilters: GoogleImageFilters = {
+    transparent: query.image_trans === "1",
+    type: query.image_type || "",
+    ratio: query.image_ratio || "",
+    size: query.image_size || "",
+  };
   const openFacts = editable && query.image_source === "open_facts" ? await findOpenFactsImage(product.ean) : null;
-  const googleImages = editable && query.image_source === "google_images" ? await findGoogleImages(googleQuery) : null;
+  const googleImages = editable && query.image_source === "google_images" ? await findGoogleImages(googleQuery, googleFilters) : null;
 
   const signedImages = await Promise.all((images ?? []).map(async (image) => {
     const { data } = await supabase.storage.from("product-images").createSignedUrl(image.storage_path, 3600);
@@ -170,13 +195,15 @@ export default async function ProductDetailPage({
             <h2 style={{ marginTop: 0 }}>Buscar imagem</h2>
             <p className="muted">Fluxo: catálogo próprio → Open Food Facts → Google Imagens → Meu acervo.</p>
             {signedImages.length > 0 ? <div className="card" style={{ padding: 12, marginBottom: 12 }}><strong>Catálogo próprio</strong><div className="muted" style={{ marginTop: 4 }}>{signedImages.length} imagem(ns) já vinculada(s) a este produto.</div></div> : null}
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12, alignItems: "start" }}>
               <form method="get"><input type="hidden" name="image_source" value="open_facts" /><button className="btn primary" type="submit">Buscar no Open Food Facts</button></form>
-              <form method="get" style={{ display: "flex", gap: 8, flex: "1 1 360px" }}>
-                <input type="hidden" name="image_source" value="google_images" />
-                <input className="input" name="image_q" defaultValue={googleQuery} aria-label="Termo de busca no Google Imagens" />
-                <button className="btn" type="submit">Buscar no Google Imagens</button>
-              </form>
+              <GoogleImageSearchForm
+                defaultQuery={googleQuery}
+                initialTransparent={googleFilters.transparent}
+                initialType={googleFilters.type}
+                initialRatio={googleFilters.ratio}
+                initialSize={googleFilters.size}
+              />
             </div>
             {openFacts?.error && <div className="error">{openFacts.error}</div>}
             {openFacts?.imageUrl && <div className="card" style={{ padding: 12 }}><div style={{ aspectRatio: "1 / 1", background: "#fff", borderRadius: 10, overflow: "hidden", display: "grid", placeItems: "center", maxWidth: 320 }}><img src={openFacts.imageUrl} alt={openFacts.productName || product.name} style={{ width: "100%", height: "100%", objectFit: "contain" }} /></div><div style={{ marginTop: 10 }}><strong>{openFacts.productName || product.name}</strong>{openFacts.brands ? <div className="muted" style={{ marginTop: 4 }}>Marca no Open Food Facts: {openFacts.brands}</div> : null}<div className="muted" style={{ marginTop: 4 }}>A imagem só entra no catálogo depois que você confirmar.</div></div><form action={importOpenFactsImage} style={{ marginTop: 10 }}><input type="hidden" name="product_id" value={product.id} /><input type="hidden" name="source_url" value={openFacts.imageUrl} /><button className="btn primary" type="submit">Usar esta imagem</button></form></div>}
@@ -186,7 +213,7 @@ export default async function ProductDetailPage({
 
       {editable && googleImages && (
         <section className="card" style={{ marginBottom: 16 }}>
-          <div className="page-head" style={{ marginBottom: 12 }}><div><h2 style={{ margin: 0 }}>Resultados do Google Imagens</h2><div className="muted">Pesquisa: {googleQuery}</div></div></div>
+          <div className="page-head" style={{ marginBottom: 12 }}><div><h2 style={{ margin: 0 }}>Resultados do Google Imagens</h2><div className="muted">Pesquisa: {googleQuery}{googleFilters.transparent ? " · fundo transparente" : ""}</div></div></div>
           {googleImages.error ? <div className="error">{googleImages.error}</div> : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(190px,1fr))", gap: 14 }}>
               {googleImages.results.map((candidate, index) => (
