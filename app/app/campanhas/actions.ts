@@ -16,14 +16,17 @@ function numberValue(value: FormDataEntryValue | null) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-export async function createCampaign(formData: FormData) {
+async function editorContext() {
   const profile = await requireProfile();
   if (!canEdit(profile.role)) throw new Error("Sem permissão para editar campanhas.");
+  return { profile, supabase: await createClient() };
+}
 
+export async function createCampaign(formData: FormData) {
+  const { profile, supabase } = await editorContext();
   const name = String(formData.get("name") ?? "").trim();
   if (!name) throw new Error("Nome da campanha é obrigatório.");
 
-  const supabase = await createClient();
   const { error } = await supabase.from("campaigns").insert({
     name,
     start_date: text(formData.get("start_date")),
@@ -40,15 +43,36 @@ export async function createCampaign(formData: FormData) {
   revalidatePath("/app");
 }
 
-export async function addCampaignItem(formData: FormData) {
-  const profile = await requireProfile();
-  if (!canEdit(profile.role)) throw new Error("Sem permissão para editar campanhas.");
+export async function updateCampaign(formData: FormData) {
+  const { profile, supabase } = await editorContext();
+  const id = String(formData.get("id") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const status = String(formData.get("status") ?? "draft");
+  if (!id || !name) throw new Error("Campanha inválida.");
+  if (!["draft", "approved", "archived"].includes(status)) throw new Error("Status inválido.");
 
+  const { error } = await supabase.from("campaigns").update({
+    name,
+    start_date: text(formData.get("start_date")),
+    end_date: text(formData.get("end_date")),
+    theme: text(formData.get("theme")) ?? "Padrão",
+    format: text(formData.get("format")) ?? "Físico + Digital",
+    status,
+    updated_by: profile.id,
+  }).eq("id", id);
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/app/campanhas");
+  revalidatePath(`/app/campanhas/${id}`);
+  revalidatePath("/app");
+}
+
+export async function addCampaignItem(formData: FormData) {
+  const { supabase } = await editorContext();
   const campaignId = String(formData.get("campaign_id") ?? "");
   const productId = String(formData.get("product_id") ?? "");
   if (!campaignId || !productId) throw new Error("Campanha e produto são obrigatórios.");
 
-  const supabase = await createClient();
   const { data: product, error: productError } = await supabase
     .from("products")
     .select("ean,name,brand,specification,sale_price")
@@ -74,4 +98,38 @@ export async function addCampaignItem(formData: FormData) {
 
   if (error) throw new Error(error.message);
   revalidatePath("/app/campanhas");
+  revalidatePath(`/app/campanhas/${campaignId}`);
+}
+
+export async function updateCampaignItem(formData: FormData) {
+  const { supabase } = await editorContext();
+  const id = String(formData.get("id") ?? "");
+  const campaignId = String(formData.get("campaign_id") ?? "");
+  const highlightedPrice = String(formData.get("highlighted_price") ?? "offer");
+  if (!id || !campaignId) throw new Error("Item inválido.");
+  if (!["offer", "normal"].includes(highlightedPrice)) throw new Error("Destaque de preço inválido.");
+
+  const { error } = await supabase.from("campaign_items").update({
+    normal_price: numberValue(formData.get("normal_price")),
+    offer_price: numberValue(formData.get("offer_price")),
+    highlighted_price: highlightedPrice,
+    sort_order: numberValue(formData.get("sort_order")) ?? 0,
+  }).eq("id", id).eq("campaign_id", campaignId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/app/campanhas");
+  revalidatePath(`/app/campanhas/${campaignId}`);
+}
+
+export async function removeCampaignItem(formData: FormData) {
+  const { supabase } = await editorContext();
+  const id = String(formData.get("id") ?? "");
+  const campaignId = String(formData.get("campaign_id") ?? "");
+  if (!id || !campaignId) throw new Error("Item inválido.");
+
+  const { error } = await supabase.from("campaign_items").delete().eq("id", id).eq("campaign_id", campaignId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/app/campanhas");
+  revalidatePath(`/app/campanhas/${campaignId}`);
 }
