@@ -17,13 +17,15 @@ function money(value: number | null) {
 export default async function Page({
   searchParams,
 }: {
-  searchParams?: Promise<{ q?: string; erp_q?: string }>;
+  searchParams?: Promise<{ q?: string; erp_q?: string; import_ok?: string; import_error?: string }>;
 }) {
   const profile = await requireProfile();
   const supabase = await createClient();
   const params = (await searchParams) ?? {};
   const q = (params.q ?? "").trim();
   const erpQ = (params.erp_q ?? "").trim();
+  const importOk = (params.import_ok ?? "").trim();
+  const importError = (params.import_error ?? "").trim();
   const editable = canEdit(profile.role);
 
   let catalogQuery = supabase
@@ -63,6 +65,9 @@ export default async function Page({
           <div className="muted">Catálogo progressivo, ERP e imagens.</div>
         </div>
       </header>
+
+      {importOk && <div className="card" style={{ marginBottom: 16 }}><strong>{importOk}</strong></div>}
+      {importError && <div className="error" style={{ marginBottom: 16 }}>Falha ao sincronizar ERP: {importError}</div>}
 
       {editable && (
         <div className="grid" style={{ marginBottom: 16 }}>
