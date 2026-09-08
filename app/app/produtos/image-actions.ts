@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { canEdit, requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { downloadRemoteImage } from "@/lib/remote-image";
@@ -28,16 +29,23 @@ function isOpenFactsImageUrl(value: string) {
   }
 }
 
+function actionMessage(error: unknown) {
+  if (error instanceof Error && error.message) return error.message;
+  return "Não foi possível salvar a imagem selecionada.";
+}
+
 async function saveApprovedRemoteImage({
   productId,
   sourceUrl,
   source,
   prefix,
+  recordedSourceUrl,
 }: {
   productId: string;
   sourceUrl: string;
   source: string;
   prefix: string;
+  recordedSourceUrl?: string;
 }) {
   const { profile, supabase } = await editorContext();
   const { bytes, contentType, finalUrl } = await downloadRemoteImage(sourceUrl);
@@ -53,7 +61,7 @@ async function saveApprovedRemoteImage({
     product_id: productId,
     storage_path: storagePath,
     source,
-    source_url: finalUrl,
+    source_url: recordedSourceUrl || finalUrl,
     approved: true,
     is_primary: true,
     created_by: profile.id,
@@ -126,15 +134,37 @@ export async function importOpenFactsImage(formData: FormData) {
 export async function importSerpApiImage(formData: FormData) {
   const productId = String(formData.get("product_id") ?? "").trim();
   const sourceUrl = String(formData.get("source_url") ?? "").trim();
+  const thumbnailUrl = String(formData.get("thumbnail_url") ?? "").trim();
+
   if (!productId) throw new Error("Produto inválido.");
   if (!sourceUrl) throw new Error("Imagem não informada.");
 
-  await saveApprovedRemoteImage({
-    productId,
-    sourceUrl,
-    source: "google_images",
-    prefix: "google-images",
-  });
+  let destination = `/app/produtos/${productId}`;
+  try {
+    try {
+      await saveApprovedRemoteImage({
+        productId,
+        sourceUrl,
+        source: "google_images",
+        prefix: "google-images",
+        recordedSourceUrl: sourceUrl,
+      });
+    } catch (originalError) {
+      if (!thumbnailUrl || thumbnailUrl === sourceUrl) throw originalError;
+      await saveApprovedRemoteImage({
+        productId,
+        sourceUrl: thumbnailUrl,
+        source: "google_images",
+        prefix: "google-images-fallback",
+        recordedSourceUrl: sourceUrl,
+      });
+    }
+    destination = `/app/produtos/${productId}?image_import_ok=${encodeURIComponent("Imagem salva no catálogo com sucesso.")}`;
+  } catch (error) {
+    destination = `/app/produtos/${productId}?image_import_error=${encodeURIComponent(actionMessage(error))}`;
+  }
+
+  redirect(destination);
 }
 
 export async function setPrimaryProductImage(formData: FormData) {
