@@ -73,11 +73,11 @@ export default async function Page({
         <div className="grid" style={{ marginBottom: 16 }}>
           <section className="card">
             <h2 style={{ marginTop: 0 }}>Sincronizar ERP</h2>
-            <p className="muted">Importe a planilha do ERP. Registros existentes são atualizados e os que não aparecem mais na nova planilha são removidos da base de referência.</p>
+            <p className="muted">Importe o arquivo do ERP em XLSX, XLS ou CSV. Registros existentes são atualizados e os que não aparecem mais na nova importação são removidos da base de referência.</p>
             <form action={importErpSpreadsheet} className="form">
               <label className="field">
-                <span>Planilha XLSX/XLS</span>
-                <input className="input" type="file" name="file" accept=".xlsx,.xls" required />
+                <span>Arquivo XLSX/XLS/CSV</span>
+                <input className="input" type="file" name="file" accept=".xlsx,.xls,.csv,text/csv" required />
               </label>
               <button className="btn primary" type="submit">Sincronizar ERP</button>
             </form>

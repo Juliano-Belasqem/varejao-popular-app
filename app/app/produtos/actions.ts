@@ -35,6 +35,14 @@ function importMessage(error: unknown) {
   return "Falha inesperada durante a sincronização do ERP.";
 }
 
+function decodeCsv(buffer: Buffer) {
+  const utf8 = new TextDecoder("utf-8").decode(buffer);
+  const decoded = utf8.includes("\uFFFD")
+    ? new TextDecoder("windows-1252").decode(buffer)
+    : utf8;
+  return decoded.replace(/^\uFEFF/, "");
+}
+
 export async function createProduct(formData: FormData) {
   const profile = await requireProfile();
   if (!canEdit(profile.role)) throw new Error("Sem permissão para editar produtos.");
@@ -88,13 +96,20 @@ export async function importErpSpreadsheet(formData: FormData) {
 
   try {
     const file = formData.get("file");
-    if (!(file instanceof File) || file.size === 0) throw new Error("Selecione uma planilha do ERP.");
-    if (file.size > 10 * 1024 * 1024) throw new Error("A planilha deve ter no máximo 10 MB.");
+    if (!(file instanceof File) || file.size === 0) throw new Error("Selecione um arquivo do ERP.");
+    if (file.size > 10 * 1024 * 1024) throw new Error("O arquivo deve ter no máximo 10 MB.");
+
+    const extension = file.name.toLowerCase().split(".").pop();
+    if (!extension || !["xlsx", "xls", "csv"].includes(extension)) {
+      throw new Error("Formato não suportado. Use XLSX, XLS ou CSV.");
+    }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const workbook = XLSX.read(buffer, { type: "buffer" });
+    const workbook = extension === "csv"
+      ? XLSX.read(decodeCsv(buffer), { type: "string" })
+      : XLSX.read(buffer, { type: "buffer" });
     const sheetName = workbook.SheetNames.includes("ERP_Produtos") ? "ERP_Produtos" : workbook.SheetNames[0];
-    if (!sheetName) throw new Error("A planilha não possui abas legíveis.");
+    if (!sheetName) throw new Error("O arquivo não possui dados legíveis.");
 
     const rows = XLSX.utils.sheet_to_json<unknown[]>(workbook.Sheets[sheetName], {
       header: 1,
@@ -102,7 +117,7 @@ export async function importErpSpreadsheet(formData: FormData) {
       defval: "",
     });
 
-    if (rows.length < 2) throw new Error("Nenhum produto encontrado na planilha.");
+    if (rows.length < 2) throw new Error("Nenhum produto encontrado no arquivo.");
 
     const header = rows[0].map((value) => String(value ?? "").trim().toLowerCase());
     const findColumn = (...labels: string[]) => header.findIndex((cell) => labels.some((label) => cell === label));
