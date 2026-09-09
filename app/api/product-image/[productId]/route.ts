@@ -11,6 +11,21 @@ function safeHttps(value: string | null | undefined) {
   }
 }
 
+async function proxyImage(url: string) {
+  const response = await fetch(url, { cache: "no-store" });
+  if (!response.ok) return null;
+  const contentType = response.headers.get("content-type") || "image/png";
+  if (!contentType.startsWith("image/")) return null;
+  const bytes = await response.arrayBuffer();
+  return new NextResponse(bytes, {
+    status: 200,
+    headers: {
+      "Content-Type": contentType,
+      "Cache-Control": "private, max-age=300",
+    },
+  });
+}
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ productId: string }> },
@@ -35,9 +50,10 @@ export async function GET(
       try {
         const { data, error: signError } = await supabase.storage
           .from("product-images")
-          .createSignedUrl(image.storage_path, 3600);
+          .createSignedUrl(image.storage_path, 300);
         if (!signError && data?.signedUrl) {
-          return NextResponse.redirect(data.signedUrl, 307);
+          const proxied = await proxyImage(data.signedUrl);
+          if (proxied) return proxied;
         }
       } catch {
         // Tenta a URL de origem abaixo.
@@ -45,7 +61,14 @@ export async function GET(
     }
 
     const fallback = safeHttps(image.source_url);
-    if (fallback) return NextResponse.redirect(fallback, 307);
+    if (fallback) {
+      try {
+        const proxied = await proxyImage(fallback);
+        if (proxied) return proxied;
+      } catch {
+        // Retorna 404 abaixo sem derrubar a página.
+      }
+    }
 
     return new NextResponse(null, { status: 404 });
   } catch (error) {
