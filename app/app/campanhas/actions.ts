@@ -84,7 +84,7 @@ export async function addCampaignItem(formData: FormData) {
   const normalPrice = numberValue(formData.get("normal_price")) ?? product.sale_price;
   const offerPrice = numberValue(formData.get("offer_price"));
 
-  const { error } = await supabase.from("campaign_items").insert({
+  const { error } = await supabase.from("campaign_items").upsert({
     campaign_id: campaignId,
     product_id: productId,
     normal_price: normalPrice,
@@ -94,11 +94,14 @@ export async function addCampaignItem(formData: FormData) {
     name_snapshot: product.name,
     brand_snapshot: product.brand,
     specification_snapshot: product.specification,
+  }, {
+    onConflict: "campaign_id,product_id",
   });
 
   if (error) throw new Error(error.message);
   revalidatePath("/app/campanhas");
   revalidatePath(`/app/campanhas/${campaignId}`);
+  revalidatePath(`/app/campanhas/${campaignId}/gerar`);
 }
 
 export async function updateCampaignItem(formData: FormData) {
@@ -119,6 +122,7 @@ export async function updateCampaignItem(formData: FormData) {
   if (error) throw new Error(error.message);
   revalidatePath("/app/campanhas");
   revalidatePath(`/app/campanhas/${campaignId}`);
+  revalidatePath(`/app/campanhas/${campaignId}/gerar`);
 }
 
 export async function removeCampaignItem(formData: FormData) {
@@ -132,4 +136,5 @@ export async function removeCampaignItem(formData: FormData) {
 
   revalidatePath("/app/campanhas");
   revalidatePath(`/app/campanhas/${campaignId}`);
+  revalidatePath(`/app/campanhas/${campaignId}/gerar`);
 }
