@@ -1,0 +1,184 @@
+import { createAdminClient } from "@/lib/supabase/admin";
+
+type Publication = {
+  id: string;
+  network: "instagram" | "facebook";
+  type: "feed" | "story" | "carousel" | "reel";
+  caption: string | null;
+  status: string;
+};
+
+type Media = {
+  storage_path: string;
+  public_url: string | null;
+  media_type: string;
+  sort_order: number;
+};
+
+type GraphResult = Record<string, unknown> & { id?: string; post_id?: string };
+
+const graphVersion = process.env.META_GRAPH_API_VERSION || "v26.0";
+
+function graphUrl(path: string) {
+  return `https://graph.facebook.com/${graphVersion}/${path.replace(/^\//, "")}`;
+}
+
+async function graphPost(path: string, params: Record<string, string>) {
+  const body = new URLSearchParams(params);
+  const response = await fetch(graphUrl(path), {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body,
+    cache: "no-store",
+  });
+  const payload = (await response.json().catch(() => ({}))) as GraphResult & {
+    error?: { message?: string; code?: number; error_subcode?: number };
+  };
+  if (!response.ok || payload.error) {
+    const detail = payload.error?.message || `Meta Graph API retornou HTTP ${response.status}`;
+    throw new Error(detail);
+  }
+  return payload;
+}
+
+function requireEnv(name: string) {
+  const value = process.env[name];
+  if (!value) throw new Error(`Configuração ausente: ${name}`);
+  return value;
+}
+
+async function publishInstagram(publication: Publication, media: Media[]) {
+  const igUserId = requireEnv("META_INSTAGRAM_USER_ID");
+  const token = requireEnv("META_PAGE_ACCESS_TOKEN");
+
+  if (publication.type === "carousel" || publication.type === "reel") {
+    throw new Error("Carrossel e Reel entram no próximo bloco da integração Meta.");
+  }
+  if (media.length !== 1 || !media[0]?.public_url) {
+    throw new Error("A publicação precisa de uma única imagem pública válida.");
+  }
+
+  const creationParams: Record<string, string> = {
+    image_url: media[0].public_url,
+    access_token: token,
+  };
+  if (publication.caption && publication.type === "feed") creationParams.caption = publication.caption;
+  if (publication.type === "story") creationParams.media_type = "STORIES";
+
+  const container = await graphPost(`${igUserId}/media`, creationParams);
+  const creationId = String(container.id || "");
+  if (!creationId) throw new Error("A Meta não retornou o ID do container do Instagram.");
+
+  const published = await graphPost(`${igUserId}/media_publish`, {
+    creation_id: creationId,
+    access_token: token,
+  });
+  const mediaId = String(published.id || "");
+  if (!mediaId) throw new Error("A Meta não retornou o ID da publicação do Instagram.");
+  return { mediaId, postId: mediaId };
+}
+
+async function publishFacebook(publication: Publication, media: Media[]) {
+  const pageId = requireEnv("META_FACEBOOK_PAGE_ID");
+  const token = requireEnv("META_PAGE_ACCESS_TOKEN");
+
+  if (publication.type !== "feed") {
+    throw new Error("Neste bloco, o Facebook suporta publicação de imagem no Feed. Story, Carrossel e Reel entram depois.");
+  }
+  if (media.length !== 1 || !media[0]?.public_url) {
+    throw new Error("A publicação precisa de uma única imagem pública válida.");
+  }
+
+  const result = await graphPost(`${pageId}/photos`, {
+    url: media[0].public_url,
+    caption: publication.caption || "",
+    published: "true",
+    access_token: token,
+  });
+  const mediaId = String(result.id || "");
+  const postId = String(result.post_id || result.id || "");
+  if (!postId) throw new Error("A Meta não retornou o ID da publicação do Facebook.");
+  return { mediaId: mediaId || null, postId };
+}
+
+export async function publishPublication(publicationId: string, allowedStatuses = ["scheduled", "draft", "error"]) {
+  const supabase = createAdminClient();
+  const { data: publication, error: publicationError } = await supabase
+    .from("publications")
+    .select("id,network,type,caption,status")
+    .eq("id", publicationId)
+    .maybeSingle();
+
+  if (publicationError || !publication) throw new Error("Publicação não encontrada.");
+  if (!allowedStatuses.includes(publication.status)) throw new Error(`Status ${publication.status} não pode ser publicado agora.`);
+
+  const { data: claimed, error: claimError } = await supabase
+    .from("publications")
+    .update({ status: "publishing", error_message: null, updated_at: new Date().toISOString() })
+    .eq("id", publicationId)
+    .eq("status", publication.status)
+    .select("id")
+    .maybeSingle();
+
+  if (claimError || !claimed) throw new Error("A publicação já está sendo processada ou mudou de status.");
+
+  try {
+    const { data: media, error: mediaError } = await supabase
+      .from("publication_media")
+      .select("storage_path,public_url,media_type,sort_order")
+      .eq("publication_id", publicationId)
+      .order("sort_order", { ascending: true });
+
+    if (mediaError || !media?.length) throw new Error("Mídia da publicação não encontrada.");
+
+    const result = publication.network === "instagram"
+      ? await publishInstagram(publication as Publication, media as Media[])
+      : await publishFacebook(publication as Publication, media as Media[]);
+
+    const now = new Date().toISOString();
+    await supabase
+      .from("publications")
+      .update({
+        status: "published",
+        meta_media_id: result.mediaId,
+        meta_post_id: result.postId,
+        published_at: now,
+        error_message: null,
+        updated_at: now,
+      })
+      .eq("id", publicationId);
+
+    return result;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Falha desconhecida ao publicar na Meta.";
+    await supabase
+      .from("publications")
+      .update({ status: "error", error_message: message.slice(0, 1500), updated_at: new Date().toISOString() })
+      .eq("id", publicationId);
+    throw error;
+  }
+}
+
+export async function processDuePublications(limit = 10) {
+  const supabase = createAdminClient();
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("publications")
+    .select("id")
+    .eq("status", "scheduled")
+    .lte("scheduled_at", now)
+    .order("scheduled_at", { ascending: true })
+    .limit(limit);
+
+  if (error) throw new Error(error.message);
+  const results: Array<{ id: string; ok: boolean; error?: string }> = [];
+  for (const row of data ?? []) {
+    try {
+      await publishPublication(row.id, ["scheduled"]);
+      results.push({ id: row.id, ok: true });
+    } catch (error) {
+      results.push({ id: row.id, ok: false, error: error instanceof Error ? error.message : "Falha" });
+    }
+  }
+  return results;
+}
