@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type Format = "feed" | "story";
 type Mode = "composed" | "individual";
@@ -26,6 +26,14 @@ type Item = {
   specification_snapshot: string | null;
 };
 
+type SavedMaterial = {
+  name: string;
+  path: string;
+  created_at: string | null;
+  size: number | null;
+  url: string | null;
+};
+
 function money(value: number | string | null) {
   if (value == null || value === "") return "—";
   const parsed = Number(value);
@@ -37,6 +45,17 @@ function dateLabel(value: string | null) {
   if (!value) return "";
   const [year, month, day] = value.split("-");
   return year && month && day ? `${day}/${month}/${year}` : value;
+}
+
+function savedDate(value: string | null) {
+  if (!value) return "Data indisponível";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "Data indisponível" : date.toLocaleString("pt-BR");
+}
+
+function savedSize(value: number | null) {
+  if (!value || !Number.isFinite(value)) return "";
+  return value >= 1024 * 1024 ? `${(value / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.round(value / 1024))} KB`;
 }
 
 function slug(value: string) {
@@ -86,18 +105,49 @@ export default function GeneratorClient({ campaign, items }: { campaign: Campaig
   const [format, setFormat] = useState<Format>("feed");
   const [mode, setMode] = useState<Mode>("composed");
   const [qty, setQty] = useState<Quantity>(1);
-  const [selectedId, setSelectedId] = useState(items[0]?.id ?? "");
+  const [individualId, setIndividualId] = useState(items[0]?.id ?? "");
+  const [composedIds, setComposedIds] = useState<string[]>(items.slice(0, 1).map((item) => item.id));
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const [materials, setMaterials] = useState<SavedMaterial[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const normalizeComposedSelection = useCallback((nextQty: Quantity, currentIds: string[]) => {
+    const validIds = currentIds.filter((id) => items.some((item) => item.id === id)).slice(0, nextQty);
+    const fill = items.map((item) => item.id).filter((id) => !validIds.includes(id));
+    return [...validIds, ...fill].slice(0, Math.min(nextQty, items.length));
+  }, [items]);
 
   const selectedItems = useMemo(() => {
     if (mode === "individual") {
-      const found = items.find((item) => item.id === selectedId) ?? items[0];
+      const found = items.find((item) => item.id === individualId) ?? items[0];
       return found ? [found] : [];
     }
-    return items.slice(0, qty);
-  }, [items, mode, qty, selectedId]);
+    return composedIds.map((id) => items.find((item) => item.id === id)).filter((item): item is Item => Boolean(item));
+  }, [items, mode, individualId, composedIds]);
+
+  const loadHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    try {
+      const response = await fetch(`/api/digital-materials?campaign_id=${encodeURIComponent(campaign.id)}`, { cache: "no-store" });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "Falha ao carregar histórico");
+      setMaterials(Array.isArray(payload.materials) ? payload.materials : []);
+    } catch {
+      setMaterials([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [campaign.id]);
+
+  useEffect(() => {
+    void loadHistory();
+  }, [loadHistory]);
+
+  useEffect(() => {
+    setComposedIds((current) => normalizeComposedSelection(qty, current));
+  }, [qty, normalizeComposedSelection]);
 
   async function draw(target: HTMLCanvasElement, drawItems: Item[]) {
     const width = 1080;
@@ -204,7 +254,19 @@ export default function GeneratorClient({ campaign, items }: { campaign: Campaig
     if (!canvasRef.current || !selectedItems.length) return;
     draw(canvasRef.current, selectedItems).catch(() => setStatus("Não foi possível desenhar a prévia."));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [format, mode, qty, selectedId, items]);
+  }, [format, mode, qty, individualId, composedIds, items]);
+
+  function selectComposedItem(itemId: string) {
+    setComposedIds((current) => {
+      if (qty === 1) return [itemId];
+      if (current.includes(itemId)) {
+        if (current.length <= 1) return current;
+        return current.filter((id) => id !== itemId);
+      }
+      if (current.length >= qty) return [...current.slice(1), itemId];
+      return [...current, itemId];
+    });
+  }
 
   async function saveBlob(blob: Blob, drawItems: Item[], saveMode: Mode) {
     const form = new FormData();
@@ -254,7 +316,8 @@ export default function GeneratorClient({ campaign, items }: { campaign: Campaig
       await draw(canvasRef.current, selectedItems);
       const blob = await canvasBlob(canvasRef.current);
       await saveBlob(blob, selectedItems, mode);
-      setStatus("Material salvo em digital-materials.");
+      await loadHistory();
+      setStatus("Material salvo. Ele já aparece em Materiais salvos abaixo da prévia.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Falha ao salvar material.");
     } finally {
@@ -275,7 +338,8 @@ export default function GeneratorClient({ campaign, items }: { campaign: Campaig
         const blob = await canvasBlob(offscreen);
         await saveBlob(blob, [item], "individual");
       }
-      setStatus(`${items.length} arte(s) individual(is) salvas em digital-materials.`);
+      await loadHistory();
+      setStatus(`${items.length} arte(s) individual(is) salvas. Elas já aparecem em Materiais salvos.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Falha ao gerar o lote individual.");
     } finally {
@@ -284,71 +348,152 @@ export default function GeneratorClient({ campaign, items }: { campaign: Campaig
   }
 
   return (
-    <div className="grid" style={{ alignItems: "start" }}>
-      <section className="card">
-        <h2 style={{ marginTop: 0 }}>Configuração</h2>
-        <div className="form">
-          <label className="field">
-            <span>Formato</span>
-            <select className="input" value={format} onChange={(event) => setFormat(event.target.value as Format)} disabled={busy}>
-              <option value="feed">Feed · 1080 × 1080</option>
-              <option value="story">Story · 1080 × 1920</option>
-            </select>
-          </label>
+    <div style={{ display: "grid", gap: 18 }}>
+      <div className="grid" style={{ alignItems: "start" }}>
+        <section className="card">
+          <div style={{ marginBottom: 18 }}>
+            <h2 style={{ margin: 0 }}>Configurar material</h2>
+            <div className="muted" style={{ marginTop: 5 }}>Escolha o tipo, formato e exatamente quais produtos da campanha aparecem na prévia.</div>
+          </div>
 
-          <label className="field">
-            <span>Modo de geração</span>
-            <select className="input" value={mode} onChange={(event) => setMode(event.target.value as Mode)} disabled={busy}>
-              <option value="composed">Peça composta</option>
-              <option value="individual">Arte individual por produto</option>
-            </select>
-          </label>
+          <div className="form">
+            <div className="card" style={{ padding: 14 }}>
+              <strong>1. Tipo de arte</strong>
+              <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
+                <button className={`btn ${mode === "composed" ? "primary" : ""}`} type="button" onClick={() => setMode("composed")} disabled={busy}>Peça composta</button>
+                <button className={`btn ${mode === "individual" ? "primary" : ""}`} type="button" onClick={() => setMode("individual")} disabled={busy}>Arte individual</button>
+              </div>
+            </div>
 
-          {mode === "composed" ? (
-            <label className="field">
-              <span>Produtos por peça</span>
-              <select className="input" value={String(qty)} onChange={(event) => setQty(Number(event.target.value) as Quantity)} disabled={busy}>
-                <option value="1">1 produto</option>
-                <option value="2">2 produtos</option>
-                <option value="4">4 produtos</option>
-              </select>
-            </label>
+            <div className="card" style={{ padding: 14 }}>
+              <strong>2. Formato</strong>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
+                <button className={`btn ${format === "feed" ? "primary" : ""}`} type="button" onClick={() => setFormat("feed")} disabled={busy}>Feed 1080×1080</button>
+                <button className={`btn ${format === "story" ? "primary" : ""}`} type="button" onClick={() => setFormat("story")} disabled={busy}>Story 1080×1920</button>
+              </div>
+            </div>
+
+            <div className="card" style={{ padding: 14 }}>
+              <strong>3. Produtos da prévia</strong>
+              {mode === "composed" ? (
+                <>
+                  <label className="field" style={{ marginTop: 10 }}>
+                    <span>Quantidade na peça</span>
+                    <select className="input" value={String(qty)} onChange={(event) => setQty(Number(event.target.value) as Quantity)} disabled={busy}>
+                      <option value="1">1 produto</option>
+                      <option value="2">2 produtos</option>
+                      <option value="4">4 produtos</option>
+                    </select>
+                  </label>
+                  <div className="muted" style={{ margin: "10px 0 8px" }}>Selecione até {qty} item(ns). Se o limite estiver cheio, clicar em outro produto substitui o mais antigo.</div>
+                  <div style={{ display: "grid", gap: 8, maxHeight: 310, overflowY: "auto" }}>
+                    {items.map((item) => {
+                      const selected = composedIds.includes(item.id);
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => selectComposedItem(item.id)}
+                          disabled={busy}
+                          style={{
+                            border: selected ? "2px solid #1559a8" : "1px solid #d8dee8",
+                            background: selected ? "#eef6ff" : "white",
+                            borderRadius: 12,
+                            padding: 10,
+                            display: "grid",
+                            gridTemplateColumns: "50px 1fr auto",
+                            gap: 10,
+                            alignItems: "center",
+                            textAlign: "left",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <div style={{ width: 50, height: 50, borderRadius: 8, overflow: "hidden", background: "#fff", border: "1px solid #edf0f4" }}>
+                            {item.product_id ? <img src={`/api/product-image/${encodeURIComponent(item.product_id)}`} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} /> : null}
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 800 }}>{item.name_snapshot || "Produto"}</div>
+                            <div className="muted" style={{ fontSize: 12 }}>{[item.brand_snapshot, item.specification_snapshot].filter(Boolean).join(" · ")}</div>
+                          </div>
+                          <span className="pill">{selected ? `${composedIds.indexOf(item.id) + 1}º` : "Adicionar"}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
+                <label className="field" style={{ marginTop: 10 }}>
+                  <span>Produto exibido</span>
+                  <select className="input" value={individualId} onChange={(event) => setIndividualId(event.target.value)} disabled={busy}>
+                    {items.map((item) => <option key={item.id} value={item.id}>{item.name_snapshot || "Produto"}</option>)}
+                  </select>
+                </label>
+              )}
+            </div>
+
+            <div className="card" style={{ padding: 14 }}>
+              <strong>4. Ações</strong>
+              <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
+                <button className="btn primary" type="button" onClick={downloadCurrent} disabled={busy || !selectedItems.length}>Baixar PNG da prévia</button>
+                <button className="btn" type="button" onClick={saveCurrent} disabled={busy || !selectedItems.length}>Salvar prévia no sistema</button>
+                {mode === "individual" && <button className="btn" type="button" onClick={saveAllIndividual} disabled={busy || !items.length}>Gerar e salvar todos os itens</button>}
+              </div>
+            </div>
+          </div>
+
+          {status && <div className={status.toLowerCase().includes("falha") ? "error" : "muted"} style={{ marginTop: 12 }}>{status}</div>}
+        </section>
+
+        <section className="card">
+          <div className="page-head" style={{ marginBottom: 12 }}>
+            <div>
+              <h2 style={{ margin: 0 }}>Prévia atual</h2>
+              <div className="muted">{format === "story" ? "Story 1080 × 1920" : "Feed 1080 × 1080"} · {selectedItems.length} produto(s)</div>
+            </div>
+            <span className="pill">Não salva automaticamente</span>
+          </div>
+
+          {!selectedItems.length ? (
+            <div className="empty">Selecione pelo menos um produto da campanha.</div>
           ) : (
-            <label className="field">
-              <span>Produto da prévia</span>
-              <select className="input" value={selectedId} onChange={(event) => setSelectedId(event.target.value)} disabled={busy}>
-                {items.map((item) => <option key={item.id} value={item.id}>{item.name_snapshot || "Produto"}</option>)}
-              </select>
-            </label>
+            <div style={{ width: "100%", maxWidth: format === "story" ? 430 : 620, margin: "0 auto" }}>
+              <canvas ref={canvasRef} style={{ width: "100%", height: "auto", borderRadius: 18, boxShadow: "0 18px 50px rgba(15,23,42,.18)", display: "block" }} />
+            </div>
           )}
-
-          <button className="btn primary" type="button" onClick={downloadCurrent} disabled={busy || !selectedItems.length}>Baixar PNG desta prévia</button>
-          <button className="btn" type="button" onClick={saveCurrent} disabled={busy || !selectedItems.length}>Salvar esta prévia</button>
-          {mode === "individual" && (
-            <button className="btn" type="button" onClick={saveAllIndividual} disabled={busy || !items.length}>Gerar e salvar arte para todos os itens</button>
-          )}
-        </div>
-
-        <div className="card" style={{ padding: 12, marginTop: 14 }}>
-          <strong>Saída</strong>
-          <div className="muted" style={{ marginTop: 6 }}>O PNG é gerado exatamente em 1080×1080 ou 1080×1920 e pode ser baixado ou salvo no bucket privado digital-materials.</div>
-        </div>
-        {status && <div className={status.toLowerCase().includes("falha") ? "error" : "muted"} style={{ marginTop: 12 }}>{status}</div>}
-      </section>
+          <div className="muted" style={{ marginTop: 12 }}>A prévia é temporária. Ela só vira arquivo permanente quando você usa “Salvar prévia no sistema”.</div>
+        </section>
+      </div>
 
       <section className="card">
         <div className="page-head" style={{ marginBottom: 12 }}>
           <div>
-            <h2 style={{ margin: 0 }}>Prévia</h2>
-            <div className="muted">{format === "story" ? "Story 1080 × 1920" : "Feed 1080 × 1080"} · {mode === "individual" ? "1 arte por produto" : `${selectedItems.length} produto(s)`}</div>
+            <h2 style={{ margin: 0 }}>Materiais salvos</h2>
+            <div className="muted">Arquivos desta campanha armazenados no bucket privado digital-materials.</div>
           </div>
+          <button className="btn" type="button" onClick={() => void loadHistory()} disabled={historyLoading}>Atualizar</button>
         </div>
 
-        {!selectedItems.length ? (
-          <div className="empty">Adicione produtos à campanha antes de gerar uma arte.</div>
+        {historyLoading ? (
+          <div className="muted">Carregando materiais...</div>
+        ) : materials.length === 0 ? (
+          <div className="empty">Nenhum material desta campanha foi salvo ainda.</div>
         ) : (
-          <div style={{ width: "100%", maxWidth: format === "story" ? 430 : 620, margin: "0 auto" }}>
-            <canvas ref={canvasRef} style={{ width: "100%", height: "auto", borderRadius: 18, boxShadow: "0 18px 50px rgba(15,23,42,.18)", display: "block" }} />
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: 12 }}>
+            {materials.map((material) => (
+              <article key={material.path} className="card" style={{ padding: 10 }}>
+                <div style={{ aspectRatio: "1 / 1", borderRadius: 10, background: "#f8fafc", overflow: "hidden", display: "grid", placeItems: "center" }}>
+                  {material.url ? <img src={material.url} alt={material.name} style={{ width: "100%", height: "100%", objectFit: "contain" }} /> : <span className="muted">Prévia indisponível</span>}
+                </div>
+                <div style={{ fontWeight: 800, fontSize: 13, marginTop: 8, overflowWrap: "anywhere" }}>{material.name}</div>
+                <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>{savedDate(material.created_at)}{savedSize(material.size) ? ` · ${savedSize(material.size)}` : ""}</div>
+                {material.url && (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 9 }}>
+                    <a className="btn" href={material.url} target="_blank" rel="noreferrer">Visualizar</a>
+                    <a className="btn" href={material.url} download={material.name}>Baixar</a>
+                  </div>
+                )}
+              </article>
+            ))}
           </div>
         )}
       </section>

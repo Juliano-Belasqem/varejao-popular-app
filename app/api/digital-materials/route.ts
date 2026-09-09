@@ -12,6 +12,57 @@ function safeName(value: string) {
     .slice(0, 120) || "material.png";
 }
 
+export async function GET(request: Request) {
+  try {
+    await requireProfile();
+    const { searchParams } = new URL(request.url);
+    const campaignId = String(searchParams.get("campaign_id") ?? "").trim();
+    if (!campaignId) {
+      return NextResponse.json({ error: "Campanha inválida." }, { status: 400 });
+    }
+
+    const supabase = await createClient();
+    const { data: campaign, error: campaignError } = await supabase
+      .from("campaigns")
+      .select("id")
+      .eq("id", campaignId)
+      .maybeSingle();
+
+    if (campaignError || !campaign) {
+      return NextResponse.json({ error: "Campanha não encontrada." }, { status: 404 });
+    }
+
+    const { data: files, error: listError } = await supabase.storage
+      .from("digital-materials")
+      .list(campaignId, { limit: 100, sortBy: { column: "created_at", order: "desc" } });
+
+    if (listError) {
+      return NextResponse.json({ error: listError.message }, { status: 500 });
+    }
+
+    const materials = await Promise.all(
+      (files ?? [])
+        .filter((file) => file.name.toLowerCase().endsWith(".png"))
+        .map(async (file) => {
+          const path = `${campaignId}/${file.name}`;
+          const { data } = await supabase.storage.from("digital-materials").createSignedUrl(path, 3600);
+          return {
+            name: file.name,
+            path,
+            created_at: file.created_at ?? null,
+            size: file.metadata?.size ?? null,
+            url: data?.signedUrl ?? null,
+          };
+        }),
+    );
+
+    return NextResponse.json({ materials });
+  } catch (error) {
+    console.error("digital materials list failed", error);
+    return NextResponse.json({ error: "Não foi possível carregar os materiais salvos." }, { status: 500 });
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const profile = await requireProfile();
