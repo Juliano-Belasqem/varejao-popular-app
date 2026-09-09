@@ -14,8 +14,24 @@ function dateLabel(value: string | null) {
   return `${day}/${month}/${year}`;
 }
 
+function isSafeHttpsUrl(value: string | null | undefined) {
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 type Format = "feed" | "story";
 type Quantity = 1 | 2 | 4;
+
+type ProductImageRow = {
+  product_id: string;
+  storage_path: string;
+  source_url: string | null;
+};
 
 export default async function DigitalGeneratorPage({
   params,
@@ -44,23 +60,58 @@ export default async function DigitalGeneratorPage({
 
   if (error || !campaign) notFound();
 
-  const productIds = (items ?? []).map((item) => item.product_id).filter(Boolean);
-  const { data: primaryImages } = productIds.length
-    ? await supabase
+  const productIds = Array.from(
+    new Set((items ?? []).map((item) => item.product_id).filter((value): value is string => Boolean(value))),
+  );
+
+  let primaryImages: ProductImageRow[] = [];
+  let imageLoadWarning: string | null = null;
+
+  if (productIds.length) {
+    try {
+      const { data, error: imageQueryError } = await supabase
         .from("product_images")
-        .select("product_id,storage_path")
+        .select("product_id,storage_path,source_url")
         .in("product_id", productIds)
         .eq("approved", true)
-        .eq("is_primary", true)
-    : { data: [] as Array<{ product_id: string; storage_path: string }> };
+        .eq("is_primary", true);
 
-  const imageMap = new Map<string, string>();
-  await Promise.all(
-    (primaryImages ?? []).map(async (image) => {
-      const { data } = await supabase.storage.from("product-images").createSignedUrl(image.storage_path, 3600);
-      if (data?.signedUrl) imageMap.set(image.product_id, data.signedUrl);
+      if (imageQueryError) {
+        imageLoadWarning = "Não foi possível consultar as imagens principais agora.";
+      } else {
+        primaryImages = (data ?? []) as ProductImageRow[];
+      }
+    } catch {
+      imageLoadWarning = "Não foi possível consultar as imagens principais agora.";
+    }
+  }
+
+  const imageEntries = await Promise.all(
+    primaryImages.map(async (image) => {
+      try {
+        const { data, error: signedUrlError } = await supabase.storage
+          .from("product-images")
+          .createSignedUrl(image.storage_path, 3600);
+
+        if (!signedUrlError && data?.signedUrl) {
+          return [image.product_id, data.signedUrl] as const;
+        }
+      } catch {
+        // O fallback abaixo mantém a prévia funcionando mesmo se o Storage falhar.
+      }
+
+      if (isSafeHttpsUrl(image.source_url)) {
+        return [image.product_id, image.source_url!] as const;
+      }
+
+      return [image.product_id, null] as const;
     }),
   );
+
+  const imageMap = new Map<string, string>();
+  for (const [productId, url] of imageEntries) {
+    if (url) imageMap.set(productId, url);
+  }
 
   const selectedItems = (items ?? []).slice(0, qty);
   const isStory = format === "story";
@@ -103,6 +154,8 @@ export default async function DigitalGeneratorPage({
             <strong>Dados usados</strong>
             <div className="muted" style={{ marginTop: 6 }}>Imagem principal, nome, marca, especificação, preço normal e preço de oferta dos itens da campanha.</div>
           </div>
+
+          {imageLoadWarning && <div className="error" style={{ marginTop: 12 }}>{imageLoadWarning}</div>}
         </section>
 
         <section className="card">
@@ -154,7 +207,11 @@ export default async function DigitalGeneratorPage({
                     return (
                       <article key={item.id} style={{ background: "rgba(255,255,255,.97)", borderRadius: 16, padding: isStory ? 16 : 12, display: "flex", flexDirection: "column", minHeight: 0 }}>
                         <div style={{ background: "white", borderRadius: 12, aspectRatio: "1 / 1", display: "grid", placeItems: "center", overflow: "hidden" }}>
-                          {imageUrl ? <img src={imageUrl} alt={item.name_snapshot || "Produto"} style={{ width: "100%", height: "100%", objectFit: "contain" }} /> : <span className="muted" style={{ fontSize: 12, textAlign: "center", padding: 8 }}>Sem imagem principal</span>}
+                          {imageUrl ? (
+                            <img src={imageUrl} alt={item.name_snapshot || "Produto"} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                          ) : (
+                            <span className="muted" style={{ fontSize: 12, textAlign: "center", padding: 8 }}>Sem imagem principal disponível</span>
+                          )}
                         </div>
                         <div style={{ marginTop: 9, minHeight: qty === 4 ? 48 : 60 }}>
                           <div style={{ fontSize: qty === 4 ? 12 : 15, fontWeight: 900, lineHeight: 1.08, color: "#0f172a" }}>{item.name_snapshot || "Produto"}</div>
