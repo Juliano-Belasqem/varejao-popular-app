@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import GeneratorClient from "./generator-client";
+import GeneratorClientOptimized from "./generator-client-optimized";
 
 export default async function DigitalGeneratorPage({ params }: { params: Promise<{ id: string }> }) {
   await requireProfile();
@@ -29,13 +29,13 @@ export default async function DigitalGeneratorPage({ params }: { params: Promise
           <h1 style={{ marginTop: 8 }}>Gerar material digital</h1>
           <div className="muted">{campaign.name}</div>
         </div>
-        <span className="pill">PNG</span>
+        <span className="pill">PNG + Publicações</span>
       </header>
 
       {itemsError ? (
         <div className="error">Não foi possível carregar os itens da campanha.</div>
       ) : (
-        <GeneratorClient campaign={campaign} items={items ?? []} />
+        <GeneratorClientOptimized campaign={campaign} items={items ?? []} />
       )}
     </>
   );
