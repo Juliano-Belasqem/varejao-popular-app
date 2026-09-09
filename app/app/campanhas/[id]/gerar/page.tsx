@@ -3,35 +3,22 @@ import { notFound } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
-function money(value: number | null) {
-  if (value == null) return "—";
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+function money(value: number | string | null) {
+  if (value == null || value === "") return "—";
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return "—";
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(parsed);
 }
 
 function dateLabel(value: string | null) {
   if (!value) return "";
   const [year, month, day] = value.split("-");
+  if (!year || !month || !day) return value;
   return `${day}/${month}/${year}`;
-}
-
-function isSafeHttpsUrl(value: string | null | undefined) {
-  if (!value) return false;
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:";
-  } catch {
-    return false;
-  }
 }
 
 type Format = "feed" | "story";
 type Quantity = 1 | 2 | 4;
-
-type ProductImageRow = {
-  product_id: string;
-  storage_path: string;
-  source_url: string | null;
-};
 
 export default async function DigitalGeneratorPage({
   params,
@@ -48,7 +35,7 @@ export default async function DigitalGeneratorPage({
   const qty: Quantity = parsedQty === 2 || parsedQty === 4 ? parsedQty : 1;
   const supabase = await createClient();
 
-  const [{ data: campaign, error }, { data: items }] = await Promise.all([
+  const [{ data: campaign, error: campaignError }, { data: items, error: itemsError }] = await Promise.all([
     supabase.from("campaigns").select("id,name,start_date,end_date,theme,status").eq("id", id).single(),
     supabase
       .from("campaign_items")
@@ -58,60 +45,7 @@ export default async function DigitalGeneratorPage({
       .order("created_at", { ascending: true }),
   ]);
 
-  if (error || !campaign) notFound();
-
-  const productIds = Array.from(
-    new Set((items ?? []).map((item) => item.product_id).filter((value): value is string => Boolean(value))),
-  );
-
-  let primaryImages: ProductImageRow[] = [];
-  let imageLoadWarning: string | null = null;
-
-  if (productIds.length) {
-    try {
-      const { data, error: imageQueryError } = await supabase
-        .from("product_images")
-        .select("product_id,storage_path,source_url")
-        .in("product_id", productIds)
-        .eq("approved", true)
-        .eq("is_primary", true);
-
-      if (imageQueryError) {
-        imageLoadWarning = "Não foi possível consultar as imagens principais agora.";
-      } else {
-        primaryImages = (data ?? []) as ProductImageRow[];
-      }
-    } catch {
-      imageLoadWarning = "Não foi possível consultar as imagens principais agora.";
-    }
-  }
-
-  const imageEntries = await Promise.all(
-    primaryImages.map(async (image) => {
-      try {
-        const { data, error: signedUrlError } = await supabase.storage
-          .from("product-images")
-          .createSignedUrl(image.storage_path, 3600);
-
-        if (!signedUrlError && data?.signedUrl) {
-          return [image.product_id, data.signedUrl] as const;
-        }
-      } catch {
-        // O fallback abaixo mantém a prévia funcionando mesmo se o Storage falhar.
-      }
-
-      if (isSafeHttpsUrl(image.source_url)) {
-        return [image.product_id, image.source_url!] as const;
-      }
-
-      return [image.product_id, null] as const;
-    }),
-  );
-
-  const imageMap = new Map<string, string>();
-  for (const [productId, url] of imageEntries) {
-    if (url) imageMap.set(productId, url);
-  }
+  if (campaignError || !campaign) notFound();
 
   const selectedItems = (items ?? []).slice(0, qty);
   const isStory = format === "story";
@@ -155,7 +89,7 @@ export default async function DigitalGeneratorPage({
             <div className="muted" style={{ marginTop: 6 }}>Imagem principal, nome, marca, especificação, preço normal e preço de oferta dos itens da campanha.</div>
           </div>
 
-          {imageLoadWarning && <div className="error" style={{ marginTop: 12 }}>{imageLoadWarning}</div>}
+          {itemsError && <div className="error" style={{ marginTop: 12 }}>Não foi possível carregar os itens da campanha.</div>}
         </section>
 
         <section className="card">
@@ -202,8 +136,8 @@ export default async function DigitalGeneratorPage({
                   }}
                 >
                   {selectedItems.map((item) => {
-                    const imageUrl = item.product_id ? imageMap.get(item.product_id) : null;
                     const highlighted = item.highlighted_price === "normal" ? item.normal_price : item.offer_price;
+                    const imageUrl = item.product_id ? `/api/product-image/${encodeURIComponent(item.product_id)}` : null;
                     return (
                       <article key={item.id} style={{ background: "rgba(255,255,255,.97)", borderRadius: 16, padding: isStory ? 16 : 12, display: "flex", flexDirection: "column", minHeight: 0 }}>
                         <div style={{ background: "white", borderRadius: 12, aspectRatio: "1 / 1", display: "grid", placeItems: "center", overflow: "hidden" }}>
@@ -218,7 +152,7 @@ export default async function DigitalGeneratorPage({
                           {(item.brand_snapshot || item.specification_snapshot) && <div style={{ fontSize: qty === 4 ? 10 : 12, color: "#64748b", marginTop: 3 }}>{[item.brand_snapshot, item.specification_snapshot].filter(Boolean).join(" · ")}</div>}
                         </div>
                         <div style={{ marginTop: "auto" }}>
-                          {item.normal_price != null && item.offer_price != null && item.normal_price !== item.offer_price && (
+                          {item.normal_price != null && item.offer_price != null && Number(item.normal_price) !== Number(item.offer_price) && (
                             <div style={{ color: "#64748b", fontSize: qty === 4 ? 9 : 11, textDecoration: "line-through" }}>De {money(item.normal_price)}</div>
                           )}
                           <div style={{ color: "#e66c00", fontWeight: 950, fontSize: qty === 4 ? 22 : isStory ? 36 : 30, letterSpacing: "-.04em", lineHeight: 1 }}>{money(highlighted)}</div>
@@ -233,7 +167,7 @@ export default async function DigitalGeneratorPage({
             </div>
           )}
 
-          <div className="muted" style={{ marginTop: 14 }}>Nesta primeira etapa a prévia já usa os dados reais da campanha. Exportação PNG e salvamento entram no próximo bloco.</div>
+          <div className="muted" style={{ marginTop: 14 }}>A imagem agora é carregada por uma rota isolada. Se uma imagem falhar, a prévia continua funcionando.</div>
         </section>
       </div>
     </>
