@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { canEdit, requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { deleteDraftAction, returnToDraftAction, savePublicationAction, schedulePublicationAction } from "../actions";
+import { deleteDraftAction, publishNowAction, returnToDraftAction, savePublicationAction, schedulePublicationAction } from "../actions";
 
 const statusLabels: Record<string, string> = {
   draft: "Rascunho",
@@ -38,7 +38,7 @@ export default async function PublicationDetailPage({ params }: { params: Promis
   const [{ data: publication, error }, { data: media }] = await Promise.all([
     supabase
       .from("publications")
-      .select("id,campaign_id,network,type,status,caption,scheduled_at,published_at,error_message,created_at,updated_at")
+      .select("id,campaign_id,network,type,status,caption,scheduled_at,published_at,error_message,created_at,updated_at,meta_media_id,meta_post_id")
       .eq("id", id)
       .maybeSingle(),
     supabase
@@ -56,6 +56,8 @@ export default async function PublicationDetailPage({ params }: { params: Promis
 
   const editable = canEdit(profile.role) && ["draft", "scheduled", "error", "cancelled"].includes(publication.status);
   const canDelete = canEdit(profile.role) && ["draft", "error", "cancelled"].includes(publication.status);
+  const canPublishNow = canEdit(profile.role) && ["draft", "scheduled", "error"].includes(publication.status);
+  const supportedNow = (publication.network === "instagram" && ["feed", "story"].includes(publication.type)) || (publication.network === "facebook" && publication.type === "feed");
 
   return (
     <>
@@ -110,6 +112,23 @@ export default async function PublicationDetailPage({ params }: { params: Promis
             </label>
             {editable && <button className="btn primary" type="submit">Salvar alterações</button>}
           </form>
+
+          <div className="card" style={{ padding: 14, marginTop: 16 }}>
+            <strong>Publicação na Meta</strong>
+            <div className="muted" style={{ marginTop: 7 }}>
+              Neste bloco: Instagram Feed/Story com imagem e Facebook Feed com imagem. Carrossel, Reel e Facebook Story entram no próximo bloco.
+            </div>
+            {canPublishNow && supportedNow && (
+              <form action={publishNowAction} style={{ marginTop: 10 }}>
+                <input type="hidden" name="id" value={publication.id} />
+                <button className="btn primary" type="submit">Publicar agora</button>
+              </form>
+            )}
+            {canPublishNow && !supportedNow && <div className="muted" style={{ marginTop: 10 }}>Esta combinação ainda não é publicável automaticamente.</div>}
+            {publication.status === "published" && (
+              <div className="muted" style={{ marginTop: 10 }}>Publicado com sucesso{publication.meta_post_id ? ` · ID ${publication.meta_post_id}` : ""}.</div>
+            )}
+          </div>
 
           <div className="card" style={{ padding: 14, marginTop: 16 }}>
             <strong>Agendamento</strong>
