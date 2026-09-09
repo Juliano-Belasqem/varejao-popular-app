@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { canEdit, requireProfile } from "@/lib/auth";
+import { publishPublication } from "@/lib/meta/publisher";
 import { createClient } from "@/lib/supabase/server";
 
 const networks = new Set(["instagram", "facebook"]);
@@ -57,6 +58,22 @@ export async function schedulePublicationAction(formData: FormData) {
     revalidatePath("/app/publicacoes");
     revalidatePath(`/app/publicacoes/${id}`);
   }
+}
+
+export async function publishNowAction(formData: FormData) {
+  const profile = await requireProfile();
+  if (!canEdit(profile.role)) return;
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  try {
+    await publishPublication(id, ["draft", "scheduled", "error"]);
+  } catch (error) {
+    console.error("manual Meta publication failed", error);
+  }
+
+  revalidatePath("/app/publicacoes");
+  revalidatePath(`/app/publicacoes/${id}`);
 }
 
 export async function returnToDraftAction(formData: FormData) {
