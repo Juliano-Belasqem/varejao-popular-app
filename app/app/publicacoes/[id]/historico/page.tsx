@@ -4,6 +4,14 @@ import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 const actionLabels: Record<string, string> = {
+  publication_created: "Publicação criada",
+  publication_updated: "Publicação atualizada",
+  publication_scheduled: "Publicação agendada",
+  publication_published: "Publicação publicada",
+  publication_error: "Falha na publicação",
+  publication_cancelled: "Publicação cancelada",
+  publication_returned_to_draft: "Retornada para rascunho",
+  publication_created_from_campaign_materials: "Criada a partir dos materiais da campanha",
   publication_bulk_cancelled: "Cancelada em lote",
   publication_bulk_deleted: "Excluída em lote",
   publication_bulk_retry: "Nova tentativa em lote",
