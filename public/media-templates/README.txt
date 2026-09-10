@@ -1,0 +1,1 @@
+Assets binários dos templates oficiais de mídia ficam neste diretório.
