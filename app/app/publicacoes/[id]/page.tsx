@@ -69,12 +69,14 @@ export default async function PublicationDetailPage({ params }: { params: Promis
   const canPublishNow = canEdit(profile.role) && ["draft", "scheduled", "error"].includes(publication.status);
   const supportedNow =
     (publication.network === "instagram" && ["feed", "story", "carousel", "reel"].includes(publication.type)) ||
-    (publication.network === "facebook" && publication.type === "feed");
+    (publication.network === "facebook" && ["feed", "story"].includes(publication.type));
 
   const carouselReady = !(publication.network === "instagram" && publication.type === "carousel") ||
     ((media?.length ?? 0) >= 2 && (media?.length ?? 0) <= 10 && (media ?? []).every((item) => item.media_type === "image"));
   const reelReady = !(publication.network === "instagram" && publication.type === "reel") ||
     ((media?.length ?? 0) === 1 && media?.[0]?.media_type === "video" && Boolean(media?.[0]?.public_url));
+  const facebookStoryReady = !(publication.network === "facebook" && publication.type === "story") ||
+    ((media?.length ?? 0) === 1 && media?.[0]?.media_type === "image" && Boolean(media?.[0]?.public_url));
 
   let availableMaterials: Array<{ name: string; path: string; url: string | null }> = [];
   if (editable && publication.campaign_id && publication.type !== "reel") {
@@ -203,7 +205,7 @@ export default async function PublicationDetailPage({ params }: { params: Promis
           <div className="card" style={{ padding: 14, marginTop: 16 }}>
             <strong>Publicação na Meta</strong>
             <div className="muted" style={{ marginTop: 7 }}>
-              Suporte atual: Instagram Feed, Story, Carrossel e Reel; Facebook Feed com imagem. Facebook Story entra no próximo bloco.
+              Suporte atual: Instagram Feed, Story, Carrossel e Reel; Facebook Feed e Story com imagem.
             </div>
             {publication.network === "instagram" && publication.type === "carousel" && !carouselReady && (
               <div className="error" style={{ marginTop: 10 }}>O carrossel precisa ter de 2 a 10 imagens e nenhuma mídia de vídeo.</div>
@@ -211,7 +213,10 @@ export default async function PublicationDetailPage({ params }: { params: Promis
             {publication.network === "instagram" && publication.type === "reel" && !reelReady && (
               <div className="error" style={{ marginTop: 10 }}>Para publicar um Reel, deixe exatamente um vídeo MP4 vinculado à publicação.</div>
             )}
-            {canPublishNow && supportedNow && carouselReady && reelReady && (
+            {publication.network === "facebook" && publication.type === "story" && !facebookStoryReady && (
+              <div className="error" style={{ marginTop: 10 }}>Para publicar um Story no Facebook, deixe exatamente uma imagem vinculada à publicação.</div>
+            )}
+            {canPublishNow && supportedNow && carouselReady && reelReady && facebookStoryReady && (
               <form action={publishNowAction} style={{ marginTop: 10 }}>
                 <input type="hidden" name="id" value={publication.id} />
                 <PublishSubmitButton />
