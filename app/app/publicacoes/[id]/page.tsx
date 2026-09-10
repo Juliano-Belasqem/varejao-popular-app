@@ -12,6 +12,7 @@ import {
   schedulePublicationAction,
 } from "../actions";
 import PublishSubmitButton from "./publish-submit-button";
+import VideoUploader from "./video-uploader";
 
 const statusLabels: Record<string, string> = {
   draft: "Rascunho",
@@ -67,11 +68,16 @@ export default async function PublicationDetailPage({ params }: { params: Promis
   const canDelete = canEdit(profile.role) && ["draft", "error", "cancelled"].includes(publication.status);
   const canPublishNow = canEdit(profile.role) && ["draft", "scheduled", "error"].includes(publication.status);
   const supportedNow =
-    (publication.network === "instagram" && ["feed", "story", "carousel"].includes(publication.type)) ||
+    (publication.network === "instagram" && ["feed", "story", "carousel", "reel"].includes(publication.type)) ||
     (publication.network === "facebook" && publication.type === "feed");
 
+  const carouselReady = !(publication.network === "instagram" && publication.type === "carousel") ||
+    ((media?.length ?? 0) >= 2 && (media?.length ?? 0) <= 10 && (media ?? []).every((item) => item.media_type === "image"));
+  const reelReady = !(publication.network === "instagram" && publication.type === "reel") ||
+    ((media?.length ?? 0) === 1 && media?.[0]?.media_type === "video" && Boolean(media?.[0]?.public_url));
+
   let availableMaterials: Array<{ name: string; path: string; url: string | null }> = [];
-  if (editable && publication.campaign_id) {
+  if (editable && publication.campaign_id && publication.type !== "reel") {
     const { data: files } = await supabase.storage
       .from("digital-materials")
       .list(publication.campaign_id, { limit: 100, sortBy: { column: "created_at", order: "desc" } });
@@ -113,12 +119,18 @@ export default async function PublicationDetailPage({ params }: { params: Promis
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 10 }}>
               {media.map((item, index) => (
                 <div key={item.id} style={{ border: "1px solid #e5e7eb", borderRadius: 14, overflow: "hidden", background: "#f8fafc" }}>
-                  <div style={{ aspectRatio: "1 / 1", display: "grid", placeItems: "center" }}>
-                    {item.public_url ? <img src={item.public_url} alt={`Material ${index + 1}`} style={{ width: "100%", height: "100%", objectFit: "contain" }} /> : <div className="empty">Prévia indisponível</div>}
+                  <div style={{ aspectRatio: item.media_type === "video" ? "9 / 16" : "1 / 1", display: "grid", placeItems: "center", background: "#0f172a" }}>
+                    {item.public_url && item.media_type === "video" ? (
+                      <video src={item.public_url} controls preload="metadata" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                    ) : item.public_url ? (
+                      <img src={item.public_url} alt={`Material ${index + 1}`} style={{ width: "100%", height: "100%", objectFit: "contain", background: "#f8fafc" }} />
+                    ) : (
+                      <div className="empty">Prévia indisponível</div>
+                    )}
                   </div>
                   <div style={{ padding: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                    <span className="pill">{index + 1}º</span>
-                    {editable && (media?.length ?? 0) > 1 && (
+                    <span className="pill">{index + 1}º · {item.media_type === "video" ? "Vídeo" : "Imagem"}</span>
+                    {editable && (
                       <form action={removePublicationMediaAction}>
                         <input type="hidden" name="id" value={publication.id} />
                         <input type="hidden" name="media_id" value={item.id} />
@@ -131,7 +143,11 @@ export default async function PublicationDetailPage({ params }: { params: Promis
             </div>
           )}
 
-          {editable && publication.campaign_id && (
+          {editable && publication.type === "reel" && (
+            <VideoUploader publicationId={publication.id} campaignId={publication.campaign_id} />
+          )}
+
+          {editable && publication.campaign_id && publication.type !== "reel" && (
             <div className="card" style={{ padding: 14, marginTop: 16 }}>
               <strong>Adicionar mídia da campanha</strong>
               <div className="muted" style={{ marginTop: 6 }}>
@@ -187,12 +203,15 @@ export default async function PublicationDetailPage({ params }: { params: Promis
           <div className="card" style={{ padding: 14, marginTop: 16 }}>
             <strong>Publicação na Meta</strong>
             <div className="muted" style={{ marginTop: 7 }}>
-              Suporte atual: Instagram Feed, Story e Carrossel com imagens; Facebook Feed com imagem. Reel e Facebook Story entram no próximo bloco.
+              Suporte atual: Instagram Feed, Story, Carrossel e Reel; Facebook Feed com imagem. Facebook Story entra no próximo bloco.
             </div>
-            {publication.network === "instagram" && publication.type === "carousel" && (media?.length ?? 0) < 2 && (
-              <div className="error" style={{ marginTop: 10 }}>Adicione pelo menos 2 imagens antes de publicar o carrossel.</div>
+            {publication.network === "instagram" && publication.type === "carousel" && !carouselReady && (
+              <div className="error" style={{ marginTop: 10 }}>O carrossel precisa ter de 2 a 10 imagens e nenhuma mídia de vídeo.</div>
             )}
-            {canPublishNow && supportedNow && !(publication.network === "instagram" && publication.type === "carousel" && (media?.length ?? 0) < 2) && (
+            {publication.network === "instagram" && publication.type === "reel" && !reelReady && (
+              <div className="error" style={{ marginTop: 10 }}>Para publicar um Reel, deixe exatamente um vídeo MP4 vinculado à publicação.</div>
+            )}
+            {canPublishNow && supportedNow && carouselReady && reelReady && (
               <form action={publishNowAction} style={{ marginTop: 10 }}>
                 <input type="hidden" name="id" value={publication.id} />
                 <PublishSubmitButton />
