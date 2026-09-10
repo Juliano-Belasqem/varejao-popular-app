@@ -14,24 +14,41 @@ function safeName(value: string) {
     .slice(0, 100) || "arquivo";
 }
 
+function uploadRules(network: string, type: string) {
+  if (network === "instagram") {
+    if (type === "carousel") return { accept: "image/*", multiple: true, maxItems: 10, allowImage: true, allowVideo: false, help: "Use de 2 a 10 imagens no carrossel do Instagram." };
+    if (type === "reel") return { accept: "video/mp4,.mp4", multiple: false, maxItems: 1, allowImage: false, allowVideo: true, help: "Use exatamente 1 vídeo MP4 no Reel do Instagram." };
+    return { accept: "image/*", multiple: false, maxItems: 1, allowImage: true, allowVideo: false, help: `Use exatamente 1 imagem no ${type === "story" ? "Story" : "Feed"} do Instagram.` };
+  }
+
+  if (type === "story") return { accept: "image/*,video/mp4,.mp4", multiple: false, maxItems: 1, allowImage: true, allowVideo: true, help: "Use exatamente 1 imagem ou 1 vídeo MP4 no Story do Facebook." };
+  if (type === "reel") return { accept: "video/mp4,.mp4", multiple: false, maxItems: 1, allowImage: false, allowVideo: true, help: "Use exatamente 1 vídeo MP4 no Reel do Facebook." };
+  return { accept: "image/*", multiple: false, maxItems: 1, allowImage: true, allowVideo: false, help: "Use exatamente 1 imagem no Feed do Facebook." };
+}
+
 export default function DirectMediaUploader({
   publicationId,
   campaignId,
   currentCount,
+  network,
+  type,
 }: {
   publicationId: string;
   campaignId: string | null;
   currentCount: number;
+  network: string;
+  type: string;
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const rules = uploadRules(network, type);
 
   async function uploadFiles(files: File[]) {
     if (!files.length) return;
-    if (currentCount + files.length > 10) {
-      setMessage("Uma publicação pode ter no máximo 10 mídias neste fluxo.");
+    if (currentCount + files.length > rules.maxItems) {
+      setMessage(rules.help);
       return;
     }
 
@@ -45,7 +62,10 @@ export default function DirectMediaUploader({
         const file = files[index];
         const isVideo = file.type === "video/mp4" || file.name.toLowerCase().endsWith(".mp4");
         const isImage = file.type.startsWith("image/");
-        if (!isVideo && !isImage) throw new Error("Use imagens ou vídeo MP4.");
+
+        if (isVideo && !rules.allowVideo) throw new Error("Este tipo de publicação aceita apenas imagem.");
+        if (isImage && !rules.allowImage) throw new Error("Este tipo de publicação aceita apenas vídeo MP4.");
+        if (!isVideo && !isImage) throw new Error("Formato de arquivo não suportado para esta publicação.");
 
         if (isVideo && file.size > 50 * 1024 * 1024) throw new Error("Vídeos devem ter até 50 MB neste fluxo.");
         if (isImage && file.size > 10 * 1024 * 1024) throw new Error("Imagens devem ter até 10 MB cada.");
@@ -96,16 +116,14 @@ export default function DirectMediaUploader({
   return (
     <div className="card" style={{ padding: 14, marginTop: 16 }}>
       <strong>Enviar mídia</strong>
-      <div className="muted" style={{ marginTop: 6 }}>
-        Envie imagens para Feed, Story ou Carrossel. Vídeos MP4 podem ser usados em Reel e em Story do Facebook. Carrosséis aceitam múltiplas imagens.
-      </div>
+      <div className="muted" style={{ marginTop: 6 }}>{rules.help}</div>
       <input
         ref={inputRef}
         className="input"
         type="file"
-        accept="image/*,video/mp4,.mp4"
-        multiple
-        disabled={busy || currentCount >= 10}
+        accept={rules.accept}
+        multiple={rules.multiple}
+        disabled={busy || currentCount >= rules.maxItems}
         style={{ marginTop: 10 }}
         onChange={(event) => {
           const files = Array.from(event.target.files ?? []);
@@ -115,7 +133,7 @@ export default function DirectMediaUploader({
       {busy && <div className="muted" style={{ marginTop: 8 }}>Enviando... não feche esta página.</div>}
       {message && <div className="muted" style={{ marginTop: 8 }}>{message}</div>}
       <div className="muted" style={{ marginTop: 6, fontSize: 12 }}>
-        Limites atuais: 10 MB por imagem · 50 MB por vídeo · até 10 mídias por publicação.
+        Limites atuais: 10 MB por imagem · 50 MB por vídeo.
       </div>
     </div>
   );
