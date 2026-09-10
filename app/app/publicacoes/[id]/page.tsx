@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { canEdit, requireProfile } from "@/lib/auth";
+import { validatePublicationMedia } from "@/lib/publications/validation";
 import { createClient } from "@/lib/supabase/server";
 import {
   addPublicationMediaAction,
@@ -67,16 +68,7 @@ export default async function PublicationDetailPage({ params }: { params: Promis
   const editable = canEdit(profile.role) && ["draft", "scheduled", "error", "cancelled"].includes(publication.status);
   const canDelete = canEdit(profile.role) && ["draft", "error", "cancelled"].includes(publication.status);
   const canPublishNow = canEdit(profile.role) && ["draft", "scheduled", "error"].includes(publication.status);
-  const supportedNow =
-    (publication.network === "instagram" && ["feed", "story", "carousel", "reel"].includes(publication.type)) ||
-    (publication.network === "facebook" && ["feed", "story"].includes(publication.type));
-
-  const carouselReady = !(publication.network === "instagram" && publication.type === "carousel") ||
-    ((media?.length ?? 0) >= 2 && (media?.length ?? 0) <= 10 && (media ?? []).every((item) => item.media_type === "image"));
-  const reelReady = !(publication.network === "instagram" && publication.type === "reel") ||
-    ((media?.length ?? 0) === 1 && media?.[0]?.media_type === "video" && Boolean(media?.[0]?.public_url));
-  const facebookStoryReady = !(publication.network === "facebook" && publication.type === "story") ||
-    ((media?.length ?? 0) === 1 && media?.[0]?.media_type === "image" && Boolean(media?.[0]?.public_url));
+  const validation = validatePublicationMedia(publication, media ?? []);
 
   let availableMaterials: Array<{ name: string; path: string; url: string | null }> = [];
   if (editable && publication.campaign_id && publication.type !== "reel") {
@@ -113,6 +105,7 @@ export default async function PublicationDetailPage({ params }: { params: Promis
               <h2 style={{ margin: 0 }}>Conteúdo</h2>
               <div className="muted">{media?.length ?? 0} mídia(s) vinculada(s)</div>
             </div>
+            <span className="pill">{validation.ok ? "Mídia pronta" : "Mídia pendente"}</span>
           </div>
 
           {!media?.length ? (
@@ -144,6 +137,8 @@ export default async function PublicationDetailPage({ params }: { params: Promis
               ))}
             </div>
           )}
+
+          {!validation.ok && <div className="error" style={{ marginTop: 12 }}>{validation.message}</div>}
 
           {editable && publication.type === "reel" && (
             <VideoUploader publicationId={publication.id} campaignId={publication.campaign_id} />
@@ -207,22 +202,15 @@ export default async function PublicationDetailPage({ params }: { params: Promis
             <div className="muted" style={{ marginTop: 7 }}>
               Suporte atual: Instagram Feed, Story, Carrossel e Reel; Facebook Feed e Story com imagem.
             </div>
-            {publication.network === "instagram" && publication.type === "carousel" && !carouselReady && (
-              <div className="error" style={{ marginTop: 10 }}>O carrossel precisa ter de 2 a 10 imagens e nenhuma mídia de vídeo.</div>
-            )}
-            {publication.network === "instagram" && publication.type === "reel" && !reelReady && (
-              <div className="error" style={{ marginTop: 10 }}>Para publicar um Reel, deixe exatamente um vídeo MP4 vinculado à publicação.</div>
-            )}
-            {publication.network === "facebook" && publication.type === "story" && !facebookStoryReady && (
-              <div className="error" style={{ marginTop: 10 }}>Para publicar um Story no Facebook, deixe exatamente uma imagem vinculada à publicação.</div>
-            )}
-            {canPublishNow && supportedNow && carouselReady && reelReady && facebookStoryReady && (
+            <div className={validation.ok ? "muted" : "error"} style={{ marginTop: 10 }}>
+              {validation.message}
+            </div>
+            {canPublishNow && validation.ok && (
               <form action={publishNowAction} style={{ marginTop: 10 }}>
                 <input type="hidden" name="id" value={publication.id} />
                 <PublishSubmitButton />
               </form>
             )}
-            {canPublishNow && !supportedNow && <div className="muted" style={{ marginTop: 10 }}>Esta combinação ainda não é publicável automaticamente.</div>}
             {publication.status === "published" && (
               <div className="muted" style={{ marginTop: 10 }}>Publicado com sucesso{publication.meta_post_id ? ` · ID ${publication.meta_post_id}` : ""}.</div>
             )}
@@ -237,7 +225,8 @@ export default async function PublicationDetailPage({ params }: { params: Promis
                   <span>Data e hora (horário de Brasília)</span>
                   <input className="input" type="datetime-local" name="scheduled_at" defaultValue={dateTimeLocal(publication.scheduled_at)} required />
                 </label>
-                <button className="btn" type="submit">{publication.status === "scheduled" ? "Atualizar agendamento" : "Agendar publicação"}</button>
+                <button className="btn" type="submit" disabled={!validation.ok}>{publication.status === "scheduled" ? "Atualizar agendamento" : "Agendar publicação"}</button>
+                {!validation.ok && <div className="muted" style={{ fontSize: 12 }}>Corrija a mídia antes de agendar.</div>}
               </form>
             ) : (
               <div className="muted" style={{ marginTop: 8 }}>Esta publicação não pode mais ser reagendada.</div>
