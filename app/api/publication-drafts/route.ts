@@ -12,6 +12,13 @@ function safePathPart(value: string) {
     .slice(0, 120) || "material.png";
 }
 
+function materialType(materialPath: string, requestedType: string) {
+  const filename = (materialPath.split("/").pop() || "").toLowerCase();
+  if (filename.includes("-story.")) return "story";
+  if (filename.includes("-feed.")) return "feed";
+  return requestedType;
+}
+
 export async function POST(request: Request) {
   try {
     const profile = await requireProfile();
@@ -30,7 +37,8 @@ export async function POST(request: Request) {
     const campaignId = String(body?.campaign_id ?? "").trim();
     const materialPath = String(body?.material_path ?? "").trim();
     const network = String(body?.network ?? "instagram").trim();
-    const type = String(body?.type ?? "feed").trim();
+    const requestedType = String(body?.type ?? "feed").trim();
+    const type = materialType(materialPath, requestedType);
     const caption = String(body?.caption ?? "").trim() || null;
 
     if (!campaignId || !materialPath) {
