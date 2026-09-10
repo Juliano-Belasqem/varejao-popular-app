@@ -1,4 +1,5 @@
 import { Sidebar } from "@/components/sidebar";
+import { MetaTokenAlert } from "@/components/meta-token-alert";
 import { requireProfile } from "@/lib/auth";
 
 export default async function AppLayout({
@@ -11,7 +12,10 @@ export default async function AppLayout({
   return (
     <div className="shell">
       <Sidebar profile={profile} />
-      <main className="main">{children}</main>
+      <main className="main">
+        <MetaTokenAlert />
+        {children}
+      </main>
     </div>
   );
 }
