@@ -204,8 +204,32 @@ async function publishFacebook(publication: Publication, media: Media[]) {
   }
 
   if (publication.type === "story") {
+    const item = media[0];
+
+    if (item.media_type === "video") {
+      const start = await graphPost(`${pageId}/video_stories`, {
+        upload_phase: "start",
+        access_token: token,
+      });
+      const videoId = String(start.video_id || "");
+      const uploadUrl = String(start.upload_url || "");
+      if (!videoId || !uploadUrl) throw new Error("A Meta não retornou a sessão de upload do Story de vídeo do Facebook.");
+
+      await uploadHostedFacebookVideo(uploadUrl, item.public_url!, token);
+
+      const finish = await graphPost(`${pageId}/video_stories`, {
+        upload_phase: "finish",
+        video_id: videoId,
+        video_state: "PUBLISHED",
+        description: publication.caption || "",
+        access_token: token,
+      });
+      if (finish.success === false) throw new Error("A Meta não confirmou a publicação do Story de vídeo do Facebook.");
+      return { mediaId: videoId, postId: String(finish.post_id || finish.id || videoId) };
+    }
+
     const photo = await graphPost(`${pageId}/photos`, {
-      url: media[0].public_url!,
+      url: item.public_url!,
       published: "false",
       access_token: token,
     });
