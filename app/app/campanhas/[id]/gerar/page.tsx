@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import GeneratorClientOptimized from "./generator-client-optimized";
+import OfficialTemplateGenerator from "./official-template-generator";
 
 export default async function DigitalGeneratorPage({ params }: { params: Promise<{ id: string }> }) {
   await requireProfile();
@@ -38,7 +39,17 @@ export default async function DigitalGeneratorPage({ params }: { params: Promise
       {itemsError ? (
         <div className="error">Não foi possível carregar os itens da campanha.</div>
       ) : (
-        <GeneratorClientOptimized campaign={campaign} items={items ?? []} />
+        <>
+          <OfficialTemplateGenerator campaign={campaign} items={items ?? []} />
+
+          <details className="card">
+            <summary style={{ cursor: "pointer", fontWeight: 800 }}>Abrir gerador legado / peças compostas</summary>
+            <div className="muted" style={{ margin: "8px 0 16px" }}>
+              Mantido para artes com 2 ou 4 produtos enquanto essas variações são adaptadas ao novo layout oficial.
+            </div>
+            <GeneratorClientOptimized campaign={campaign} items={items ?? []} />
+          </details>
+        </>
       )}
     </>
   );
