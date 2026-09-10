@@ -12,6 +12,7 @@ import {
   savePublicationAction,
   schedulePublicationAction,
 } from "../actions";
+import { duplicatePublicationAction } from "../duplicate-action";
 import PublishSubmitButton from "./publish-submit-button";
 import VideoUploader from "./video-uploader";
 
@@ -95,7 +96,15 @@ export default async function PublicationDetailPage({ params }: { params: Promis
           <h1 style={{ marginTop: 8 }}>Editar publicação</h1>
           <div className="muted">{campaign?.name ?? "Sem campanha"}</div>
         </div>
-        <span className="pill">{statusLabels[publication.status] ?? publication.status}</span>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
+          {canEdit(profile.role) && (
+            <form action={duplicatePublicationAction}>
+              <input type="hidden" name="id" value={publication.id} />
+              <button className="btn" type="submit">Duplicar publicação</button>
+            </form>
+          )}
+          <span className="pill">{statusLabels[publication.status] ?? publication.status}</span>
+        </div>
       </header>
 
       <div className="grid" style={{ alignItems: "start" }}>
@@ -200,7 +209,7 @@ export default async function PublicationDetailPage({ params }: { params: Promis
           <div className="card" style={{ padding: 14, marginTop: 16 }}>
             <strong>Publicação na Meta</strong>
             <div className="muted" style={{ marginTop: 7 }}>
-              Suporte atual: Instagram Feed, Story, Carrossel e Reel; Facebook Feed e Story com imagem.
+              Suporte atual: Instagram Feed, Story, Carrossel e Reel; Facebook Feed, Story com imagem e Reel com vídeo.
             </div>
             <div className={validation.ok ? "muted" : "error"} style={{ marginTop: 10 }}>
               {validation.message}
