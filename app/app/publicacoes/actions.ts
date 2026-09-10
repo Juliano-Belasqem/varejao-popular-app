@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { canEdit, requireProfile } from "@/lib/auth";
 import { publishPublication } from "@/lib/meta/publisher";
+import { validatePublicationMedia } from "@/lib/publications/validation";
 import { createClient } from "@/lib/supabase/server";
 
 const networks = new Set(["instagram", "facebook"]);
@@ -179,6 +180,23 @@ export async function schedulePublicationAction(formData: FormData) {
   if (!id || !scheduledAt || new Date(scheduledAt).getTime() <= Date.now()) return;
 
   const supabase = await createClient();
+  const [{ data: publication }, { data: media }] = await Promise.all([
+    supabase.from("publications").select("network,type,status").eq("id", id).maybeSingle(),
+    supabase.from("publication_media").select("media_type,public_url").eq("publication_id", id),
+  ]);
+
+  if (!publication || !["draft", "scheduled", "error", "cancelled"].includes(publication.status)) return;
+
+  const validation = validatePublicationMedia(publication, media ?? []);
+  if (!validation.ok) {
+    await supabase
+      .from("publications")
+      .update({ error_message: `Não foi possível agendar: ${validation.message}`, updated_by: profile.id, updated_at: new Date().toISOString() })
+      .eq("id", id);
+    revalidatePath(`/app/publicacoes/${id}`);
+    return;
+  }
+
   const { error } = await supabase
     .from("publications")
     .update({ status: "scheduled", scheduled_at: scheduledAt, error_message: null, updated_by: profile.id, updated_at: new Date().toISOString() })
