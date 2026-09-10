@@ -209,6 +209,41 @@ export async function schedulePublicationAction(formData: FormData) {
   }
 }
 
+export async function cancelScheduledPublicationAction(formData: FormData) {
+  const profile = await requireProfile();
+  if (!canEdit(profile.role)) return;
+
+  const id = String(formData.get("id") ?? "").trim();
+  if (!id) return;
+
+  const supabase = await createClient();
+  await supabase
+    .from("publications")
+    .update({ status: "cancelled", scheduled_at: null, error_message: null, updated_by: profile.id, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("status", "scheduled");
+
+  revalidatePath("/app/publicacoes");
+  revalidatePath(`/app/publicacoes/${id}`);
+}
+
+export async function retryPublicationAction(formData: FormData) {
+  const profile = await requireProfile();
+  if (!canEdit(profile.role)) return;
+
+  const id = String(formData.get("id") ?? "").trim();
+  if (!id) return;
+
+  try {
+    await publishPublication(id, ["error"]);
+  } catch (error) {
+    console.error("retry Meta publication failed", error);
+  }
+
+  revalidatePath("/app/publicacoes");
+  revalidatePath(`/app/publicacoes/${id}`);
+}
+
 export async function publishNowAction(formData: FormData) {
   const profile = await requireProfile();
   if (!canEdit(profile.role)) return;
