@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { processDuePublications } from "@/lib/meta/publisher";
+import { recordMetaTokenAlert } from "@/lib/meta/token-alerts";
 import { getMetaTokenHealth } from "@/lib/meta/token-health";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,7 @@ export async function GET(request: Request) {
 
   try {
     const tokenHealth = await getMetaTokenHealth();
+    await recordMetaTokenAlert(tokenHealth);
 
     if (tokenHealth.available && tokenHealth.valid === false) {
       return NextResponse.json(
