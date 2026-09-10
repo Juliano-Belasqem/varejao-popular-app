@@ -2,6 +2,7 @@ import Link from "next/link";
 import { canEdit, requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { createIndependentPublicationAction } from "../actions";
+import TargetFields from "./target-fields";
 
 export default async function NewPublicationPage() {
   const profile = await requireProfile();
@@ -27,30 +28,14 @@ export default async function NewPublicationPage() {
       <section className="card" style={{ maxWidth: 760 }}>
         <h2 style={{ marginTop: 0 }}>Configuração inicial</h2>
         <div className="muted" style={{ marginBottom: 16 }}>
-          Depois de criar o rascunho, você poderá enviar imagens ou vídeo, revisar a publicação, publicar na hora ou agendar.
+          Depois de criar o rascunho, você poderá enviar a mídia compatível, revisar a publicação, publicar na hora ou agendar.
         </div>
 
         {!editable ? (
           <div className="error">Seu perfil não possui permissão para criar publicações.</div>
         ) : (
           <form action={createIndependentPublicationAction} className="form">
-            <label className="field">
-              <span>Rede</span>
-              <select className="input" name="network" defaultValue="instagram" required>
-                <option value="instagram">Instagram</option>
-                <option value="facebook">Facebook</option>
-              </select>
-            </label>
-
-            <label className="field">
-              <span>Tipo</span>
-              <select className="input" name="type" defaultValue="feed" required>
-                <option value="feed">Feed</option>
-                <option value="story">Story</option>
-                <option value="carousel">Carrossel</option>
-                <option value="reel">Reel</option>
-              </select>
-            </label>
+            <TargetFields />
 
             <label className="field">
               <span>Campanha (opcional)</span>
