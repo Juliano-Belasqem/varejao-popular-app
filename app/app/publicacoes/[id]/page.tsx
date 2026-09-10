@@ -70,6 +70,8 @@ export default async function PublicationDetailPage({ params }: { params: Promis
   const canDelete = canEdit(profile.role) && ["draft", "error", "cancelled"].includes(publication.status);
   const canPublishNow = canEdit(profile.role) && ["draft", "scheduled", "error"].includes(publication.status);
   const validation = validatePublicationMedia(publication, media ?? []);
+  const videoPurpose = publication.type === "reel" ? "Reel" : "Story";
+  const canUploadVideoHere = editable && (publication.type === "reel" || (publication.network === "facebook" && publication.type === "story"));
 
   let availableMaterials: Array<{ name: string; path: string; url: string | null }> = [];
   if (editable && publication.campaign_id && publication.type !== "reel") {
@@ -114,7 +116,10 @@ export default async function PublicationDetailPage({ params }: { params: Promis
               <h2 style={{ margin: 0 }}>Conteúdo</h2>
               <div className="muted">{media?.length ?? 0} mídia(s) vinculada(s)</div>
             </div>
-            <span className="pill">{validation.ok ? "Mídia pronta" : "Mídia pendente"}</span>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              {editable && <Link className="btn" href={`/app/publicacoes/${publication.id}/midia`}>Adicionar mídia</Link>}
+              <span className="pill">{validation.ok ? "Mídia pronta" : "Mídia pendente"}</span>
+            </div>
           </div>
 
           {!media?.length ? (
@@ -149,8 +154,8 @@ export default async function PublicationDetailPage({ params }: { params: Promis
 
           {!validation.ok && <div className="error" style={{ marginTop: 12 }}>{validation.message}</div>}
 
-          {editable && publication.type === "reel" && (
-            <VideoUploader publicationId={publication.id} campaignId={publication.campaign_id} />
+          {canUploadVideoHere && (
+            <VideoUploader publicationId={publication.id} campaignId={publication.campaign_id} purpose={videoPurpose} />
           )}
 
           {editable && publication.campaign_id && publication.type !== "reel" && (
@@ -209,7 +214,7 @@ export default async function PublicationDetailPage({ params }: { params: Promis
           <div className="card" style={{ padding: 14, marginTop: 16 }}>
             <strong>Publicação na Meta</strong>
             <div className="muted" style={{ marginTop: 7 }}>
-              Suporte atual: Instagram Feed, Story, Carrossel e Reel; Facebook Feed, Story com imagem e Reel com vídeo.
+              Suporte atual: Instagram Feed, Story, Carrossel e Reel; Facebook Feed, Story com imagem ou vídeo e Reel com vídeo.
             </div>
             <div className={validation.ok ? "muted" : "error"} style={{ marginTop: 10 }}>
               {validation.message}
