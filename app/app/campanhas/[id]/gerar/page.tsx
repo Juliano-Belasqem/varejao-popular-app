@@ -29,7 +29,10 @@ export default async function DigitalGeneratorPage({ params }: { params: Promise
           <h1 style={{ marginTop: 8 }}>Gerar material digital</h1>
           <div className="muted">{campaign.name}</div>
         </div>
-        <span className="pill">PNG + Publicações</span>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <Link className="btn primary" href={`/app/campanhas/${campaign.id}/publicar`}>Montar publicação</Link>
+          <span className="pill">PNG + Publicações</span>
+        </div>
       </header>
 
       {itemsError ? (
