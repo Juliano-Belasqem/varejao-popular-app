@@ -51,10 +51,47 @@ async function publishInstagram(publication: Publication, media: Media[]) {
   const igUserId = requireEnv("META_INSTAGRAM_USER_ID");
   const token = requireEnv("META_PAGE_ACCESS_TOKEN");
 
-  if (publication.type === "carousel" || publication.type === "reel") {
-    throw new Error("Carrossel e Reel entram no próximo bloco da integração Meta.");
+  if (publication.type === "reel") {
+    throw new Error("Reel exige mídia de vídeo e entra no próximo bloco da integração Meta.");
   }
-  if (media.length !== 1 || !media[0]?.public_url) {
+
+  if (publication.type === "carousel") {
+    const validMedia = media.filter((item) => item.media_type === "image" && item.public_url);
+    if (validMedia.length < 2 || validMedia.length > 10 || validMedia.length !== media.length) {
+      throw new Error("O carrossel do Instagram precisa ter de 2 a 10 imagens públicas válidas.");
+    }
+
+    const childIds: string[] = [];
+    for (const item of validMedia) {
+      const child = await graphPost(`${igUserId}/media`, {
+        image_url: item.public_url!,
+        is_carousel_item: "true",
+        access_token: token,
+      });
+      const childId = String(child.id || "");
+      if (!childId) throw new Error("A Meta não retornou o ID de uma imagem do carrossel.");
+      childIds.push(childId);
+    }
+
+    const carousel = await graphPost(`${igUserId}/media`, {
+      media_type: "CAROUSEL",
+      children: childIds.join(","),
+      caption: publication.caption || "",
+      access_token: token,
+    });
+    const creationId = String(carousel.id || "");
+    if (!creationId) throw new Error("A Meta não retornou o ID do container do carrossel.");
+
+    const published = await graphPost(`${igUserId}/media_publish`, {
+      creation_id: creationId,
+      access_token: token,
+    });
+    const mediaId = String(published.id || "");
+    if (!mediaId) throw new Error("A Meta não retornou o ID do carrossel publicado.");
+    return { mediaId, postId: mediaId };
+  }
+
+  if (media.length !== 1 || !media[0]?.public_url || media[0].media_type !== "image") {
     throw new Error("A publicação precisa de uma única imagem pública válida.");
   }
 

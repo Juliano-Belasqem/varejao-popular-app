@@ -2,7 +2,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { canEdit, requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { deleteDraftAction, publishNowAction, returnToDraftAction, savePublicationAction, schedulePublicationAction } from "../actions";
+import {
+  addPublicationMediaAction,
+  deleteDraftAction,
+  publishNowAction,
+  removePublicationMediaAction,
+  returnToDraftAction,
+  savePublicationAction,
+  schedulePublicationAction,
+} from "../actions";
 
 const statusLabels: Record<string, string> = {
   draft: "Rascunho",
@@ -57,7 +65,26 @@ export default async function PublicationDetailPage({ params }: { params: Promis
   const editable = canEdit(profile.role) && ["draft", "scheduled", "error", "cancelled"].includes(publication.status);
   const canDelete = canEdit(profile.role) && ["draft", "error", "cancelled"].includes(publication.status);
   const canPublishNow = canEdit(profile.role) && ["draft", "scheduled", "error"].includes(publication.status);
-  const supportedNow = (publication.network === "instagram" && ["feed", "story"].includes(publication.type)) || (publication.network === "facebook" && publication.type === "feed");
+  const supportedNow =
+    (publication.network === "instagram" && ["feed", "story", "carousel"].includes(publication.type)) ||
+    (publication.network === "facebook" && publication.type === "feed");
+
+  let availableMaterials: Array<{ name: string; path: string; url: string | null }> = [];
+  if (editable && publication.campaign_id) {
+    const { data: files } = await supabase.storage
+      .from("digital-materials")
+      .list(publication.campaign_id, { limit: 100, sortBy: { column: "created_at", order: "desc" } });
+
+    availableMaterials = await Promise.all(
+      (files ?? [])
+        .filter((file) => file.name.toLowerCase().endsWith(".png"))
+        .map(async (file) => {
+          const path = `${publication.campaign_id}/${file.name}`;
+          const { data } = await supabase.storage.from("digital-materials").createSignedUrl(path, 1800);
+          return { name: file.name, path, url: data?.signedUrl ?? null };
+        }),
+    );
+  }
 
   return (
     <>
@@ -72,16 +99,59 @@ export default async function PublicationDetailPage({ params }: { params: Promis
 
       <div className="grid" style={{ alignItems: "start" }}>
         <section className="card">
-          <h2 style={{ marginTop: 0 }}>Conteúdo</h2>
+          <div className="page-head" style={{ marginBottom: 12 }}>
+            <div>
+              <h2 style={{ margin: 0 }}>Conteúdo</h2>
+              <div className="muted">{media?.length ?? 0} mídia(s) vinculada(s)</div>
+            </div>
+          </div>
+
           {!media?.length ? (
             <div className="empty">Nenhuma mídia vinculada.</div>
           ) : (
-            <div style={{ display: "grid", gap: 10 }}>
-              {media.map((item) => (
-                <div key={item.id} style={{ borderRadius: 14, overflow: "hidden", background: "#f8fafc" }}>
-                  {item.public_url ? <img src={item.public_url} alt="Material da publicação" style={{ width: "100%", display: "block", maxHeight: 620, objectFit: "contain" }} /> : <div className="empty">Prévia indisponível</div>}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 10 }}>
+              {media.map((item, index) => (
+                <div key={item.id} style={{ border: "1px solid #e5e7eb", borderRadius: 14, overflow: "hidden", background: "#f8fafc" }}>
+                  <div style={{ aspectRatio: "1 / 1", display: "grid", placeItems: "center" }}>
+                    {item.public_url ? <img src={item.public_url} alt={`Material ${index + 1}`} style={{ width: "100%", height: "100%", objectFit: "contain" }} /> : <div className="empty">Prévia indisponível</div>}
+                  </div>
+                  <div style={{ padding: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                    <span className="pill">{index + 1}º</span>
+                    {editable && (media?.length ?? 0) > 1 && (
+                      <form action={removePublicationMediaAction}>
+                        <input type="hidden" name="id" value={publication.id} />
+                        <input type="hidden" name="media_id" value={item.id} />
+                        <button className="btn" type="submit">Remover</button>
+                      </form>
+                    )}
+                  </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {editable && publication.campaign_id && (
+            <div className="card" style={{ padding: 14, marginTop: 16 }}>
+              <strong>Adicionar mídia da campanha</strong>
+              <div className="muted" style={{ marginTop: 6 }}>
+                Para carrossel do Instagram, use de 2 a 10 imagens. A ordem segue a sequência em que você adiciona as mídias.
+              </div>
+              {!availableMaterials.length ? (
+                <div className="empty" style={{ marginTop: 10 }}>Nenhum material salvo disponível nesta campanha.</div>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 10, marginTop: 12 }}>
+                  {availableMaterials.map((material) => (
+                    <form key={material.path} action={addPublicationMediaAction} style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 8 }}>
+                      <input type="hidden" name="id" value={publication.id} />
+                      <input type="hidden" name="material_path" value={material.path} />
+                      <div style={{ aspectRatio: "1 / 1", borderRadius: 8, overflow: "hidden", background: "#f8fafc", display: "grid", placeItems: "center" }}>
+                        {material.url ? <img src={material.url} alt={material.name} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "contain" }} /> : <span className="muted">Sem prévia</span>}
+                      </div>
+                      <button className="btn" type="submit" style={{ width: "100%", marginTop: 8 }} disabled={(media?.length ?? 0) >= 10}>Adicionar</button>
+                    </form>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </section>
@@ -116,9 +186,12 @@ export default async function PublicationDetailPage({ params }: { params: Promis
           <div className="card" style={{ padding: 14, marginTop: 16 }}>
             <strong>Publicação na Meta</strong>
             <div className="muted" style={{ marginTop: 7 }}>
-              Neste bloco: Instagram Feed/Story com imagem e Facebook Feed com imagem. Carrossel, Reel e Facebook Story entram no próximo bloco.
+              Suporte atual: Instagram Feed, Story e Carrossel com imagens; Facebook Feed com imagem. Reel e Facebook Story entram no próximo bloco.
             </div>
-            {canPublishNow && supportedNow && (
+            {publication.network === "instagram" && publication.type === "carousel" && (media?.length ?? 0) < 2 && (
+              <div className="error" style={{ marginTop: 10 }}>Adicione pelo menos 2 imagens antes de publicar o carrossel.</div>
+            )}
+            {canPublishNow && supportedNow && !(publication.network === "instagram" && publication.type === "carousel" && (media?.length ?? 0) < 2) && (
               <form action={publishNowAction} style={{ marginTop: 10 }}>
                 <input type="hidden" name="id" value={publication.id} />
                 <button className="btn primary" type="submit">Publicar agora</button>
