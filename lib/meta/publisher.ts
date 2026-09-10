@@ -177,10 +177,31 @@ async function publishFacebook(publication: Publication, media: Media[]) {
   const pageId = requireEnv("META_FACEBOOK_PAGE_ID");
   const token = requireEnv("META_PAGE_ACCESS_TOKEN");
 
-  if (publication.type !== "feed") {
-    throw new Error("Neste bloco, o Facebook suporta publicação de imagem no Feed. Story, Carrossel e Reel entram depois.");
+  if (publication.type === "story") {
+    if (media.length !== 1 || media[0]?.media_type !== "image" || !media[0]?.public_url) {
+      throw new Error("O Story do Facebook precisa ter exatamente uma imagem pública válida.");
+    }
+
+    const photo = await graphPost(`${pageId}/photos`, {
+      url: media[0].public_url,
+      published: "false",
+      access_token: token,
+    });
+    const photoId = String(photo.id || "");
+    if (!photoId) throw new Error("A Meta não retornou o ID da imagem preparada para o Story do Facebook.");
+
+    const story = await graphPost(`${pageId}/photo_stories`, {
+      photo_id: photoId,
+      access_token: token,
+    });
+    const postId = String(story.post_id || story.id || photoId);
+    return { mediaId: photoId, postId };
   }
-  if (media.length !== 1 || !media[0]?.public_url) {
+
+  if (publication.type !== "feed") {
+    throw new Error("No Facebook, este fluxo suporta Feed e Story com imagem. Carrossel e Reel ficam fora deste bloco.");
+  }
+  if (media.length !== 1 || media[0]?.media_type !== "image" || !media[0]?.public_url) {
     throw new Error("A publicação precisa de uma única imagem pública válida.");
   }
 
