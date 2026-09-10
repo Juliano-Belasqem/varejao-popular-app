@@ -79,6 +79,7 @@ export default async function Page() {
           <h1>Publicações</h1>
           <div className="muted">Gerencie rascunhos, agendamentos e o histórico de Instagram e Facebook.</div>
         </div>
+        <Link className="btn primary" href="/app/publicacoes/nova">+ Nova publicação</Link>
       </header>
 
       <section className="card" style={{ marginBottom: 18 }}>
@@ -113,14 +114,14 @@ export default async function Page() {
         <div className="page-head" style={{ marginBottom: 14 }}>
           <div>
             <h2 style={{ margin: 0 }}>Fila de publicações</h2>
-            <div className="muted">Os materiais criados no gerador aparecem aqui como rascunhos.</div>
+            <div className="muted">Aqui aparecem tanto materiais enviados pelo gerador quanto publicações criadas manualmente.</div>
           </div>
         </div>
 
         {error ? (
           <div className="error">Não foi possível carregar as publicações.</div>
         ) : !publications?.length ? (
-          <div className="empty">Nenhuma publicação criada ainda. Gere um material e use “Criar rascunho”.</div>
+          <div className="empty">Nenhuma publicação criada ainda. Use “Nova publicação” ou envie um material pelo gerador.</div>
         ) : (
           <div style={{ display: "grid", gap: 10 }}>
             {publications.map((publication) => {
@@ -137,7 +138,7 @@ export default async function Page() {
                         <span className="pill">{typeLabels[publication.type] ?? publication.type}</span>
                         <span className="pill">{statusLabels[publication.status] ?? publication.status}</span>
                       </div>
-                      <div style={{ fontWeight: 800, marginTop: 6 }}>{publication.campaign_id ? campaignName.get(publication.campaign_id) ?? "Campanha" : "Sem campanha"}</div>
+                      <div style={{ fontWeight: 800, marginTop: 6 }}>{publication.campaign_id ? campaignName.get(publication.campaign_id) ?? "Campanha" : "Publicação independente"}</div>
                       <div className="muted" style={{ fontSize: 12, marginTop: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{publication.caption || "Sem legenda"}</div>
                       {publication.status === "scheduled" && <div className="muted" style={{ fontSize: 12, marginTop: 3 }}>Agendada para {dateLabel(publication.scheduled_at)}</div>}
                       {publication.status === "error" && publication.error_message && <div className="error" style={{ marginTop: 5, fontSize: 12 }}>{publication.error_message}</div>}
