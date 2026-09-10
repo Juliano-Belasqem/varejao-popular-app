@@ -5,7 +5,7 @@ Aplicação interna do Varejão Popular para campanhas, materiais digitais e pub
 ## Desenvolvimento
 
 ```bash
-npm ci
+npm install
 npm run typecheck
 npm run build
 ```
