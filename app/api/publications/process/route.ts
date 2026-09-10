@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { processDuePublications } from "@/lib/meta/publisher";
+import { getMetaTokenHealth } from "@/lib/meta/token-health";
 
 export const dynamic = "force-dynamic";
 
@@ -15,8 +16,28 @@ export async function GET(request: Request) {
   }
 
   try {
+    const tokenHealth = await getMetaTokenHealth();
+
+    if (tokenHealth.available && tokenHealth.valid === false) {
+      return NextResponse.json(
+        {
+          error: "Publicações pausadas: o Page Access Token está inválido ou expirado.",
+          token_health: { level: tokenHealth.level, message: tokenHealth.message },
+          processed: 0,
+          results: [],
+        },
+        { status: 503 },
+      );
+    }
+
     const results = await processDuePublications(10);
-    return NextResponse.json({ processed: results.length, results });
+    return NextResponse.json({
+      processed: results.length,
+      results,
+      token_health: tokenHealth.available
+        ? { level: tokenHealth.level, message: tokenHealth.message, days_until_expiry: tokenHealth.daysUntilExpiry }
+        : { level: "unknown", message: tokenHealth.message },
+    });
   } catch (error) {
     console.error("publication processor failed", error);
     return NextResponse.json(
