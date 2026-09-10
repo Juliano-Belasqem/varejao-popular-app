@@ -32,7 +32,8 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
           <div className="muted">Edite os dados da campanha, preços e ordem dos produtos.</div>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
-          <Link href={`/app/campanhas/${campaign.id}/gerar`} className="btn primary">Gerar material digital</Link>
+          <Link href={`/app/campanhas/${campaign.id}/gerar`} className="btn">Gerar material digital</Link>
+          <Link href={`/app/campanhas/${campaign.id}/publicar`} className="btn primary">Montar publicação</Link>
           <span className="pill">{campaign.status === "draft" ? "Rascunho" : campaign.status === "approved" ? "Aprovada" : "Arquivada"}</span>
         </div>
       </header>
