@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 export default function ConfirmSubmitButton({
   children,
   message,
@@ -8,7 +10,7 @@ export default function ConfirmSubmitButton({
   value,
   disabled = false,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   message: string;
   className?: string;
   name?: string;
