@@ -61,7 +61,7 @@ export async function createIndependentPublicationAction(formData: FormData) {
   if (error || !publication) return;
 
   revalidatePath("/app/publicacoes");
-  redirect(`/app/publicacoes/${publication.id}`);
+  redirect(`/app/publicacoes/${publication.id}/midia`);
 }
 
 export async function savePublicationAction(formData: FormData) {
@@ -166,6 +166,7 @@ export async function removePublicationMediaAction(formData: FormData) {
   await supabase.from("publication_media").delete().eq("id", mediaId).eq("publication_id", id);
   if (media.storage_path) await supabase.storage.from("social-media").remove([media.storage_path]);
   revalidatePath(`/app/publicacoes/${id}`);
+  revalidatePath(`/app/publicacoes/${id}/midia`);
 }
 
 export async function schedulePublicationAction(formData: FormData) {
