@@ -67,6 +67,12 @@ export function validatePublicationMedia(
         : { ok: false, message: "O Story do Facebook precisa ter exatamente 1 imagem pública neste fluxo." };
     }
 
+    if (publication.type === "reel") {
+      return media.length === 1 && videos.length === 1
+        ? { ok: true, message: "Pronta para publicar." }
+        : { ok: false, message: "O Reel do Facebook precisa ter exatamente 1 vídeo MP4 público." };
+    }
+
     return { ok: false, message: "Esta combinação de rede e tipo ainda não é suportada automaticamente." };
   }
 
