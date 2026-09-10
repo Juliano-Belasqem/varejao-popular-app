@@ -97,7 +97,7 @@ export default function DirectMediaUploader({
     <div className="card" style={{ padding: 14, marginTop: 16 }}>
       <strong>Enviar mídia</strong>
       <div className="muted" style={{ marginTop: 6 }}>
-        Envie imagens para Feed, Story ou Carrossel, ou um MP4 para Reel. Carrosséis aceitam múltiplas imagens.
+        Envie imagens para Feed, Story ou Carrossel. Vídeos MP4 podem ser usados em Reel e em Story do Facebook. Carrosséis aceitam múltiplas imagens.
       </div>
       <input
         ref={inputRef}

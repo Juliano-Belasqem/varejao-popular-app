@@ -62,9 +62,9 @@ export function validatePublicationMedia(
     }
 
     if (publication.type === "story") {
-      return media.length === 1 && images.length === 1
+      return media.length === 1 && images.length + videos.length === 1
         ? { ok: true, message: "Pronta para publicar." }
-        : { ok: false, message: "O Story do Facebook precisa ter exatamente 1 imagem pública neste fluxo." };
+        : { ok: false, message: "O Story do Facebook precisa ter exatamente 1 imagem ou 1 vídeo MP4 público." };
     }
 
     if (publication.type === "reel") {

@@ -14,7 +14,15 @@ function safeName(value: string) {
     .slice(0, 100) || "video.mp4";
 }
 
-export default function VideoUploader({ publicationId, campaignId }: { publicationId: string; campaignId: string | null }) {
+export default function VideoUploader({
+  publicationId,
+  campaignId,
+  purpose = "Reel",
+}: {
+  publicationId: string;
+  campaignId: string | null;
+  purpose?: "Reel" | "Story";
+}) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -22,13 +30,13 @@ export default function VideoUploader({ publicationId, campaignId }: { publicati
 
   async function uploadVideo(file: File) {
     if (file.type !== "video/mp4" && !file.name.toLowerCase().endsWith(".mp4")) {
-      setMessage("Use um arquivo MP4 para o Reel.");
+      setMessage(`Use um arquivo MP4 para o ${purpose}.`);
       return;
     }
 
     const maxBytes = 50 * 1024 * 1024;
     if (file.size > maxBytes) {
-      setMessage("Neste primeiro bloco, o upload aceita vídeos de até 50 MB.");
+      setMessage("O upload aceita vídeos de até 50 MB neste momento.");
       return;
     }
 
@@ -79,9 +87,9 @@ export default function VideoUploader({ publicationId, campaignId }: { publicati
 
   return (
     <div className="card" style={{ padding: 14, marginTop: 16 }}>
-      <strong>Vídeo para Reel</strong>
+      <strong>Vídeo para {purpose}</strong>
       <div className="muted" style={{ marginTop: 6 }}>
-        Envie um MP4 diretamente para o armazenamento. Para publicar um Reel, deixe somente um vídeo vinculado à publicação.
+        Envie um MP4 diretamente para o armazenamento. Para publicar, deixe somente um vídeo vinculado à publicação.
       </div>
       <input
         ref={inputRef}
