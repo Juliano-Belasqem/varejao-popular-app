@@ -26,6 +26,44 @@ function safePathPart(value: string) {
     .slice(0, 120) || "material.png";
 }
 
+export async function createIndependentPublicationAction(formData: FormData) {
+  const profile = await requireProfile();
+  if (!canEdit(profile.role)) return;
+
+  const network = String(formData.get("network") ?? "instagram").trim();
+  const type = String(formData.get("type") ?? "feed").trim();
+  const caption = String(formData.get("caption") ?? "").trim();
+  const campaignId = String(formData.get("campaign_id") ?? "").trim() || null;
+
+  if (!networks.has(network) || !types.has(type)) return;
+
+  const supabase = await createClient();
+
+  if (campaignId) {
+    const { data: campaign } = await supabase.from("campaigns").select("id").eq("id", campaignId).maybeSingle();
+    if (!campaign) return;
+  }
+
+  const { data: publication, error } = await supabase
+    .from("publications")
+    .insert({
+      campaign_id: campaignId,
+      network,
+      type,
+      caption: caption || null,
+      status: "draft",
+      created_by: profile.id,
+      updated_by: profile.id,
+    })
+    .select("id")
+    .single();
+
+  if (error || !publication) return;
+
+  revalidatePath("/app/publicacoes");
+  redirect(`/app/publicacoes/${publication.id}/midia`);
+}
+
 export async function savePublicationAction(formData: FormData) {
   const profile = await requireProfile();
   if (!canEdit(profile.role)) return;
@@ -128,6 +166,7 @@ export async function removePublicationMediaAction(formData: FormData) {
   await supabase.from("publication_media").delete().eq("id", mediaId).eq("publication_id", id);
   if (media.storage_path) await supabase.storage.from("social-media").remove([media.storage_path]);
   revalidatePath(`/app/publicacoes/${id}`);
+  revalidatePath(`/app/publicacoes/${id}/midia`);
 }
 
 export async function schedulePublicationAction(formData: FormData) {
