@@ -11,6 +11,7 @@ import {
   savePublicationAction,
   schedulePublicationAction,
 } from "../actions";
+import PublishSubmitButton from "./publish-submit-button";
 
 const statusLabels: Record<string, string> = {
   draft: "Rascunho",
@@ -194,7 +195,7 @@ export default async function PublicationDetailPage({ params }: { params: Promis
             {canPublishNow && supportedNow && !(publication.network === "instagram" && publication.type === "carousel" && (media?.length ?? 0) < 2) && (
               <form action={publishNowAction} style={{ marginTop: 10 }}>
                 <input type="hidden" name="id" value={publication.id} />
-                <button className="btn primary" type="submit">Publicar agora</button>
+                <PublishSubmitButton />
               </form>
             )}
             {canPublishNow && !supportedNow && <div className="muted" style={{ marginTop: 10 }}>Esta combinação ainda não é publicável automaticamente.</div>}
