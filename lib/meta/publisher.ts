@@ -15,7 +15,12 @@ type Media = {
   sort_order: number;
 };
 
-type GraphResult = Record<string, unknown> & { id?: string; post_id?: string };
+type GraphResult = Record<string, unknown> & {
+  id?: string;
+  post_id?: string;
+  status_code?: string;
+  status?: string;
+};
 
 const graphVersion = process.env.META_GRAPH_API_VERSION || "v26.0";
 
@@ -23,14 +28,7 @@ function graphUrl(path: string) {
   return `https://graph.facebook.com/${graphVersion}/${path.replace(/^\//, "")}`;
 }
 
-async function graphPost(path: string, params: Record<string, string>) {
-  const body = new URLSearchParams(params);
-  const response = await fetch(graphUrl(path), {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body,
-    cache: "no-store",
-  });
+async function graphRequest(response: Response) {
   const payload = (await response.json().catch(() => ({}))) as GraphResult & {
     error?: { message?: string; code?: number; error_subcode?: number };
   };
@@ -41,10 +39,48 @@ async function graphPost(path: string, params: Record<string, string>) {
   return payload;
 }
 
+async function graphPost(path: string, params: Record<string, string>) {
+  const body = new URLSearchParams(params);
+  const response = await fetch(graphUrl(path), {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body,
+    cache: "no-store",
+  });
+  return graphRequest(response);
+}
+
+async function graphGet(path: string, params: Record<string, string>) {
+  const url = new URL(graphUrl(path));
+  for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
+  const response = await fetch(url, { method: "GET", cache: "no-store" });
+  return graphRequest(response);
+}
+
 function requireEnv(name: string) {
   const value = process.env[name];
   if (!value) throw new Error(`Configuração ausente: ${name}`);
   return value;
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForInstagramVideo(containerId: string, token: string) {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const state = await graphGet(containerId, {
+      fields: "status_code,status",
+      access_token: token,
+    });
+    const code = String(state.status_code || "").toUpperCase();
+    if (code === "FINISHED") return;
+    if (["ERROR", "EXPIRED"].includes(code)) {
+      throw new Error(`A Meta não conseguiu processar o vídeo${state.status ? `: ${state.status}` : "."}`);
+    }
+    await sleep(1500);
+  }
+  throw new Error("O vídeo ainda está sendo processado pela Meta. Aguarde alguns segundos e tente publicar novamente.");
 }
 
 async function publishInstagram(publication: Publication, media: Media[]) {
@@ -52,7 +88,29 @@ async function publishInstagram(publication: Publication, media: Media[]) {
   const token = requireEnv("META_PAGE_ACCESS_TOKEN");
 
   if (publication.type === "reel") {
-    throw new Error("Reel exige mídia de vídeo e entra no próximo bloco da integração Meta.");
+    if (media.length !== 1 || media[0]?.media_type !== "video" || !media[0]?.public_url) {
+      throw new Error("O Reel precisa ter exatamente um vídeo público válido.");
+    }
+
+    const container = await graphPost(`${igUserId}/media`, {
+      media_type: "REELS",
+      video_url: media[0].public_url,
+      caption: publication.caption || "",
+      share_to_feed: "true",
+      access_token: token,
+    });
+    const creationId = String(container.id || "");
+    if (!creationId) throw new Error("A Meta não retornou o ID do container do Reel.");
+
+    await waitForInstagramVideo(creationId, token);
+
+    const published = await graphPost(`${igUserId}/media_publish`, {
+      creation_id: creationId,
+      access_token: token,
+    });
+    const mediaId = String(published.id || "");
+    if (!mediaId) throw new Error("A Meta não retornou o ID do Reel publicado.");
+    return { mediaId, postId: mediaId };
   }
 
   if (publication.type === "carousel") {
