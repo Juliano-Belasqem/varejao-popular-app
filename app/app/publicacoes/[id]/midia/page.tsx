@@ -1,9 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { canEdit, requireProfile } from "@/lib/auth";
+import { validatePublicationMedia } from "@/lib/publications/validation";
 import { createClient } from "@/lib/supabase/server";
 import { removePublicationMediaAction } from "../../actions";
 import DirectMediaUploader from "../direct-media-uploader";
+
+const typeLabels: Record<string, string> = {
+  feed: "Feed",
+  story: "Story",
+  carousel: "Carrossel",
+  reel: "Reel",
+};
 
 export default async function PublicationMediaPage({ params }: { params: Promise<{ id: string }> }) {
   const profile = await requireProfile();
@@ -26,6 +34,7 @@ export default async function PublicationMediaPage({ params }: { params: Promise
   if (error || !publication) notFound();
 
   const editable = canEdit(profile.role) && ["draft", "scheduled", "error", "cancelled"].includes(publication.status);
+  const validation = validatePublicationMedia(publication, media ?? []);
 
   return (
     <>
@@ -33,8 +42,11 @@ export default async function PublicationMediaPage({ params }: { params: Promise
         <div>
           <Link href={`/app/publicacoes/${publication.id}`} className="muted">← Voltar para publicação</Link>
           <h1 style={{ marginTop: 8 }}>Adicionar mídia</h1>
-          <div className="muted">{publication.network === "instagram" ? "Instagram" : "Facebook"} · {publication.type}</div>
+          <div className="muted">
+            {publication.network === "instagram" ? "Instagram" : "Facebook"} · {typeLabels[publication.type] ?? publication.type}
+          </div>
         </div>
+        <span className="pill">{validation.ok ? "Mídia pronta" : "Mídia pendente"}</span>
       </header>
 
       <section className="card" style={{ maxWidth: 900 }}>
@@ -75,16 +87,22 @@ export default async function PublicationMediaPage({ params }: { params: Promise
           </div>
         )}
 
+        <div className={validation.ok ? "muted" : "error"} style={{ marginTop: 12 }}>{validation.message}</div>
+
         {editable && (
           <DirectMediaUploader
             publicationId={publication.id}
             campaignId={publication.campaign_id}
             currentCount={media?.length ?? 0}
+            network={publication.network}
+            type={publication.type}
           />
         )}
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 18 }}>
-          <Link className="btn primary" href={`/app/publicacoes/${publication.id}`}>Continuar para revisar publicação</Link>
+          <Link className={validation.ok ? "btn primary" : "btn"} href={`/app/publicacoes/${publication.id}`}>
+            {validation.ok ? "Continuar para revisar publicação" : "Voltar para revisar publicação"}
+          </Link>
           <Link className="btn" href="/app/publicacoes">Voltar para fila</Link>
         </div>
       </section>
