@@ -1,45 +1,17 @@
-# Varejão Popular — nova plataforma
+# Varejão Popular
 
-Migração do sistema atual em Google Apps Script para Next.js + Supabase + Vercel.
+Aplicação interna do Varejão Popular para campanhas, materiais digitais e publicações em redes sociais.
 
-## Princípio da migração
-
-O sistema antigo permanece funcionando até que cada módulo esteja validado na nova plataforma.
-
-## Stack
-
-- Next.js 16 / App Router
-- TypeScript
-- Supabase PostgreSQL
-- Supabase Auth
-- Supabase Storage
-- Row Level Security
-- Vercel
-- Meta Graph API
-
-## Primeira instalação
+## Desenvolvimento
 
 ```bash
-npm install
-cp .env.example .env.local
-npm run dev
+npm ci
+npm run typecheck
+npm run build
 ```
 
-Depois aplique `supabase/migrations/0001_initial.sql` no projeto Supabase.
+O repositório valida pull requests para `main` via GitHub Actions. Os Preview Builds automáticos da Vercel são ignorados fora da `main`; o deploy de produção continua sendo disparado pela `main`.
 
-## Perfis
+## Publicações
 
-- `admin`
-- `editor`
-- `viewer`
-
-## Módulos planejados
-
-1. Auth + estrutura
-2. Produtos e imagens
-3. Campanhas e itens
-4. Publicações
-5. Meta (Instagram/Facebook)
-6. Scheduler
-7. Gerador de material digital
-8. Migração final dos dados do Google Sheets
+O módulo de publicações suporta fluxo de rascunho, revisão, agendamento e publicação via Meta, com proteção de token, histórico e ações operacionais.
