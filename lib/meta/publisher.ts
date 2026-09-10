@@ -19,8 +19,11 @@ type Media = {
 type GraphResult = Record<string, unknown> & {
   id?: string;
   post_id?: string;
+  video_id?: string;
+  upload_url?: string;
+  success?: boolean;
   status_code?: string;
-  status?: string;
+  status?: string | Record<string, unknown>;
 };
 
 const graphVersion = process.env.META_GRAPH_API_VERSION || "v26.0";
@@ -58,6 +61,19 @@ async function graphGet(path: string, params: Record<string, string>) {
   return graphRequest(response);
 }
 
+async function uploadHostedFacebookVideo(uploadUrl: string, fileUrl: string, token: string) {
+  const response = await fetch(uploadUrl, {
+    method: "POST",
+    headers: {
+      Authorization: `OAuth ${token}`,
+      file_url: fileUrl,
+    },
+    cache: "no-store",
+  });
+  const payload = await graphRequest(response);
+  if (payload.success === false) throw new Error("A Meta recusou o upload do vídeo do Facebook.");
+}
+
 function requireEnv(name: string) {
   const value = process.env[name];
   if (!value) throw new Error(`Configuração ausente: ${name}`);
@@ -77,7 +93,7 @@ async function waitForInstagramVideo(containerId: string, token: string) {
     const code = String(state.status_code || "").toUpperCase();
     if (code === "FINISHED") return;
     if (["ERROR", "EXPIRED"].includes(code)) {
-      throw new Error(`A Meta não conseguiu processar o vídeo${state.status ? `: ${state.status}` : "."}`);
+      throw new Error(`A Meta não conseguiu processar o vídeo${state.status ? `: ${String(state.status)}` : "."}`);
     }
     await sleep(1500);
   }
@@ -164,6 +180,28 @@ async function publishInstagram(publication: Publication, media: Media[]) {
 async function publishFacebook(publication: Publication, media: Media[]) {
   const pageId = requireEnv("META_FACEBOOK_PAGE_ID");
   const token = requireEnv("META_PAGE_ACCESS_TOKEN");
+
+  if (publication.type === "reel") {
+    const start = await graphPost(`${pageId}/video_reels`, {
+      upload_phase: "start",
+      access_token: token,
+    });
+    const videoId = String(start.video_id || "");
+    const uploadUrl = String(start.upload_url || "");
+    if (!videoId || !uploadUrl) throw new Error("A Meta não retornou a sessão de upload do Reel do Facebook.");
+
+    await uploadHostedFacebookVideo(uploadUrl, media[0].public_url!, token);
+
+    const finish = await graphPost(`${pageId}/video_reels`, {
+      upload_phase: "finish",
+      video_id: videoId,
+      video_state: "PUBLISHED",
+      description: publication.caption || "",
+      access_token: token,
+    });
+    if (finish.success === false) throw new Error("A Meta não confirmou a publicação do Reel do Facebook.");
+    return { mediaId: videoId, postId: String(finish.post_id || finish.id || videoId) };
+  }
 
   if (publication.type === "story") {
     const photo = await graphPost(`${pageId}/photos`, {
