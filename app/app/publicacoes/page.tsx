@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { requireProfile } from "@/lib/auth";
+import { canEdit, requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { cancelScheduledPublicationAction, retryPublicationAction } from "./actions";
 
 const statusLabels: Record<string, string> = {
   draft: "Rascunho",
@@ -33,8 +34,13 @@ function configured(name: string) {
   return Boolean(process.env[name]?.trim());
 }
 
-export default async function Page() {
-  await requireProfile();
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string; network?: string; type?: string; source?: string }>;
+}) {
+  const profile = await requireProfile();
+  const filters = await searchParams;
   const supabase = await createClient();
 
   const { data: publications, error } = await supabase
@@ -62,6 +68,15 @@ export default async function Page() {
     return acc;
   }, {});
 
+  const filteredPublications = (publications ?? []).filter((publication) => {
+    if (filters.status && filters.status !== "all" && publication.status !== filters.status) return false;
+    if (filters.network && filters.network !== "all" && publication.network !== filters.network) return false;
+    if (filters.type && filters.type !== "all" && publication.type !== filters.type) return false;
+    if (filters.source === "campaign" && !publication.campaign_id) return false;
+    if (filters.source === "independent" && publication.campaign_id) return false;
+    return true;
+  });
+
   const metaChecks = [
     { label: "Página do Facebook", ok: configured("META_FACEBOOK_PAGE_ID") },
     { label: "Conta do Instagram", ok: configured("META_INSTAGRAM_USER_ID") },
@@ -71,6 +86,7 @@ export default async function Page() {
   ];
   const metaReady = metaChecks.slice(0, 4).every((item) => item.ok);
   const schedulerReady = metaChecks[3].ok && metaChecks[4].ok;
+  const hasFilters = [filters.status, filters.network, filters.type, filters.source].some((value) => value && value !== "all");
 
   return (
     <>
@@ -110,42 +126,104 @@ export default async function Page() {
         <div className="card"><div className="muted">Com erro</div><div style={{ fontSize: 28, fontWeight: 900 }}>{counts.error ?? 0}</div></div>
       </div>
 
+      <section className="card" style={{ marginBottom: 18 }}>
+        <div className="page-head" style={{ marginBottom: 12 }}>
+          <div>
+            <h2 style={{ margin: 0 }}>Filtros</h2>
+            <div className="muted">Encontre rapidamente o que precisa de atenção.</div>
+          </div>
+          {hasFilters && <Link href="/app/publicacoes" className="btn">Limpar filtros</Link>}
+        </div>
+        <form method="get" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 10, alignItems: "end" }}>
+          <label className="field">
+            <span>Status</span>
+            <select className="input" name="status" defaultValue={filters.status || "all"}>
+              <option value="all">Todos</option>
+              <option value="draft">Rascunhos</option>
+              <option value="scheduled">Agendadas</option>
+              <option value="published">Publicadas</option>
+              <option value="error">Com erro</option>
+              <option value="cancelled">Canceladas</option>
+            </select>
+          </label>
+          <label className="field">
+            <span>Rede</span>
+            <select className="input" name="network" defaultValue={filters.network || "all"}>
+              <option value="all">Todas</option>
+              <option value="instagram">Instagram</option>
+              <option value="facebook">Facebook</option>
+            </select>
+          </label>
+          <label className="field">
+            <span>Tipo</span>
+            <select className="input" name="type" defaultValue={filters.type || "all"}>
+              <option value="all">Todos</option>
+              <option value="feed">Feed</option>
+              <option value="story">Story</option>
+              <option value="carousel">Carrossel</option>
+              <option value="reel">Reel</option>
+            </select>
+          </label>
+          <label className="field">
+            <span>Origem</span>
+            <select className="input" name="source" defaultValue={filters.source || "all"}>
+              <option value="all">Todas</option>
+              <option value="campaign">Campanhas</option>
+              <option value="independent">Independentes</option>
+            </select>
+          </label>
+          <button className="btn primary" type="submit">Aplicar filtros</button>
+        </form>
+      </section>
+
       <section className="card">
         <div className="page-head" style={{ marginBottom: 14 }}>
           <div>
             <h2 style={{ margin: 0 }}>Fila de publicações</h2>
-            <div className="muted">Aqui aparecem tanto materiais enviados pelo gerador quanto publicações criadas manualmente.</div>
+            <div className="muted">{filteredPublications.length} resultado(s). Aqui aparecem materiais do gerador e publicações criadas manualmente.</div>
           </div>
         </div>
 
         {error ? (
           <div className="error">Não foi possível carregar as publicações.</div>
-        ) : !publications?.length ? (
-          <div className="empty">Nenhuma publicação criada ainda. Use “Nova publicação” ou envie um material pelo gerador.</div>
+        ) : !filteredPublications.length ? (
+          <div className="empty">Nenhuma publicação encontrada com estes filtros.</div>
         ) : (
           <div style={{ display: "grid", gap: 10 }}>
-            {publications.map((publication) => {
+            {filteredPublications.map((publication) => {
               const preview = firstMedia.get(publication.id);
               return (
-                <Link key={publication.id} href={`/app/publicacoes/${publication.id}`} style={{ textDecoration: "none", color: "inherit" }}>
-                  <article style={{ border: "1px solid #e5e7eb", borderRadius: 14, padding: 12, display: "grid", gridTemplateColumns: "72px 1fr auto", gap: 12, alignItems: "center" }}>
-                    <div style={{ width: 72, height: 72, borderRadius: 10, overflow: "hidden", background: "#f8fafc", display: "grid", placeItems: "center" }}>
-                      {preview ? <img src={preview} alt="" loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span className="muted" style={{ fontSize: 11 }}>Sem mídia</span>}
+                <article key={publication.id} style={{ border: "1px solid #e5e7eb", borderRadius: 14, padding: 12, display: "grid", gridTemplateColumns: "72px 1fr auto", gap: 12, alignItems: "center" }}>
+                  <Link href={`/app/publicacoes/${publication.id}`} style={{ width: 72, height: 72, borderRadius: 10, overflow: "hidden", background: "#f8fafc", display: "grid", placeItems: "center", textDecoration: "none" }}>
+                    {preview ? <img src={preview} alt="" loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span className="muted" style={{ fontSize: 11 }}>Sem mídia</span>}
+                  </Link>
+                  <Link href={`/app/publicacoes/${publication.id}`} style={{ minWidth: 0, textDecoration: "none", color: "inherit" }}>
+                    <div style={{ display: "flex", gap: 7, flexWrap: "wrap", alignItems: "center" }}>
+                      <strong>{networkLabels[publication.network] ?? publication.network}</strong>
+                      <span className="pill">{typeLabels[publication.type] ?? publication.type}</span>
+                      <span className="pill">{statusLabels[publication.status] ?? publication.status}</span>
                     </div>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ display: "flex", gap: 7, flexWrap: "wrap", alignItems: "center" }}>
-                        <strong>{networkLabels[publication.network] ?? publication.network}</strong>
-                        <span className="pill">{typeLabels[publication.type] ?? publication.type}</span>
-                        <span className="pill">{statusLabels[publication.status] ?? publication.status}</span>
-                      </div>
-                      <div style={{ fontWeight: 800, marginTop: 6 }}>{publication.campaign_id ? campaignName.get(publication.campaign_id) ?? "Campanha" : "Publicação independente"}</div>
-                      <div className="muted" style={{ fontSize: 12, marginTop: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{publication.caption || "Sem legenda"}</div>
-                      {publication.status === "scheduled" && <div className="muted" style={{ fontSize: 12, marginTop: 3 }}>Agendada para {dateLabel(publication.scheduled_at)}</div>}
-                      {publication.status === "error" && publication.error_message && <div className="error" style={{ marginTop: 5, fontSize: 12 }}>{publication.error_message}</div>}
-                    </div>
-                    <span className="muted">Abrir →</span>
-                  </article>
-                </Link>
+                    <div style={{ fontWeight: 800, marginTop: 6 }}>{publication.campaign_id ? campaignName.get(publication.campaign_id) ?? "Campanha" : "Publicação independente"}</div>
+                    <div className="muted" style={{ fontSize: 12, marginTop: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{publication.caption || "Sem legenda"}</div>
+                    {publication.status === "scheduled" && <div className="muted" style={{ fontSize: 12, marginTop: 3 }}>Agendada para {dateLabel(publication.scheduled_at)}</div>}
+                    {publication.status === "error" && publication.error_message && <div className="error" style={{ marginTop: 5, fontSize: 12 }}>{publication.error_message}</div>}
+                  </Link>
+                  <div style={{ display: "grid", gap: 7, justifyItems: "end" }}>
+                    <Link className="btn" href={`/app/publicacoes/${publication.id}`}>Abrir</Link>
+                    {canEdit(profile.role) && publication.status === "scheduled" && (
+                      <form action={cancelScheduledPublicationAction}>
+                        <input type="hidden" name="id" value={publication.id} />
+                        <button className="btn" type="submit">Cancelar</button>
+                      </form>
+                    )}
+                    {canEdit(profile.role) && publication.status === "error" && (
+                      <form action={retryPublicationAction}>
+                        <input type="hidden" name="id" value={publication.id} />
+                        <button className="btn primary" type="submit">Tentar novamente</button>
+                      </form>
+                    )}
+                  </div>
+                </article>
               );
             })}
           </div>
