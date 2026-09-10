@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { canEdit, requireProfile } from "@/lib/auth";
+import { getMetaTokenHealth } from "@/lib/meta/token-health";
 import { createClient } from "@/lib/supabase/server";
 import { cancelScheduledPublicationAction, retryPublicationAction } from "./actions";
 
@@ -43,11 +44,14 @@ export default async function Page({
   const filters = await searchParams;
   const supabase = await createClient();
 
-  const { data: publications, error } = await supabase
-    .from("publications")
-    .select("id,campaign_id,network,type,status,caption,scheduled_at,published_at,created_at,error_message")
-    .order("created_at", { ascending: false })
-    .limit(100);
+  const [{ data: publications, error }, tokenHealth] = await Promise.all([
+    supabase
+      .from("publications")
+      .select("id,campaign_id,network,type,status,caption,scheduled_at,published_at,created_at,error_message")
+      .order("created_at", { ascending: false })
+      .limit(100),
+    getMetaTokenHealth(),
+  ]);
 
   const campaignIds = [...new Set((publications ?? []).map((item) => item.campaign_id).filter(Boolean))] as string[];
   const publicationIds = (publications ?? []).map((item) => item.id);
@@ -84,9 +88,11 @@ export default async function Page({
     { label: "Supabase admin", ok: configured("SUPABASE_SECRET_KEY") },
     { label: "Segredo do scheduler", ok: configured("CRON_SECRET") },
   ];
-  const metaReady = metaChecks.slice(0, 4).every((item) => item.ok);
+  const metaReady = metaChecks.slice(0, 4).every((item) => item.ok) && tokenHealth.valid !== false;
   const schedulerReady = metaChecks[3].ok && metaChecks[4].ok;
   const hasFilters = [filters.status, filters.network, filters.type, filters.source].some((value) => value && value !== "all");
+
+  const tokenStatus = tokenHealth.valid === true ? "Token válido" : tokenHealth.valid === false ? "Token inválido" : "Não verificado";
 
   return (
     <>
@@ -102,7 +108,7 @@ export default async function Page({
         <div className="page-head" style={{ marginBottom: 12 }}>
           <div>
             <h2 style={{ margin: 0 }}>Integração Meta</h2>
-            <div className="muted" style={{ marginTop: 4 }}>O sistema verifica apenas se cada configuração existe; nenhum segredo é exibido nesta tela.</div>
+            <div className="muted" style={{ marginTop: 4 }}>As configurações e a validade do token são verificadas sem exibir nenhum segredo.</div>
           </div>
           <span className="pill">{metaReady ? "Meta pronta" : "Configuração pendente"}</span>
         </div>
@@ -114,8 +120,22 @@ export default async function Page({
             </div>
           ))}
         </div>
+
+        <div className={tokenHealth.valid === false ? "error" : "card"} style={{ marginTop: 12, padding: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <strong>Saúde do Page Access Token</strong>
+            <span className="pill">{tokenStatus}</span>
+          </div>
+          <div className="muted" style={{ marginTop: 6 }}>{tokenHealth.message}</div>
+          {tokenHealth.dataAccessExpiresAt ? (
+            <div className="muted" style={{ marginTop: 4, fontSize: 12 }}>
+              Acesso aos dados informado pela Meta até {new Date(tokenHealth.dataAccessExpiresAt * 1000).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}.
+            </div>
+          ) : null}
+        </div>
+
         <div className="muted" style={{ marginTop: 11 }}>
-          Publicação manual: {metaReady ? "pronta para teste" : "aguardando credenciais"}. Scheduler: {schedulerReady ? "endpoint pronto para automação" : "aguardando CRON_SECRET/Supabase admin"}.
+          Publicação manual: {metaReady ? "pronta" : "requer atenção"}. Scheduler: {schedulerReady ? "endpoint pronto para automação" : "aguardando CRON_SECRET/Supabase admin"}.
         </div>
       </section>
 
