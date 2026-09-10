@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { validatePublicationMedia } from "@/lib/publications/validation";
 
 type Publication = {
   id: string;
@@ -88,13 +89,9 @@ async function publishInstagram(publication: Publication, media: Media[]) {
   const token = requireEnv("META_PAGE_ACCESS_TOKEN");
 
   if (publication.type === "reel") {
-    if (media.length !== 1 || media[0]?.media_type !== "video" || !media[0]?.public_url) {
-      throw new Error("O Reel precisa ter exatamente um vídeo público válido.");
-    }
-
     const container = await graphPost(`${igUserId}/media`, {
       media_type: "REELS",
-      video_url: media[0].public_url,
+      video_url: media[0].public_url!,
       caption: publication.caption || "",
       share_to_feed: "true",
       access_token: token,
@@ -114,13 +111,8 @@ async function publishInstagram(publication: Publication, media: Media[]) {
   }
 
   if (publication.type === "carousel") {
-    const validMedia = media.filter((item) => item.media_type === "image" && item.public_url);
-    if (validMedia.length < 2 || validMedia.length > 10 || validMedia.length !== media.length) {
-      throw new Error("O carrossel do Instagram precisa ter de 2 a 10 imagens públicas válidas.");
-    }
-
     const childIds: string[] = [];
-    for (const item of validMedia) {
+    for (const item of media) {
       const child = await graphPost(`${igUserId}/media`, {
         image_url: item.public_url!,
         is_carousel_item: "true",
@@ -149,12 +141,8 @@ async function publishInstagram(publication: Publication, media: Media[]) {
     return { mediaId, postId: mediaId };
   }
 
-  if (media.length !== 1 || !media[0]?.public_url || media[0].media_type !== "image") {
-    throw new Error("A publicação precisa de uma única imagem pública válida.");
-  }
-
   const creationParams: Record<string, string> = {
-    image_url: media[0].public_url,
+    image_url: media[0].public_url!,
     access_token: token,
   };
   if (publication.caption && publication.type === "feed") creationParams.caption = publication.caption;
@@ -178,12 +166,8 @@ async function publishFacebook(publication: Publication, media: Media[]) {
   const token = requireEnv("META_PAGE_ACCESS_TOKEN");
 
   if (publication.type === "story") {
-    if (media.length !== 1 || media[0]?.media_type !== "image" || !media[0]?.public_url) {
-      throw new Error("O Story do Facebook precisa ter exatamente uma imagem pública válida.");
-    }
-
     const photo = await graphPost(`${pageId}/photos`, {
-      url: media[0].public_url,
+      url: media[0].public_url!,
       published: "false",
       access_token: token,
     });
@@ -198,15 +182,8 @@ async function publishFacebook(publication: Publication, media: Media[]) {
     return { mediaId: photoId, postId };
   }
 
-  if (publication.type !== "feed") {
-    throw new Error("No Facebook, este fluxo suporta Feed e Story com imagem. Carrossel e Reel ficam fora deste bloco.");
-  }
-  if (media.length !== 1 || media[0]?.media_type !== "image" || !media[0]?.public_url) {
-    throw new Error("A publicação precisa de uma única imagem pública válida.");
-  }
-
   const result = await graphPost(`${pageId}/photos`, {
-    url: media[0].public_url,
+    url: media[0].public_url!,
     caption: publication.caption || "",
     published: "true",
     access_token: token,
@@ -245,7 +222,10 @@ export async function publishPublication(publicationId: string, allowedStatuses 
       .eq("publication_id", publicationId)
       .order("sort_order", { ascending: true });
 
-    if (mediaError || !media?.length) throw new Error("Mídia da publicação não encontrada.");
+    if (mediaError) throw new Error("Não foi possível carregar a mídia da publicação.");
+
+    const validation = validatePublicationMedia(publication, media ?? []);
+    if (!validation.ok) throw new Error(validation.message);
 
     const result = publication.network === "instagram"
       ? await publishInstagram(publication as Publication, media as Media[])
