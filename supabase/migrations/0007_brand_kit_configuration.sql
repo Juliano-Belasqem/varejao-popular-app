@@ -21,6 +21,9 @@ create table if not exists public.brand_fonts (
   created_at timestamptz not null default now()
 );
 
+create index if not exists brand_settings_updated_by_idx on public.brand_settings(updated_by);
+create index if not exists brand_fonts_created_by_idx on public.brand_fonts(created_by);
+
 insert into public.brand_settings (id) values ('default') on conflict (id) do nothing;
 
 alter table public.brand_settings enable row level security;
@@ -32,9 +35,13 @@ grant select, insert, update, delete on public.brand_settings to authenticated, 
 grant select, insert, update, delete on public.brand_fonts to authenticated, service_role;
 
 create policy "brand settings read" on public.brand_settings for select to authenticated using (true);
-create policy "brand settings edit" on public.brand_settings for all to authenticated using (public.can_edit()) with check (public.can_edit());
+create policy "brand settings insert" on public.brand_settings for insert to authenticated with check (public.can_edit());
+create policy "brand settings update" on public.brand_settings for update to authenticated using (public.can_edit()) with check (public.can_edit());
+create policy "brand settings delete" on public.brand_settings for delete to authenticated using (public.can_edit());
 create policy "brand fonts read" on public.brand_fonts for select to authenticated using (true);
-create policy "brand fonts edit" on public.brand_fonts for all to authenticated using (public.can_edit()) with check (public.can_edit());
+create policy "brand fonts insert" on public.brand_fonts for insert to authenticated with check (public.can_edit());
+create policy "brand fonts update" on public.brand_fonts for update to authenticated using (public.can_edit()) with check (public.can_edit());
+create policy "brand fonts delete" on public.brand_fonts for delete to authenticated using (public.can_edit());
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('brand-assets','brand-assets',false,10485760,array['image/png','image/webp','image/svg+xml','font/woff2','font/woff','font/ttf','font/otf','application/font-woff','application/x-font-ttf','application/x-font-opentype'])
