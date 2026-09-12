@@ -1,3 +1,6 @@
+import varejaoFeedBackground from "@/public/media-templates/varejao-feed.jpg";
+import varejaoStoryBackground from "@/public/media-templates/varejao-story.jpg";
+
 export type MediaFormat = "feed" | "story";
 export type MediaMode = "individual" | "composed";
 export type MediaQuantity = 1 | 2 | 4;
@@ -68,7 +71,7 @@ const feedIndividual: MediaTemplateVariant = {
   quantity: 1,
   width: 1080,
   height: 1080,
-  background: { kind: "image", value: "/media-templates/varejao-feed.jpg" },
+  background: { kind: "image", value: varejaoFeedBackground.src },
   footer: { x: 70, y: 1000, width: 940, height: 44, fontSize: 31, maxLines: 1, align: "center", ...baseText },
   products: [{
     image: { x: 48, y: 520, width: 565, height: 430 },
@@ -85,7 +88,7 @@ const storyIndividual: MediaTemplateVariant = {
   quantity: 1,
   width: 1080,
   height: 1920,
-  background: { kind: "image", value: "/media-templates/varejao-story.jpg" },
+  background: { kind: "image", value: varejaoStoryBackground.src },
   footer: { x: 70, y: 1805, width: 940, height: 48, fontSize: 34, maxLines: 1, align: "center", ...baseText },
   products: [{
     image: { x: 70, y: 850, width: 620, height: 670 },
