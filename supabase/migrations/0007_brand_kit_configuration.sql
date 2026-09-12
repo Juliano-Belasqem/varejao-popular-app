@@ -26,6 +26,8 @@ insert into public.brand_settings (id) values ('default') on conflict (id) do no
 alter table public.brand_settings enable row level security;
 alter table public.brand_fonts enable row level security;
 
+revoke all on table public.brand_settings from anon;
+revoke all on table public.brand_fonts from anon;
 grant select, insert, update, delete on public.brand_settings to authenticated, service_role;
 grant select, insert, update, delete on public.brand_fonts to authenticated, service_role;
 
