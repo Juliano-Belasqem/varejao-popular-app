@@ -1,3 +1,21 @@
 import Link from "next/link";
+import { BrandKitClient } from "./brand-kit-client";
 
-export default function BrandKitPage(){return <div><header className="page-head"><div><Link href="/app/conteudo-redes" className="muted">← Conteúdo para Redes</Link><h1>Kit da Marca</h1><p className="muted" style={{margin:0}}>Referência central para templates e prompts de criação.</p></div><span className="pill">Varejão Popular</span></header><div className="grid"><section className="card"><small className="eyebrow">CORES</small><h2>Paleta principal</h2><div className="brand-swatches"><div><span style={{background:"#2f42a6"}}/><b>Azul institucional</b><small>#2F42A6</small></div><div><span style={{background:"#ff8a1f"}}/><b>Laranja</b><small>#FF8A1F</small></div><div><span style={{background:"#ffffff"}}/><b>Branco</b><small>#FFFFFF</small></div></div></section><section className="card"><small className="eyebrow">LOGOTIPO</small><h2>Assinatura</h2><div className="brand-logo-demo">VP</div><p className="muted">Manter a assinatura visível, com boa área de respiro e sem distorção. Os templates oficiais continuam sendo a referência de posicionamento.</p></section><section className="card"><small className="eyebrow">TIPOGRAFIA</small><h2>Hierarquia</h2><p><strong style={{fontSize:28}}>Títulos fortes e diretos</strong></p><p className="muted">Textos de apoio limpos e de alta legibilidade. Itálico pode ser usado como destaque em comunicados.</p></section><section className="card"><small className="eyebrow">DIREÇÃO</small><h2>Regras para IA</h2><p className="muted">Gerar preferencialmente fundos e elementos visuais sem texto. O aplicativo aplica mensagens e identidade por cima, evitando erros de escrita e mantendo consistência.</p></section></div></div>}
+export default function BrandKitPage(){
+  return <div>
+    <header className="page-head">
+      <div>
+        <Link href="/app/conteudo-redes" className="muted">← Conteúdo para Redes</Link>
+        <h1>Kit da Marca</h1>
+        <p className="muted" style={{margin:0}}>Centralize logo e tipografia usados pelos geradores de arte.</p>
+      </div>
+      <span className="pill">Varejão Popular</span>
+    </header>
+    <BrandKitClient/>
+    <section className="card" style={{marginTop:18}}>
+      <small className="eyebrow">DIREÇÃO</small>
+      <h2>Regras para IA</h2>
+      <p className="muted">Gerar preferencialmente fundos e elementos visuais sem texto. O aplicativo aplica mensagens, logo e tipografia configurados no Kit da Marca por cima, mantendo consistência e evitando erros de escrita.</p>
+    </section>
+  </div>
+}
