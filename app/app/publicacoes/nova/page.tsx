@@ -4,66 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createIndependentPublicationAction } from "../actions";
 import TargetFields from "./target-fields";
 
-export default async function NewPublicationPage() {
-  const profile = await requireProfile();
-  const supabase = await createClient();
-  const editable = canEdit(profile.role);
-
-  const { data: campaigns } = await supabase
-    .from("campaigns")
-    .select("id,name,start_date,end_date")
-    .order("created_at", { ascending: false })
-    .limit(100);
-
-  return (
-    <>
-      <header className="page-head">
-        <div>
-          <Link href="/app/publicacoes" className="muted">← Voltar para publicações</Link>
-          <h1 style={{ marginTop: 8 }}>Nova publicação</h1>
-          <div className="muted">Crie um rascunho independente, com ou sem vínculo a uma campanha.</div>
-        </div>
-      </header>
-
-      <section className="card" style={{ maxWidth: 760 }}>
-        <h2 style={{ marginTop: 0 }}>Configuração inicial</h2>
-        <div className="muted" style={{ marginBottom: 16 }}>
-          Depois de criar o rascunho, você poderá enviar a mídia compatível, revisar a publicação, publicar na hora ou agendar.
-        </div>
-
-        {!editable ? (
-          <div className="error">Seu perfil não possui permissão para criar publicações.</div>
-        ) : (
-          <form action={createIndependentPublicationAction} className="form">
-            <TargetFields />
-
-            <label className="field">
-              <span>Campanha (opcional)</span>
-              <select className="input" name="campaign_id" defaultValue="">
-                <option value="">Sem campanha</option>
-                {(campaigns ?? []).map((campaign) => (
-                  <option key={campaign.id} value={campaign.id}>{campaign.name}</option>
-                ))}
-              </select>
-              <span className="muted" style={{ fontSize: 12 }}>
-                Use apenas se quiser manter esta publicação associada a uma campanha existente.
-              </span>
-            </label>
-
-            <label className="field">
-              <span>Legenda</span>
-              <textarea
-                className="input"
-                name="caption"
-                rows={8}
-                placeholder="Escreva a legenda da publicação..."
-              />
-            </label>
-
-            <button className="btn primary" type="submit">Criar rascunho e adicionar mídia</button>
-          </form>
-        )}
-      </section>
-    </>
-  );
+export default async function NewPublicationPage({searchParams}:{searchParams?:Promise<{type?:string;caption?:string}>}) {
+  const profile=await requireProfile(); const supabase=await createClient(); const editable=canEdit(profile.role); const params=(await searchParams)??{}; const initialType=["feed","story"].includes(params.type||"")?params.type!:"feed"; const initialCaption=(params.caption??"").slice(0,2200);
+  const {data:campaigns}=await supabase.from("campaigns").select("id,name,start_date,end_date").order("created_at",{ascending:false}).limit(100);
+  return <><header className="page-head"><div><Link href="/app/publicacoes" className="muted">← Voltar para publicações</Link><h1 style={{marginTop:8}}>Nova publicação</h1><div className="muted">Crie um rascunho independente, com ou sem vínculo a uma campanha.</div></div></header><section className="card" style={{maxWidth:760}}><h2 style={{marginTop:0}}>Configuração inicial</h2><div className="muted" style={{marginBottom:16}}>Depois de criar o rascunho, você poderá enviar a mídia compatível, revisar a publicação, publicar na hora ou agendar.</div>{!editable?<div className="error">Seu perfil não possui permissão para criar publicações.</div>:<form action={createIndependentPublicationAction} className="form"><TargetFields initialType={initialType}/><label className="field"><span>Campanha (opcional)</span><select className="input" name="campaign_id" defaultValue=""><option value="">Sem campanha</option>{(campaigns??[]).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label className="field"><span>Legenda</span><textarea className="input" name="caption" rows={8} defaultValue={initialCaption} placeholder="Escreva a legenda da publicação..."/></label><button className="btn primary" type="submit">Criar rascunho e adicionar mídia</button></form>}</section></>;
 }
