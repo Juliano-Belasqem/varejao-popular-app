@@ -14,6 +14,9 @@ export type LayoutField = {
   color: string;
   weight: number;
   visible: boolean;
+  opacity: number;
+  rotation: number;
+  layer: number;
 };
 export type TemplateConfig = {
   id: TemplateId;
@@ -51,6 +54,9 @@ const field = (
   align: "center",
   weight: 900,
   visible: true,
+  opacity: 1,
+  rotation: 0,
+  layer: 1,
 });
 // Coordinates are percentages; font sizes use a 1000-unit-wide design space.
 export function defaultTemplate(id: TemplateId): TemplateConfig {
@@ -124,7 +130,10 @@ export function validateLayout(
       f.weight > 900 ||
       !["left", "center", "right"].includes(f.align) ||
       !/^#[\da-f]{6}$/i.test(f.color) ||
-      typeof f.visible !== "boolean"
+      typeof f.visible !== "boolean" ||
+      (f.opacity != null && (f.opacity < 0 || f.opacity > 1)) ||
+      (f.rotation != null && (f.rotation < -180 || f.rotation > 180)) ||
+      (f.layer != null && (f.layer < 0 || f.layer > 100))
     )
       throw new Error(`Ajuste os limites do campo ${fieldLabels[key]}.`);
     result[key] = {
@@ -137,6 +146,9 @@ export function validateLayout(
       align: f.align,
       color: f.color,
       visible: f.visible,
+      opacity: f.opacity ?? 1,
+      rotation: f.rotation ?? 0,
+      layer: f.layer ?? 1,
     };
   }
   return result;
