@@ -91,7 +91,7 @@ export async function POST(request: Request) {
       woff2: "font/woff2",
       woff: "font/woff",
       ttf: "font/ttf",
-      otf: "application/x-font-opentype",
+      otf: "font/otf",
     };
     const contentType = canonicalTypes[ext];
     if (!contentType) return NextResponse.json({ error: "Fonte deve ser WOFF2, WOFF, TTF ou OTF." }, { status: 400 });
@@ -99,6 +99,10 @@ export async function POST(request: Request) {
     const familyBase = name.replace(/[^a-zA-Z0-9 _-]/g, "").trim() || "Fonte Varejao";
     const family = `${familyBase}-${crypto.randomUUID()}`;
     const path = `fonts/${family.replace(/\s+/g,"-").toLowerCase()}.${ext}`;
+    const bytes = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+    const signature = Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+    if (ext === "otf" && signature !== "4f54544f" && signature !== "00010000")
+      return NextResponse.json({ error: "O arquivo OTF não contém uma fonte OpenType válida." }, { status: 400 });
     const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: false, contentType });
     if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 400 });
     const { error: insertError } = await supabase.from("brand_fonts").insert({ name, family, storage_path: path, mime_type: contentType, created_by: user.id });

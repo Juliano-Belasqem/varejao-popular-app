@@ -56,6 +56,13 @@ test("layout rejects out-of-bounds, missing and malformed fields", () => {
     assert.throws(() => validateLayout("validity", layout));
   }
   assert.throws(() => validateLayout("validity", {}));
+  const legacy = defaultTemplate("digital-feed").layout;
+  const legacyProduct = { ...legacy.productLine1 };
+  const legacyLayout = { product: legacyProduct, brand: legacy.brand, specification: legacy.specification, image: legacy.image, price: legacy.price, footer: legacy.footer, logo: legacy.logo };
+  const migrated = validateLayout("digital-feed", legacyLayout);
+  assert.deepEqual(migrated.productLine1, legacyProduct);
+  assert.deepEqual(migrated.currency, defaultTemplate("digital-feed").layout.currency);
+  assert.throws(() => validateLayout("digital-feed", { brand: legacy.brand }));
 });
 test("public IPv6 images work; local and mapped private addresses are rejected", () => {
   for (const ip of [
