@@ -101,7 +101,7 @@ export function TemplateEditor({
       layout: { ...config.layout, [key]: { ...field, ...values } },
     });
   }
-  function startDrag(event: React.PointerEvent<HTMLDivElement>, dragKey: string) {
+  function startDrag(event: React.PointerEvent<HTMLDivElement>, dragKey: string, resize = false) {
     if (!canEdit || !ready) return;
     event.preventDefault();
     setSelected(dragKey);
@@ -115,9 +115,15 @@ export function TemplateEditor({
     const move = (moveEvent: PointerEvent) => {
       const dx = ((moveEvent.clientX - startX) / rect.width) * 100;
       const dy = ((moveEvent.clientY - startY) / rect.height) * 100;
-      const x = Math.max(0, Math.min(100 - start.width, start.x + dx));
-      const y = Math.max(0, Math.min(100 - start.height, start.y + dy));
-      onChange({ ...config, layout: { ...config.layout, [dragKey]: { ...start, x, y } } });
+      if (resize) {
+        const width = Math.max(2, Math.min(100 - start.x, start.width + dx));
+        const height = Math.max(2, Math.min(100 - start.y, start.height + dy));
+        onChange({ ...config, layout: { ...config.layout, [dragKey]: { ...start, width, height } } });
+      } else {
+        const x = Math.max(0, Math.min(100 - start.width, start.x + dx));
+        const y = Math.max(0, Math.min(100 - start.height, start.y + dy));
+        onChange({ ...config, layout: { ...config.layout, [dragKey]: { ...start, x, y } } });
+      }
     };
     const end = () => {
       target.removeEventListener("pointermove", move);
@@ -238,6 +244,13 @@ export function TemplateEditor({
               }}
             >
               {fieldLabels[name]}
+              {name === key && canEdit ? (
+                <span
+                  aria-label="Redimensionar elemento"
+                  onPointerDown={(event) => { event.stopPropagation(); startDrag(event, name, true); }}
+                  style={{ position:"absolute", right:-5, bottom:-5, width:12, height:12, borderRadius:3, background:"currentColor", cursor:"nwse-resize" }}
+                />
+              ) : null}
             </div>
           ))}
         </div>
