@@ -78,12 +78,16 @@ export function TemplateEditor({
   onSaved,
   canEdit,
   ready,
+  persist = true,
+  title = "Configurar template e campos",
 }: {
   config: TemplateConfig;
   onChange: (config: TemplateConfig) => void;
   onSaved: () => Promise<void>;
   canEdit: boolean;
   ready: boolean;
+  persist?: boolean;
+  title?: string;
 }) {
   const [selected, setSelected] = useState(Object.keys(config.layout)[0]);
   const [file, setFile] = useState<File | null>(null);
@@ -183,10 +187,9 @@ export function TemplateEditor({
   }
   return (
     <details className="card no-print" style={{ marginBottom: 18 }}>
-      <summary>Configurar template e campos</summary>
+      <summary>{title}</summary>
       <p className="muted">
-        Troque apenas o fundo ou ajuste os campos separadamente. As alterações
-        aparecem na prévia; salve para usar nas próximas artes.
+        {persist ? "Troque o fundo ou ajuste os campos. Salve para usar nas próximas artes." : "Ajuste os elementos desta arte sem modificar o Template Mestre."}
       </p>
       <fieldset
         disabled={!canEdit || !ready || busy}
@@ -349,13 +352,13 @@ export function TemplateEditor({
           </label>
         </div>
         <div className="preview-actions" style={{ marginTop: 16 }}>
-          <button
+          {persist ? <button
             className="btn primary"
             type="button"
             onClick={() => void save()}
           >
-            Salvar template
-          </button>
+            Salvar Template Mestre
+          </button> : null}
           <button
             className="btn"
             type="button"
