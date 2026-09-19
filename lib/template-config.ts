@@ -17,6 +17,12 @@ export type LayoutField = {
   opacity: number;
   rotation: number;
   layer: number;
+  strokeColor: string;
+  strokeWidth: number;
+  shadowColor: string;
+  shadowBlur: number;
+  shadowX: number;
+  shadowY: number;
 };
 export type TemplateConfig = {
   id: TemplateId;
@@ -36,6 +42,11 @@ export const fieldLabels: Record<string, string> = {
   footer: "Rodapé",
   logo: "Logo",
   image: "Imagem do produto",
+  productLine1: "Produto · linha 1",
+  productLine2: "Produto · linha 2",
+  productLine3: "Produto · linha 3",
+  currency: "Símbolo R$",
+  unit: "Unidade (UN)",
 };
 const field = (
   x: number,
@@ -57,6 +68,12 @@ const field = (
   opacity: 1,
   rotation: 0,
   layer: 1,
+  strokeColor: "#000000",
+  strokeWidth: 0,
+  shadowColor: "#000000",
+  shadowBlur: 0,
+  shadowX: 0,
+  shadowY: 0,
 });
 // Coordinates are percentages; font sizes use a 1000-unit-wide design space.
 export function defaultTemplate(id: TemplateId): TemplateConfig {
@@ -80,18 +97,15 @@ export function defaultTemplate(id: TemplateId): TemplateConfig {
             logo: field(79, 90, 13, 9, 20),
           }
         : {
-            product: field(
-              6,
-              story ? 21 : 26,
-              48,
-              7,
-              story ? 50 : 42,
-              "#ff9b36",
-            ),
+            productLine1: field(6, story ? 20 : 25, 48, 5, story ? 46 : 38, "#ff9b36"),
+            productLine2: field(6, story ? 24 : 30, 48, 5, story ? 46 : 38, "#ff9b36"),
+            productLine3: field(6, story ? 28 : 35, 48, 5, story ? 46 : 38, "#ff9b36"),
             brand: field(6, story ? 26 : 33, 48, 9, story ? 85 : 72, "#ffffff"),
             specification: field(6, story ? 34 : 43, 48, 5, 36, "#ff9b36"),
             image: field(5, story ? 44 : 49, 55, story ? 35 : 40, 20),
-            price: field(58, story ? 79 : 73, 38, 12, 100, "#ffffff"),
+            currency: field(57, story ? 78 : 72, 8, 5, 38, "#ffffff"),
+            price: field(64, story ? 78 : 72, 27, 12, 100, "#ffffff"),
+            unit: field(91, story ? 84 : 78, 7, 4, 30, "#ffffff"),
             footer: field(5, 94, 90, 5, 28, "#ffffff"),
             logo: field(82, 3, 14, 8, 20),
           },
@@ -133,7 +147,9 @@ export function validateLayout(
       typeof f.visible !== "boolean" ||
       (f.opacity != null && (f.opacity < 0 || f.opacity > 1)) ||
       (f.rotation != null && (f.rotation < -180 || f.rotation > 180)) ||
-      (f.layer != null && (f.layer < 0 || f.layer > 100))
+      (f.layer != null && (f.layer < 0 || f.layer > 100)) ||
+      (f.strokeWidth != null && (f.strokeWidth < 0 || f.strokeWidth > 30)) ||
+      (f.shadowBlur != null && (f.shadowBlur < 0 || f.shadowBlur > 100))
     )
       throw new Error(`Ajuste os limites do campo ${fieldLabels[key]}.`);
     result[key] = {
@@ -149,6 +165,12 @@ export function validateLayout(
       opacity: f.opacity ?? 1,
       rotation: f.rotation ?? 0,
       layer: f.layer ?? 1,
+      strokeColor: f.strokeColor ?? "#000000",
+      strokeWidth: f.strokeWidth ?? 0,
+      shadowColor: f.shadowColor ?? "#000000",
+      shadowBlur: f.shadowBlur ?? 0,
+      shadowX: f.shadowX ?? 0,
+      shadowY: f.shadowY ?? 0,
     };
   }
   return result;
