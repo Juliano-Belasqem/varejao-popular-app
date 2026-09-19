@@ -342,6 +342,12 @@ export function TemplateEditor({
             Camada
             <input className="input" type="number" min="0" max="100" step="1" value={field.layer ?? 1} onChange={(e) => patch({ layer: Number(e.target.value) })} />
           </label>
+          <label className="field">Contorno (px)<input className="input" type="number" min="0" max="30" step="0.5" value={field.strokeWidth ?? 0} onChange={(e) => patch({ strokeWidth: Number(e.target.value) })} /></label>
+          <label className="field">Cor do contorno<input type="color" value={field.strokeColor ?? "#000000"} onChange={(e) => patch({ strokeColor: e.target.value })} /></label>
+          <label className="field">Sombra · desfoque<input className="input" type="number" min="0" max="100" step="1" value={field.shadowBlur ?? 0} onChange={(e) => patch({ shadowBlur: Number(e.target.value) })} /></label>
+          <label className="field">Sombra X<input className="input" type="number" step="1" value={field.shadowX ?? 0} onChange={(e) => patch({ shadowX: Number(e.target.value) })} /></label>
+          <label className="field">Sombra Y<input className="input" type="number" step="1" value={field.shadowY ?? 0} onChange={(e) => patch({ shadowY: Number(e.target.value) })} /></label>
+          <label className="field">Cor da sombra<input type="color" value={field.shadowColor ?? "#000000"} onChange={(e) => patch({ shadowColor: e.target.value })} /></label>
           <label className="field">
             Cor
             <input
