@@ -120,10 +120,12 @@ export function validateLayout(
   const input = value as Record<string, LayoutField>;
   const defaults = defaultTemplate(id).layout;
   const result: Record<string, LayoutField> = {};
+  const legacyDigital = id !== "validity" && !!input.product && !input.productLine1 && !input.productLine2 && !input.productLine3 && !input.currency && !input.unit;
+  const legacyKeys = new Set(["product", "brand", "specification", "image", "price", "footer", "logo"]);
+  if (legacyDigital && !Object.keys(input).every((key) => legacyKeys.has(key)))
+    throw new Error("Layout legado inválido.");
   for (const key of Object.keys(defaults)) {
-    const legacy = input.product;
-    const fallback = defaults[key];
-    const f = input[key] ?? (key === "productLine1" && legacy ? legacy : fallback);
+    const f = input[key] ?? (legacyDigital ? (key === "productLine1" ? input.product : defaults[key]) : undefined);
     if (
       !f ||
       ["x", "y", "width", "height", "fontSize", "weight"].some(
