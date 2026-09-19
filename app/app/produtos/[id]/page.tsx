@@ -165,7 +165,7 @@ export default async function ProductDetailPage({ params, searchParams }: {
 
       {editable && <section className="card" style={{ marginBottom: 16 }}><h2 style={{ marginTop: 0 }}>Meu acervo</h2><p className="muted">Envie uma imagem JPG, PNG ou WEBP de até 4 MB que você já possui. A nova imagem aprovada passa a ser a principal automaticamente.</p><form action={uploadProductImage} className="form"><input type="hidden" name="product_id" value={product.id} /><label className="field"><span>Imagem JPG, PNG ou WEBP</span><input className="input" type="file" name="file" accept="image/jpeg,image/png,image/webp" required /></label><button className="btn primary" type="submit">Enviar imagem</button></form></section>}
 
-      <section className="card">
+      <section className="card" id="imagens-do-produto" style={{ scrollMarginTop: 24 }}>
         <div className="page-head" style={{ marginBottom: 12 }}><div><h2 style={{ margin: 0 }}>Imagens do produto</h2><div className="muted">{signedImages.length} imagem(ns) cadastrada(s)</div></div></div>
         {!signedImages.length ? <div className="empty">Nenhuma imagem aprovada para este produto ainda.</div> : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(210px,1fr))", gap: 16 }}>
           {signedImages.map((image) => <article className="card" key={image.id} style={{ padding: 12 }}>
