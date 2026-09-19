@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { canEdit, requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { downloadRemoteImage } from "@/lib/remote-image";
+import { isRasterBytes } from "@/lib/raster-file";
 
 async function editorContext() {
   const profile = await requireProfile();
@@ -47,7 +48,7 @@ async function saveApprovedRemoteImage({
   prefix: string;
   recordedSourceUrl?: string;
 }) {
-  const { profile, supabase } = await editorContext();
+  const { supabase } = await editorContext();
   const { bytes, contentType, finalUrl } = await downloadRemoteImage(sourceUrl);
   const storagePath = `${productId}/${Date.now()}-${prefix}-${crypto.randomUUID()}.${imageExtension(contentType)}`;
 
@@ -56,15 +57,11 @@ async function saveApprovedRemoteImage({
     .upload(storagePath, bytes, { contentType, upsert: false });
   if (uploadError) throw new Error(`Falha ao salvar a imagem: ${uploadError.message}`);
 
-  await supabase.from("product_images").update({ is_primary: false }).eq("product_id", productId);
-  const { error: insertError } = await supabase.from("product_images").insert({
-    product_id: productId,
-    storage_path: storagePath,
-    source,
-    source_url: recordedSourceUrl || finalUrl,
-    approved: true,
-    is_primary: true,
-    created_by: profile.id,
+  const { error: insertError } = await supabase.rpc("register_product_image", {
+    p_product_id: productId,
+    p_storage_path: storagePath,
+    p_source: source,
+    p_source_url: recordedSourceUrl || finalUrl,
   });
 
   if (insertError) {
@@ -77,13 +74,13 @@ async function saveApprovedRemoteImage({
 }
 
 export async function uploadProductImage(formData: FormData) {
-  const { profile, supabase } = await editorContext();
+  const { supabase } = await editorContext();
   const productId = String(formData.get("product_id") ?? "");
   const file = formData.get("file");
 
   if (!productId) throw new Error("Produto inválido.");
   if (!(file instanceof File) || file.size === 0) throw new Error("Selecione uma imagem.");
-  if (file.size > 5 * 1024 * 1024) throw new Error("A imagem deve ter no máximo 5 MB.");
+  if (file.size > 4 * 1024 * 1024) throw new Error("A imagem deve ter no máximo 4 MB.");
   if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
     throw new Error("Use uma imagem JPG, PNG ou WEBP.");
   }
@@ -91,20 +88,18 @@ export async function uploadProductImage(formData: FormData) {
   const extension = imageExtension(file.type);
   const storagePath = `${productId}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
   const bytes = Buffer.from(await file.arrayBuffer());
+  if(!isRasterBytes(bytes,file.type))throw new Error("O arquivo não contém uma imagem válida.");
 
   const { error: uploadError } = await supabase.storage
     .from("product-images")
     .upload(storagePath, bytes, { contentType: file.type, upsert: false });
   if (uploadError) throw new Error(`Falha ao enviar a imagem: ${uploadError.message}`);
 
-  await supabase.from("product_images").update({ is_primary: false }).eq("product_id", productId);
-  const { error: insertError } = await supabase.from("product_images").insert({
-    product_id: productId,
-    storage_path: storagePath,
-    source: "manual",
-    approved: true,
-    is_primary: true,
-    created_by: profile.id,
+  const { error: insertError } = await supabase.rpc("register_product_image", {
+    p_product_id: productId,
+    p_storage_path: storagePath,
+    p_source: "manual",
+    p_source_url: null,
   });
 
   if (insertError) {
@@ -173,10 +168,7 @@ export async function setPrimaryProductImage(formData: FormData) {
   const imageId = String(formData.get("image_id") ?? "");
   if (!productId || !imageId) throw new Error("Imagem inválida.");
 
-  const { error: clearError } = await supabase.from("product_images").update({ is_primary: false }).eq("product_id", productId);
-  if (clearError) throw new Error(clearError.message);
-
-  const { error } = await supabase.from("product_images").update({ is_primary: true, approved: true }).eq("id", imageId).eq("product_id", productId);
+  const { error } = await supabase.rpc("set_product_primary_image", {p_product_id:productId,p_image_id:imageId});
   if (error) throw new Error(error.message);
 
   revalidatePath("/app/produtos");
@@ -189,23 +181,11 @@ export async function removeProductImage(formData: FormData) {
   const imageId = String(formData.get("image_id") ?? "");
   if (!productId || !imageId) throw new Error("Imagem inválida.");
 
-  const { data: image, error: imageError } = await supabase
-    .from("product_images")
-    .select("storage_path,is_primary")
-    .eq("id", imageId)
-    .eq("product_id", productId)
-    .single();
-  if (imageError || !image) throw new Error("Imagem não encontrada.");
-
-  const { error: storageError } = await supabase.storage.from("product-images").remove([image.storage_path]);
-  if (storageError) throw new Error(storageError.message);
-
-  const { error } = await supabase.from("product_images").delete().eq("id", imageId).eq("product_id", productId);
-  if (error) throw new Error(error.message);
-
-  if (image.is_primary) {
-    const { data: replacement } = await supabase.from("product_images").select("id").eq("product_id", productId).eq("approved", true).order("created_at", { ascending: false }).limit(1).maybeSingle();
-    if (replacement) await supabase.from("product_images").update({ is_primary: true }).eq("id", replacement.id);
+  const {data:path,error}=await supabase.rpc("remove_product_image",{p_product_id:productId,p_image_id:imageId});
+  if(error)throw new Error(error.message);
+  if(path){
+    const {error:storageError}=await supabase.storage.from("product-images").remove([path]);
+    if(storageError)console.error("Product image cleanup failed",storageError.message);
   }
 
   revalidatePath("/app/produtos");

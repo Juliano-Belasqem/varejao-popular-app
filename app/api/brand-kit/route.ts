@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
 const BUCKET = "brand-assets";
-const FIELD_KEYS = ["title","product","brand","specification","price","validity","body","footer"] as const;
+import { brandFieldKeys as FIELD_KEYS, resolveFonts } from "@/lib/brand-kit/fields";
 const DEFAULT_FONTS = Object.fromEntries(FIELD_KEYS.map((key)=>[key,"Arial, sans-serif"]));
 
 async function canEdit() {
@@ -24,18 +24,19 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
 
-  const [{ data: settings }, { data: fonts }] = await Promise.all([
+  const [{ data: settings, error: settingsError }, { data: fonts, error: fontsError }] = await Promise.all([
     supabase.from("brand_settings").select("id,logo_path,primary_color,accent_color,field_fonts,updated_at").eq("id","default").single(),
     supabase.from("brand_fonts").select("id,name,family,storage_path,mime_type,active,created_at").eq("active",true).order("name"),
   ]);
 
+  if(settingsError||fontsError)return NextResponse.json({error:"Não foi possível carregar o Kit da Marca."},{status:503});
   const logoUrl = await signedUrl(supabase, settings?.logo_path ?? null);
   const enrichedFonts = await Promise.all((fonts ?? []).map(async (font) => ({ ...font, url: await signedUrl(supabase, font.storage_path) })));
 
   return NextResponse.json({
     settings: {
       ...settings,
-      field_fonts: { ...DEFAULT_FONTS, ...(settings?.field_fonts ?? {}) },
+      field_fonts: resolveFonts(settings?.field_fonts ?? {}),
       logo_url: logoUrl,
     },
     fonts: enrichedFonts,
@@ -47,13 +48,15 @@ export async function PUT(request: Request) {
   if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
   if (!allowed) return NextResponse.json({ error: "Sem permissão para editar o kit da marca." }, { status: 403 });
 
-  const body = await request.json().catch(() => ({})) as { field_fonts?: Record<string,string> };
-  const input = body.field_fonts ?? {};
+  const body = await request.json().catch(() => ({})) as { field_fonts?: Record<string,string>; primary_color?: string; accent_color?: string };
+  const input = resolveFonts(body.field_fonts ?? {});
+  if (![body.primary_color, body.accent_color].every(color => color === undefined || /^#[0-9a-f]{6}$/i.test(color))) return NextResponse.json({error:"Cor inválida."},{status:400});
   const fieldFonts: Record<string,string> = {};
   for (const key of FIELD_KEYS) fieldFonts[key] = typeof input[key] === "string" && input[key].trim() ? input[key].trim().slice(0,120) : DEFAULT_FONTS[key];
 
-  const { error } = await supabase.from("brand_settings").update({ field_fonts: fieldFonts, updated_by: user.id, updated_at: new Date().toISOString() }).eq("id","default");
+  const { data:updated, error } = await supabase.from("brand_settings").update({ ...(body.primary_color ? {primary_color:body.primary_color}:{}), ...(body.accent_color ? {accent_color:body.accent_color}:{}), field_fonts: fieldFonts, updated_by: user.id, updated_at: new Date().toISOString() }).eq("id","default").select("id").single();
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  if(!updated)return NextResponse.json({error:"Configuração não encontrada."},{status:409});
   return NextResponse.json({ ok: true, field_fonts: fieldFonts });
 }
 

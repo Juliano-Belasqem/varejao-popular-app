@@ -60,10 +60,10 @@ export default async function PublicationMediaPage({ params }: { params: Promise
         {!media?.length ? (
           <div className="empty">Nenhuma mídia adicionada ainda.</div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,180px),1fr))", gap: 10 }}>
             {media.map((item, index) => (
               <div key={item.id} style={{ border: "1px solid #e5e7eb", borderRadius: 14, overflow: "hidden", background: "#f8fafc" }}>
-                <div style={{ aspectRatio: item.media_type === "video" ? "9 / 16" : "1 / 1", background: "#0f172a", display: "grid", placeItems: "center" }}>
+                <div className="publication-media-frame" style={{ aspectRatio: item.media_type === "video" ? "9 / 16" : "1 / 1", background: "#0f172a", display: "grid", placeItems: "center" }}>
                   {item.public_url && item.media_type === "video" ? (
                     <video src={item.public_url} controls preload="metadata" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
                   ) : item.public_url ? (

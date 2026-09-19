@@ -20,6 +20,7 @@ async function findOpenFactsImage(ean: string): Promise<OpenFactsCandidate> {
   try {
     const response = await fetch(`https://world.openfoodfacts.org/api/v3/product/${encodeURIComponent(code)}?fields=code,product_name,brands,image_front_url,image_url`, {
       cache: "no-store",
+      signal: AbortSignal.timeout(15000),
       headers: { "User-Agent": "VarejaoPopularOffers/0.1 (https://varejao-popular-app.vercel.app)", Accept: "application/json" },
     });
     if (response.status === 404) return { imageUrl: null, productName: null, brands: null, error: "Produto não encontrado no Open Food Facts." };
@@ -53,7 +54,8 @@ async function findGoogleImages(query: string, filters: GoogleImageFilters): Pro
     if (["s", "t", "w"].includes(filters.ratio)) url.searchParams.set("imgar", filters.ratio);
     if (["m", "l"].includes(filters.size)) url.searchParams.set("imgsz", filters.size);
     url.searchParams.set("api_key", apiKey);
-    const response = await fetch(url, { cache: "no-store", headers: { Accept: "application/json" } });
+    const response = await fetch(url, { cache: "no-store",
+      signal: AbortSignal.timeout(15000), headers: { Accept: "application/json" } });
     if (!response.ok) return { results: [], error: `SerpApi respondeu com status ${response.status}.` };
     const payload = await response.json() as {
       error?: string;
@@ -161,7 +163,7 @@ export default async function ProductDetailPage({ params, searchParams }: {
         </div>}
       </section>}
 
-      {editable && <section className="card" style={{ marginBottom: 16 }}><h2 style={{ marginTop: 0 }}>Meu acervo</h2><p className="muted">Envie uma imagem JPG, PNG ou WEBP que você já possui. A nova imagem aprovada passa a ser a principal automaticamente.</p><form action={uploadProductImage} className="form"><input type="hidden" name="product_id" value={product.id} /><label className="field"><span>Imagem JPG, PNG ou WEBP</span><input className="input" type="file" name="file" accept="image/jpeg,image/png,image/webp" required /></label><button className="btn primary" type="submit">Enviar imagem</button></form></section>}
+      {editable && <section className="card" style={{ marginBottom: 16 }}><h2 style={{ marginTop: 0 }}>Meu acervo</h2><p className="muted">Envie uma imagem JPG, PNG ou WEBP de até 4 MB que você já possui. A nova imagem aprovada passa a ser a principal automaticamente.</p><form action={uploadProductImage} className="form"><input type="hidden" name="product_id" value={product.id} /><label className="field"><span>Imagem JPG, PNG ou WEBP</span><input className="input" type="file" name="file" accept="image/jpeg,image/png,image/webp" required /></label><button className="btn primary" type="submit">Enviar imagem</button></form></section>}
 
       <section className="card">
         <div className="page-head" style={{ marginBottom: 12 }}><div><h2 style={{ margin: 0 }}>Imagens do produto</h2><div className="muted">{signedImages.length} imagem(ns) cadastrada(s)</div></div></div>

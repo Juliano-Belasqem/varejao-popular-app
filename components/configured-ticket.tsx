@@ -1,0 +1,67 @@
+import type { CSSProperties, ReactNode } from "react";
+import type { TemplateConfig } from "@/lib/template-config";
+
+export function ConfiguredTicket({
+  config,
+  values,
+  fonts,
+  logoUrl,
+}: {
+  config: TemplateConfig;
+  values: Record<string, ReactNode>;
+  fonts: Record<string, string>;
+  logoUrl: string | null;
+}) {
+  return (
+    <article
+      className="configured-ticket"
+      style={{
+        backgroundImage: `url("${config.backgroundUrl || "/media-templates/validity-background.png"}")`,
+      }}
+    >
+      {Object.entries(config.layout)
+        .filter(([, field]) => field.visible)
+        .map(([key, field]) => {
+          const style: CSSProperties = {
+            position: "absolute",
+            left: `${field.x}%`,
+            top: `${field.y}%`,
+            width: `${field.width}%`,
+            height: `${field.height}%`,
+            fontSize: `${field.fontSize / 10}cqw`,
+            fontFamily: fonts[key] || fonts.body,
+            color: field.color,
+            fontWeight: field.weight,
+            textAlign: field.align,
+            lineHeight: 1.05,
+            overflow: "hidden",
+            overflowWrap: "anywhere",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+          };
+          return (
+            <div key={key} style={style}>
+              {key === "logo" ? (
+                logoUrl ? (
+                  <img
+                    src={logoUrl}
+                    alt="Logo"
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "contain",
+                      background: "white",
+                      borderRadius: "50%",
+                    }}
+                  />
+                ) : null
+              ) : (
+                values[key]
+              )}
+            </div>
+          );
+        })}
+    </article>
+  );
+}

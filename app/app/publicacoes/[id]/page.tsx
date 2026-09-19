@@ -125,10 +125,10 @@ export default async function PublicationDetailPage({ params }: { params: Promis
           {!media?.length ? (
             <div className="empty">Nenhuma mídia vinculada.</div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,180px),1fr))", gap: 10 }}>
               {media.map((item, index) => (
-                <div key={item.id} style={{ border: "1px solid #e5e7eb", borderRadius: 14, overflow: "hidden", background: "#f8fafc" }}>
-                  <div style={{ aspectRatio: item.media_type === "video" ? "9 / 16" : "1 / 1", display: "grid", placeItems: "center", background: "#0f172a" }}>
+                <div key={item.id} style={{ border: "1px solid #e5e7eb", borderRadius: 14, overflow: "hidden", background: "var(--panel-2)" }}>
+                  <div className="publication-media-frame" style={{ aspectRatio: item.media_type === "video" ? "9 / 16" : "1 / 1", display: "grid", placeItems: "center", background: "#0f172a" }}>
                     {item.public_url && item.media_type === "video" ? (
                       <video src={item.public_url} controls preload="metadata" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
                     ) : item.public_url ? (
@@ -167,12 +167,12 @@ export default async function PublicationDetailPage({ params }: { params: Promis
               {!availableMaterials.length ? (
                 <div className="empty" style={{ marginTop: 10 }}>Nenhum material salvo disponível nesta campanha.</div>
               ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 10, marginTop: 12 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(100%,140px),1fr))", gap: 10, marginTop: 12 }}>
                   {availableMaterials.map((material) => (
                     <form key={material.path} action={addPublicationMediaAction} style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 8 }}>
                       <input type="hidden" name="id" value={publication.id} />
                       <input type="hidden" name="material_path" value={material.path} />
-                      <div style={{ aspectRatio: "1 / 1", borderRadius: 8, overflow: "hidden", background: "#f8fafc", display: "grid", placeItems: "center" }}>
+                      <div className="publication-media-frame" style={{ aspectRatio: "1 / 1", borderRadius: 8, overflow: "hidden", background: "var(--panel-2)", display: "grid", placeItems: "center" }}>
                         {material.url ? <img src={material.url} alt={material.name} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "contain" }} /> : <span className="muted">Sem prévia</span>}
                       </div>
                       <button className="btn" type="submit" style={{ width: "100%", marginTop: 8 }} disabled={(media?.length ?? 0) >= 10}>Adicionar</button>

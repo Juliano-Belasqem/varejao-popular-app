@@ -13,7 +13,7 @@ function BrandLogo({url}:{url:string|null}){
 }
 
 export function SocialContentCreator({initialType}:Props){
-  const {logoUrl,fieldFonts}=useBrandKit();
+  const {logoUrl,fieldFonts,primaryColor,accentColor}=useBrandKit("social");
   const[type,setType]=useState(initialType);
   const[occasion,setOccasion]=useState(type==="homenagem"?"Dia das Mães":"");
   const[objective,setObjective]=useState("");
@@ -46,7 +46,7 @@ export function SocialContentCreator({initialType}:Props){
   const publicationHref=`/app/publicacoes/nova?type=${format}&caption=${encodeURIComponent(caption)}`;
 
   return <div>
-    <header className="page-head"><div><Link className="muted back-link" href="/app/conteudo-redes">← Conteúdo para Redes</Link><h1>Criar {title}</h1><p className="muted" style={{margin:0}}>A IA pode gerar o visual; textos, fontes e identidade ficam sob controle do aplicativo.</p></div><Link className="btn" href="/app/conteudo-redes/marca">Kit da marca</Link></header>
+    <header className="page-head"><div><Link className="muted back-link" href="/app/conteudo-redes">← Conteúdo para Redes</Link><h1>Criar {title}</h1><p className="muted" style={{margin:0}}>A IA pode gerar o visual; textos, fontes e identidade ficam sob controle do aplicativo.</p></div><Link className="btn" href="/app/marca">Kit da marca</Link></header>
     <div className="creator-layout">
       <section className="card">
         <div className="section-title-row"><div><small className="eyebrow">EDITOR</small><h2>Proposta da arte</h2></div></div>
@@ -72,12 +72,12 @@ export function SocialContentCreator({initialType}:Props){
       </section>
       <section className="card creator-preview">
         <div className="section-title-row"><div><small className="eyebrow">PRÉVIA</small><h2>{format==="feed"?"Feed":"Story"}</h2></div><span className="pill">{isComunicado?"Template oficial":"Composição"}</span></div>
-        <div className={`social-preview ${format} ${isComunicado?"comunicado-preview":""}`} style={!isComunicado&&image?{backgroundImage:`url(${image})`}:undefined}>
+        <div className={`social-preview ${format} ${isComunicado?"comunicado-preview":""}`} style={{backgroundColor:primaryColor,...(!isComunicado&&image?{backgroundImage:`url(${image})`}:{})}}>
           {isComunicado?<>
             <div className="com-pattern" style={{fontFamily:fieldFonts.title}}>VAREJÃO<br/>POPULAR<br/>VAREJÃO<br/>POPULAR</div>
             <div className="com-copy"><strong style={{fontFamily:fieldFonts.title}}>{headline||"COMUNICADO"}</strong><em style={{fontFamily:fieldFonts.body}}>{line1}</em><b style={{fontFamily:fieldFonts.validity}}>{line2}</b><i style={{fontFamily:fieldFonts.body}}>{line3}</i></div>
-            <div className="com-footer" style={{fontFamily:fieldFonts.footer}}>{footer}<span className="vp-social-logo"><BrandLogo url={logoUrl}/></span></div>
-          </>:<div className="social-overlay"><strong style={{fontFamily:fieldFonts.title}}>{occasion||"Sua ocasião"}</strong><span style={{fontFamily:fieldFonts.body}}>{message||"Sua mensagem aparecerá aqui"}</span><div className="vp-social-logo"><BrandLogo url={logoUrl}/></div></div>}
+            <div className="com-footer" style={{fontFamily:fieldFonts.footer}}>{footer}<span className="vp-social-logo" style={{borderColor:accentColor,color:primaryColor}}><BrandLogo url={logoUrl}/></span></div>
+          </>:<div className="social-overlay"><strong style={{fontFamily:fieldFonts.title}}>{occasion||"Sua ocasião"}</strong><span style={{fontFamily:fieldFonts.body}}>{message||"Sua mensagem aparecerá aqui"}</span><div className="vp-social-logo" style={{borderColor:accentColor,color:primaryColor}}><BrandLogo url={logoUrl}/></div></div>}
         </div>
         <div className="preview-actions"><button className="btn" type="button" onClick={()=>window.print()}>Imprimir / salvar</button><Link className="btn primary" href={publicationHref}>Enviar para Publicações</Link></div>
         <p className="muted preview-note">Logo e tipografia seguem o Kit da Marca. O envio abre um rascunho em Publicações com formato e legenda pré-preenchidos.</p>
