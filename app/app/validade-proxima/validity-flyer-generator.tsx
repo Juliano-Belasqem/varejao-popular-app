@@ -1,5 +1,8 @@
 "use client";
 
+import { TemplateEditor } from "@/components/template-editor";
+import { ConfiguredTicket } from "@/components/configured-ticket";
+import { useTemplate } from "@/lib/use-template";
 import { useMemo, useState } from "react";
 import { useBrandKit } from "@/lib/brand-kit/client";
 
@@ -12,7 +15,8 @@ function eanBars(code:string){const d=code.replace(/\D/g,"");if(d.length!==13)re
 function Barcode({code}:{code:string}){const bits=eanBars(code);if(!bits)return <div className="barcode-fallback">{code||"EAN/GTIN"}</div>;return <div><svg className="barcode-svg" viewBox="0 0 95 38" preserveAspectRatio="none" aria-label={code}>{bits.split("").map((b,i)=>b==="1"?<rect key={i} x={i} y="0" width="1" height="30" fill="#000"/>:null)}</svg><div className="barcode-number">{code}</div></div>}
 
 export function ValidityFlyerGenerator({products}:{products:Product[]}){
-  const {logoUrl,fieldFonts}=useBrandKit();
+  const template=useTemplate("validity");
+  const {logoUrl,fieldFonts,ready:brandReady}=useBrandKit("validity");
   const[entries,setEntries]=useState<Entry[]>(()=>[emptyEntry(),emptyEntry(),emptyEntry(),emptyEntry()]);
   const options=useMemo(()=>products.map(p=>({value:p.id,label:[p.name,p.brand,p.specification].filter(Boolean).join(" · ")})),[products]);
   function patch(index:number,values:Partial<Entry>){setEntries(old=>old.map((e,i)=>i===index?{...e,...values}:e))}
@@ -24,23 +28,17 @@ export function ValidityFlyerGenerator({products}:{products:Product[]}){
   }
 
   return <>
+    {template.error&&<div className="error no-print">{template.error}</div>}
+    <TemplateEditor config={template.config} onChange={template.setConfig} onSaved={template.reload} canEdit={template.canEdit} ready={template.ready}/>
     <section className="card no-print" style={{marginBottom:18}}>
-      <div className="section-title-row"><div><small className="eyebrow">DADOS DA FOLHA</small><h2>4 ofertas de validade</h2></div><button className="btn primary" type="button" onClick={()=>window.print()}>Imprimir / salvar PDF</button></div>
+      <div className="section-title-row"><div><small className="eyebrow">DADOS DA FOLHA</small><h2>4 ofertas de validade</h2></div><button className="btn primary" type="button" disabled={!template.ready||!brandReady} onClick={()=>window.print()}>Imprimir / salvar PDF</button></div>
       <p className="muted">Selecione produtos do catálogo ou ajuste qualquer informação manualmente. Logo e fontes seguem o Kit da Marca.</p>
       <div className="validity-editor-grid">{entries.map((e,index)=><div className="validity-editor" key={index}><strong>Oferta {index+1}</strong><label className="field"><span>Produto do catálogo</span><select className="input" value={e.productId} onChange={ev=>selectProduct(index,ev.target.value)}><option value="">Preencher manualmente</option>{options.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select></label><div className="form-grid compact"><label className="field"><span>Produto / tipo</span><input className="input" value={e.name} onChange={ev=>patch(index,{name:ev.target.value})}/></label><label className="field"><span>Marca</span><input className="input" value={e.brand} onChange={ev=>patch(index,{brand:ev.target.value})}/></label><label className="field"><span>Especificação</span><input className="input" value={e.specification} onChange={ev=>patch(index,{specification:ev.target.value})}/></label><label className="field"><span>Validade</span><input className="input" placeholder="20/05/26" value={e.expiry} onChange={ev=>patch(index,{expiry:ev.target.value})}/></label><label className="field"><span>Preço normal</span><input className="input" inputMode="decimal" value={e.normalPrice} onChange={ev=>patch(index,{normalPrice:ev.target.value})}/></label><label className="field"><span>Preço oferta</span><input className="input" inputMode="decimal" value={e.offerPrice} onChange={ev=>patch(index,{offerPrice:ev.target.value})}/></label><label className="field"><span>Código de barras</span><input className="input" inputMode="numeric" value={e.ean} onChange={ev=>patch(index,{ean:ev.target.value})}/></label><label className="field"><span>Unidade</span><input className="input" value={e.unit} onChange={ev=>patch(index,{unit:ev.target.value})}/></label></div></div>)}</div>
     </section>
-    <div className="validity-sheet-wrap"><div className="validity-sheet">{entries.map((e,index)=>{const price=splitPrice(e.offerPrice);return <article className="validity-ticket" key={index}>
-      <div className="validity-offer" style={{fontFamily:fieldFonts.title}}>OFERTA</div>
-      <div className="validity-ribbon" style={{fontFamily:fieldFonts.validity}}>VALIDADE <span>!</span></div>
-      <div className="validity-yellow">
-        <div className="ticket-name" style={{fontFamily:fieldFonts.product}}>{e.name||"PRODUTO"}</div>
-        <div className="ticket-brand" style={{fontFamily:fieldFonts.brand}}>{e.brand||"MARCA"}</div>
-        <div className="ticket-spec" style={{fontFamily:fieldFonts.specification}}>{e.specification||"ESPECIFICAÇÃO"}</div>
-        <div className="ticket-expiry" style={{fontFamily:fieldFonts.validity}}>VALIDADE {e.expiry||"__/__/__"}</div>
-        <div className="ticket-price" style={{fontFamily:fieldFonts.price}}><small>R$</small><strong>{price.major}</strong><div><b>,{price.minor}</b><span>{e.unit||"UN"}</span></div></div>
-        <div className="ticket-bottom"><div className="normal-price" style={{fontFamily:fieldFonts.price}}><small>PREÇO NORMAL:</small><b>R$ {e.normalPrice||"0,00"}</b></div><div className="barcode-box"><small>CÓDIGO DE BARRAS</small><Barcode code={e.ean}/></div></div>
-      </div>
-      <footer style={{fontFamily:fieldFonts.footer}}><span className="tag-icon">%</span><b>Oferta válida enquanto<br/>durarem os estoques</b>{logoUrl?<img src={logoUrl} alt="Varejão Popular" style={{maxWidth:54,maxHeight:34,objectFit:"contain"}}/>:<span className="vp-mark">VP</span>}</footer>
-    </article>})}</div></div>
+    <div className="validity-sheet-wrap"><div className="validity-sheet">{entries.map((e,index)=>{const price=splitPrice(e.offerPrice);return <ConfiguredTicket key={index} config={template.config} fonts={fieldFonts} logoUrl={logoUrl} values={{
+      title:"OFERTA",product:e.name||"PRODUTO",brand:e.brand||"MARCA",specification:e.specification||"ESPECIFICAÇÃO",validity:`VALIDADE ${e.expiry||"__/__/__"}`,
+      price:<div style={{display:"flex",alignItems:"flex-start",justifyContent:"center",height:"100%",lineHeight:.9}}><small style={{fontSize:".2em",marginTop:".15em",color:"#c7192b"}}>R$</small><strong style={{fontSize:"1em"}}>{price.major}</strong><span style={{fontSize:".4em"}}>,{price.minor}<small style={{display:"block",fontSize:".55em",color:"#c7192b"}}>{e.unit||"UN"}</small></span></div>,
+      normalPrice:e.normalPrice||"0,00",code:<Barcode code={e.ean}/>,footer:"Oferta válida enquanto durarem os estoques",
+    }}/>})}</div></div>
   </>;
 }

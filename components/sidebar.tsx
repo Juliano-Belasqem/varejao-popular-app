@@ -8,6 +8,7 @@ const links = [
   ["Produtos", "/app/produtos"],
   ["Validade Próxima", "/app/validade-proxima"],
   ["Conteúdo para Redes", "/app/conteudo-redes"],
+  ["Kit da Marca", "/app/marca"],
   ["Publicações", "/app/publicacoes"],
   ["Usuários", "/app/usuarios"],
 ];

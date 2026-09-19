@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { drawImageContain, drawTemplateBackground } from "@/lib/media/canvas-renderer";
 import { currentMediaTemplate, findTemplateVariant, type MediaFormat } from "@/lib/media/templates";
+import { useTemplate } from "@/lib/use-template";
+import { TemplateEditor } from "@/components/template-editor";
 import { useBrandKit } from "@/lib/brand-kit/client";
 
 type Campaign = {
@@ -32,13 +34,6 @@ type SavedMaterial = {
   size: number | null;
   url: string | null;
 };
-
-function moneyParts(value: number | string | null) {
-  const number = Number(value);
-  if (!Number.isFinite(number)) return { integer: "—", cents: "00" };
-  const [integer, cents] = number.toFixed(2).split(".");
-  return { integer, cents };
-}
 
 function dateLabel(value: string | null) {
   if (!value) return "";
@@ -80,66 +75,6 @@ function fitFont(
   return size;
 }
 
-function outlinedText(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  x: number,
-  y: number,
-  maxWidth: number,
-  initialSize: number,
-  fill: string,
-  stroke: string,
-  strokeWidth: number,
-  family: string,
-) {
-  const size = fitFont(ctx, text, maxWidth, initialSize, Math.max(24, Math.round(initialSize * 0.56)), family);
-  ctx.save();
-  ctx.font = `900 ${size}px ${family}`;
-  ctx.textBaseline = "top";
-  ctx.lineJoin = "round";
-  ctx.lineWidth = strokeWidth;
-  ctx.strokeStyle = stroke;
-  ctx.fillStyle = fill;
-  ctx.strokeText(text, x, y, maxWidth);
-  ctx.fillText(text, x, y, maxWidth);
-  ctx.restore();
-}
-
-function drawPrice(ctx: CanvasRenderingContext2D, value: number | string | null, format: MediaFormat, family: string) {
-  const { integer, cents } = moneyParts(value);
-  const story = format === "story";
-  const x = story ? 650 : 625;
-  const y = story ? 1518 : 773;
-  const integerSize = story ? 158 : 126;
-  const centsSize = story ? 66 : 54;
-
-  ctx.save();
-  ctx.fillStyle = "#ffffff";
-  ctx.strokeStyle = "rgba(15,23,42,.26)";
-  ctx.lineWidth = story ? 9 : 7;
-  ctx.lineJoin = "round";
-  ctx.textBaseline = "top";
-
-  ctx.font = `900 ${story ? 38 : 30}px ${family}`;
-  ctx.strokeText("R$", x, y + (story ? 30 : 22));
-  ctx.fillText("R$", x, y + (story ? 30 : 22));
-
-  ctx.font = `950 ${integerSize}px ${family}`;
-  ctx.strokeText(integer, x + (story ? 55 : 45), y);
-  ctx.fillText(integer, x + (story ? 55 : 45), y);
-
-  const integerWidth = ctx.measureText(integer).width;
-  const centsX = x + (story ? 65 : 55) + integerWidth;
-  ctx.font = `900 ${centsSize}px ${family}`;
-  ctx.strokeText(`,${cents}`, centsX, y + (story ? 20 : 16));
-  ctx.fillText(`,${cents}`, centsX, y + (story ? 20 : 16));
-
-  ctx.font = `900 ${story ? 36 : 30}px ${family}`;
-  ctx.strokeText("un", centsX + (story ? 18 : 14), y + (story ? 90 : 74));
-  ctx.fillText("un", centsX + (story ? 18 : 14), y + (story ? 90 : 74));
-  ctx.restore();
-}
-
 function footerText(campaign: Campaign) {
   return campaign.end_date
     ? `Ofertas válidas até ${dateLabel(campaign.end_date)} ou enquanto durarem os estoques`
@@ -147,8 +82,9 @@ function footerText(campaign: Campaign) {
 }
 
 export default function OfficialTemplateGenerator({ campaign, items }: { campaign: Campaign; items: Item[] }) {
-  const { logoUrl, fieldFonts } = useBrandKit();
+  const { logoUrl, fieldFonts, ready:brandReady, accentColor } = useBrandKit("campaign");
   const [format, setFormat] = useState<MediaFormat>("feed");
+  const template=useTemplate(format==="story"?"digital-story":"digital-feed");
   const [itemId, setItemId] = useState(items[0]?.id ?? "");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
@@ -196,80 +132,50 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
     if (!ctx) throw new Error("Canvas indisponível");
 
     await document.fonts.ready;
-    await drawTemplateBackground(ctx, variant.width, variant.height, variant.background, loadImage);
-    const slot = variant.products[0];
-
-    const category = (item.name_snapshot || "Produto").toUpperCase();
-    const brand = (item.brand_snapshot || "").toUpperCase();
-    const specification = (item.specification_snapshot || "").toUpperCase();
-
-    outlinedText(ctx, category, slot.name.x, slot.name.y, slot.name.width, slot.name.fontSize, "#ff9b36", "#ffffff", format === "story" ? 8 : 6, fieldFonts.product);
-    if (brand && slot.brand) outlinedText(ctx, brand, slot.brand.x, slot.brand.y, slot.brand.width, slot.brand.fontSize, "#ffffff", "#ff8a2a", format === "story" ? 10 : 8, fieldFonts.brand);
-    if (specification && slot.specification) outlinedText(ctx, specification, slot.specification.x, slot.specification.y, slot.specification.width, slot.specification.fontSize, "#ff9b36", "#ffffff", format === "story" ? 7 : 5, fieldFonts.specification);
-
-    if (item.product_id) {
-      try {
-        const productImage = await loadImage(`/api/product-image/${encodeURIComponent(item.product_id)}`);
-        drawImageContain(ctx, productImage, slot.image);
-      } catch {
-        ctx.save();
-        ctx.fillStyle = "rgba(255,255,255,.9)";
-        ctx.font = `700 ${format === "story" ? 34 : 28}px ${fieldFonts.body}`;
-        ctx.textAlign = "center";
-        ctx.fillText("SEM IMAGEM", slot.image.x + slot.image.width / 2, slot.image.y + slot.image.height / 2);
-        ctx.restore();
+    await drawTemplateBackground(ctx, variant.width, variant.height, template.config.backgroundUrl?{kind:"image",value:template.config.backgroundUrl}:variant.background, loadImage);
+    for(const [key,field] of Object.entries(template.config.layout)){
+      if(!field.visible)continue;
+      const rect={x:field.x*variant.width/100,y:field.y*variant.height/100,width:field.width*variant.width/100,height:field.height*variant.height/100};
+      if(key==="image"||key==="logo"){
+        const url=key==="logo"?logoUrl:item.product_id?`/api/product-image/${encodeURIComponent(item.product_id)}`:null;
+        if(url){try{drawImageContain(ctx,await loadImage(url),rect)}catch{if(key==="image"){ctx.fillStyle="#555";ctx.font="24px Arial";ctx.fillText("Imagem indisponível",rect.x,rect.y+rect.height/2)}}}
+        continue;
       }
+      const price=item.highlighted_price==="normal"?item.normal_price:item.offer_price??item.normal_price;
+      const values:Record<string,string>={product:(item.name_snapshot||"Produto").toUpperCase(),brand:(item.brand_snapshot||"").toUpperCase(),specification:(item.specification_snapshot||"").toUpperCase(),price:`R$ ${Number(price??0).toFixed(2).replace(".",",")}`,footer:footerText(campaign)};
+      ctx.save();ctx.beginPath();ctx.rect(rect.x,rect.y,rect.width,rect.height);ctx.clip();
+      const family=fieldFonts[key]||fieldFonts.body;
+      const size=fitFont(ctx,values[key]||"",rect.width,field.fontSize*variant.width/1000,12,family,field.weight);
+      ctx.font=`${field.weight} ${size}px ${family}`;ctx.textBaseline="top";ctx.textAlign=field.align;
+      ctx.fillStyle=field.color==="#ff9b36"?accentColor:field.color;
+      const x=rect.x+(field.align==="center"?rect.width/2:field.align==="right"?rect.width:0);
+      ctx.fillText(values[key]||"",x,rect.y,rect.width);ctx.restore();
     }
 
-    const price = item.highlighted_price === "normal" ? item.normal_price : item.offer_price ?? item.normal_price;
-    drawPrice(ctx, price, format, fieldFonts.price);
-
-    const footer = footerText(campaign);
-    ctx.save();
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.font = `900 ${format === "story" ? 33 : 30}px ${fieldFonts.footer}`;
-    ctx.lineJoin = "round";
-    ctx.lineWidth = format === "story" ? 10 : 8;
-    ctx.strokeStyle = "#222222";
-    ctx.fillStyle = "#ffffff";
-    const footerY = format === "story" ? 1825 : 1018;
-    ctx.strokeText(footer, variant.width / 2, footerY, variant.width - 90);
-    ctx.fillText(footer, variant.width / 2, footerY, variant.width - 90);
-    ctx.restore();
-
-    if (logoUrl) {
-      try {
-        const logo = await loadImage(logoUrl);
-        const logoRect = format === "story"
-          ? { x: variant.width - 200, y: 40, width: 150, height: 100 }
-          : { x: variant.width - 165, y: 30, width: 120, height: 80 };
-        drawImageContain(ctx, logo, logoRect);
-      } catch {
-        // Keep the template usable even if the brand asset is temporarily unavailable.
-      }
-    }
-  }, [campaign, fieldFonts, format, item, loadImage, logoUrl, variant]);
+  }, [campaign, fieldFonts, format, item, loadImage, logoUrl, variant, template.config, accentColor]);
 
   useEffect(() => {
     void loadMaterials();
   }, [loadMaterials]);
 
   useEffect(() => {
-    if (!canvasRef.current || !item) return;
+    if (!canvasRef.current || !item || !brandReady || !template.ready) return;
+    let cancelled=false;
     const frame = requestAnimationFrame(() => {
-      if (canvasRef.current) void draw(canvasRef.current).catch(() => setStatus("Não foi possível montar a prévia."));
+      const target=document.createElement("canvas");
+      void draw(target).then(()=>{if(!cancelled&&canvasRef.current){canvasRef.current.width=target.width;canvasRef.current.height=target.height;canvasRef.current.getContext("2d")?.drawImage(target,0,0)}}).catch(()=>{if(!cancelled)setStatus("Não foi possível montar a prévia.")});
     });
-    return () => cancelAnimationFrame(frame);
-  }, [draw, item]);
+    return () => {cancelled=true;cancelAnimationFrame(frame)};
+  }, [draw, item, brandReady, template.ready]);
 
   async function saveMaterial(download: boolean) {
-    if (!canvasRef.current || !item) return;
+    if (!canvasRef.current || !item || !brandReady || !template.ready) return;
     setBusy(true);
     setStatus(download ? "Preparando PNG..." : "Salvando material...");
     try {
-      await draw(canvasRef.current);
-      const blob = await canvasBlob(canvasRef.current);
+      const output=document.createElement("canvas");
+      await draw(output);
+      const blob = await canvasBlob(output);
       const filename = `${slug(campaign.name)}-${slug(item.name_snapshot || "produto")}-${format}.png`;
 
       if (download) {
@@ -310,7 +216,7 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
       const response = await fetch("/api/publication-drafts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ campaign_id: campaign.id, material_path: material.path, network, type: format, caption: campaign.name }),
+        body: JSON.stringify({ campaign_id: campaign.id, material_path: material.path, network, type: material.name.includes("story")?"story":"feed", caption: campaign.name }),
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || "Falha ao criar rascunho");
@@ -332,6 +238,8 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
         <span className="pill">1 produto</span>
       </div>
 
+      {template.error&&<p className="error">{template.error}</p>}
+      <TemplateEditor key={template.config.id} config={template.config} onChange={template.setConfig} onSaved={template.reload} canEdit={template.canEdit} ready={template.ready}/>
       <div className="grid" style={{ alignItems: "start" }}>
         <div className="form">
           <label className="field">
@@ -350,8 +258,8 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
           </label>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            <button className="btn primary" type="button" disabled={busy || !item} onClick={() => void saveMaterial(false)}>Salvar no sistema</button>
-            <button className="btn" type="button" disabled={busy || !item} onClick={() => void saveMaterial(true)}>Baixar PNG</button>
+            <button className="btn primary" type="button" disabled={busy || !item || !brandReady || !template.ready} onClick={() => void saveMaterial(false)}>Salvar no sistema</button>
+            <button className="btn" type="button" disabled={busy || !item || !brandReady || !template.ready} onClick={() => void saveMaterial(true)}>Baixar PNG</button>
           </div>
 
           {status ? <div className={status.toLowerCase().includes("falha") ? "error" : "muted"}>{status}</div> : null}

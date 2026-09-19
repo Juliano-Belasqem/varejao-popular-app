@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { useBrandKit } from "@/lib/brand-kit/client";
+import { drawImageContain } from "@/lib/media/canvas-renderer";
+
 type Format = "feed" | "story";
 type Mode = "composed" | "individual";
 type Quantity = 1 | 2 | 4;
@@ -100,6 +103,7 @@ function yieldToBrowser() {
 }
 
 export default function GeneratorClientOptimized({ campaign, items }: { campaign: Campaign; items: Item[] }) {
+  const {logoUrl,fieldFonts,primaryColor,accentColor,ready:brandReady}=useBrandKit("campaign");
   const [format, setFormat] = useState<Format>("feed");
   const [mode, setMode] = useState<Mode>("composed");
   const [qty, setQty] = useState<Quantity>(1);
@@ -146,6 +150,7 @@ export default function GeneratorClientOptimized({ campaign, items }: { campaign
     const promise = new Promise<HTMLImageElement>((resolve, reject) => {
       const image = new Image();
       image.decoding = "async";
+      image.crossOrigin="anonymous";
       image.onload = () => resolve(image);
       image.onerror = () => {
         imageCacheRef.current.delete(url);
@@ -165,21 +170,23 @@ export default function GeneratorClientOptimized({ campaign, items }: { campaign
     const ctx = target.getContext("2d");
     if (!ctx) throw new Error("Canvas indisponível");
 
+    await document.fonts.ready;
     const gradient = ctx.createLinearGradient(0, 0, width, height);
-    gradient.addColorStop(0, "#0b3a78");
-    gradient.addColorStop(0.56, "#1559a8");
-    gradient.addColorStop(0.561, "#f7941d");
-    gradient.addColorStop(1, "#f7a733");
+    gradient.addColorStop(0, primaryColor);
+    gradient.addColorStop(0.56, primaryColor);
+    gradient.addColorStop(0.561, accentColor);
+    gradient.addColorStop(1, accentColor);
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, width, height);
 
     const pad = drawFormat === "story" ? 70 : 54;
     ctx.fillStyle = "#ffffff";
-    ctx.font = `900 ${drawFormat === "story" ? 54 : 46}px Arial, sans-serif`;
-    ctx.fillText("VAREJÃO POPULAR", pad, pad + 48);
-    ctx.font = `700 ${drawFormat === "story" ? 34 : 28}px Arial, sans-serif`;
+    ctx.font = `900 ${drawFormat === "story" ? 54 : 46}px ${fieldFonts.title}`;
+    if(logoUrl){drawImageContain(ctx,await loadImageCached(logoUrl),{x:width-pad-170,y:pad,width:170,height:120})}
+    ctx.fillText("VAREJÃO POPULAR", pad, pad + 48, width-pad*2-190);
+    ctx.font = `700 ${drawFormat === "story" ? 34 : 28}px ${fieldFonts.title}`;
     ctx.fillText(campaign.theme || "OFERTAS", pad, pad + 94);
-    ctx.font = `400 ${drawFormat === "story" ? 24 : 20}px Arial, sans-serif`;
+    ctx.font = `400 ${drawFormat === "story" ? 24 : 20}px ${fieldFonts.validity}`;
     const dates = `${campaign.start_date ? `De ${dateLabel(campaign.start_date)}` : ""}${campaign.end_date ? ` até ${dateLabel(campaign.end_date)}` : ""}`;
     if (dates.trim()) ctx.fillText(dates, pad, pad + 132);
 
@@ -219,7 +226,7 @@ export default function GeneratorClientOptimized({ campaign, items }: { campaign
           ctx.drawImage(image, imageX + (imageBox - w) / 2, imageY + (imageBox - h) / 2, w, h);
         } catch {
           ctx.fillStyle = "#94a3b8";
-          ctx.font = `600 ${drawItems.length === 4 ? 22 : 28}px Arial, sans-serif`;
+          ctx.font = `600 ${drawItems.length === 4 ? 22 : 28}px ${fieldFonts.body}`;
           ctx.textAlign = "center";
           ctx.fillText("SEM IMAGEM", x + cardW / 2, imageY + imageBox / 2);
           ctx.textAlign = "left";
@@ -228,35 +235,36 @@ export default function GeneratorClientOptimized({ campaign, items }: { campaign
 
       const textY = imageY + imageBox + (drawItems.length === 4 ? 22 : 30);
       ctx.fillStyle = "#0f172a";
-      ctx.font = `900 ${drawItems.length === 4 ? 28 : drawFormat === "story" ? 40 : 36}px Arial, sans-serif`;
+      ctx.font = `900 ${drawItems.length === 4 ? 28 : drawFormat === "story" ? 40 : 36}px ${fieldFonts.product}`;
       const nameLines = wrapText(ctx, item.name_snapshot || "Produto", cardW - inner * 2, 2);
       nameLines.forEach((line, i) => ctx.fillText(line, x + inner, textY + i * (drawItems.length === 4 ? 32 : 44)));
 
-      const meta = [item.brand_snapshot, item.specification_snapshot].filter(Boolean).join(" · ");
+      const meta = item.brand_snapshot;
       if (meta) {
         ctx.fillStyle = "#64748b";
-        ctx.font = `500 ${drawItems.length === 4 ? 20 : 26}px Arial, sans-serif`;
+        ctx.font = `500 ${drawItems.length === 4 ? 20 : 26}px ${fieldFonts.brand}`;
         ctx.fillText(meta.slice(0, 55), x + inner, textY + nameLines.length * (drawItems.length === 4 ? 32 : 44) + 22);
       }
 
+      if(item.specification_snapshot){ctx.font=`500 ${drawItems.length===4?18:22}px ${fieldFonts.specification}`;ctx.fillText(item.specification_snapshot,x+inner,textY+nameLines.length*(drawItems.length===4?32:44)+46,cardW-inner*2)}
       const highlighted = item.highlighted_price === "normal" ? item.normal_price : item.offer_price ?? item.normal_price;
       const normal = item.normal_price == null ? null : Number(item.normal_price);
       const offer = item.offer_price == null ? null : Number(item.offer_price);
       const priceY = y + cardH - inner - (drawItems.length === 4 ? 14 : 18);
       if (normal != null && offer != null && Number.isFinite(normal) && Number.isFinite(offer) && normal !== offer) {
         ctx.fillStyle = "#64748b";
-        ctx.font = `500 ${drawItems.length === 4 ? 20 : 24}px Arial, sans-serif`;
+        ctx.font = `500 ${drawItems.length === 4 ? 20 : 24}px ${fieldFonts.normalPrice}`;
         ctx.fillText(`De ${money(item.normal_price)}`, x + inner, priceY - (drawItems.length === 4 ? 52 : 70));
       }
-      ctx.fillStyle = "#e66c00";
-      ctx.font = `950 ${drawItems.length === 4 ? 48 : drawFormat === "story" ? 76 : 66}px Arial, sans-serif`;
+      ctx.fillStyle = accentColor;
+      ctx.font = `950 ${drawItems.length === 4 ? 48 : drawFormat === "story" ? 76 : 66}px ${fieldFonts.price}`;
       ctx.fillText(money(highlighted), x + inner, priceY);
     }
 
     ctx.fillStyle = "rgba(255,255,255,.9)";
-    ctx.font = `400 ${drawFormat === "story" ? 20 : 17}px Arial, sans-serif`;
+    ctx.font = `400 ${drawFormat === "story" ? 20 : 17}px ${fieldFonts.footer}`;
     ctx.fillText("Ofertas válidas enquanto durarem os estoques.", pad, height - pad);
-  }, [campaign.end_date, campaign.start_date, campaign.theme, format, loadImageCached]);
+  }, [campaign.end_date, campaign.start_date, campaign.theme, format, loadImageCached, fieldFonts, logoUrl, primaryColor, accentColor]);
 
   useEffect(() => {
     void loadHistory();
@@ -267,13 +275,14 @@ export default function GeneratorClientOptimized({ campaign, items }: { campaign
   }, [qty, normalizeComposedSelection]);
 
   useEffect(() => {
-    if (!canvasRef.current || !selectedItems.length) return;
-    const canvas = canvasRef.current;
+    if (!canvasRef.current || !selectedItems.length || !brandReady) return;
+    const canvas = document.createElement("canvas");
+    let cancelled=false;
     const frame = requestAnimationFrame(() => {
-      void draw(canvas, selectedItems).catch(() => setStatus("Não foi possível desenhar a prévia."));
+      void draw(canvas, selectedItems).then(()=>{if(!cancelled&&canvasRef.current){canvasRef.current.width=canvas.width;canvasRef.current.height=canvas.height;canvasRef.current.getContext("2d")?.drawImage(canvas,0,0)}}).catch(()=>{if(!cancelled)setStatus("Não foi possível desenhar a prévia.")});
     });
-    return () => cancelAnimationFrame(frame);
-  }, [draw, selectedItems]);
+    return () => {cancelled=true;cancelAnimationFrame(frame)};
+  }, [draw, selectedItems, brandReady]);
 
   function selectComposedItem(itemId: string) {
     setComposedIds((current) => {
@@ -304,13 +313,14 @@ export default function GeneratorClientOptimized({ campaign, items }: { campaign
   }
 
   async function downloadCurrent() {
-    if (!canvasRef.current || !selectedItems.length) return;
+    if (!canvasRef.current || !selectedItems.length || !brandReady) return;
     setBusy(true);
     setStatus("Preparando PNG...");
     await yieldToBrowser();
     try {
-      await draw(canvasRef.current, selectedItems);
-      const blob = await canvasBlob(canvasRef.current);
+      const output=document.createElement("canvas");
+      await draw(output, selectedItems);
+      const blob = await canvasBlob(output);
       const label = mode === "individual" ? selectedItems[0]?.name_snapshot || "produto" : `${selectedItems.length}-produtos`;
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -329,13 +339,14 @@ export default function GeneratorClientOptimized({ campaign, items }: { campaign
   }
 
   async function saveCurrent() {
-    if (!canvasRef.current || !selectedItems.length) return;
+    if (!canvasRef.current || !selectedItems.length || !brandReady) return;
     setBusy(true);
     setStatus("Preparando material...");
     await yieldToBrowser();
     try {
-      await draw(canvasRef.current, selectedItems);
-      const blob = await canvasBlob(canvasRef.current);
+      const output=document.createElement("canvas");
+      await draw(output, selectedItems);
+      const blob = await canvasBlob(output);
       await saveBlob(blob, selectedItems, mode);
       await loadHistory();
       setStatus("Material salvo. Ele já aparece em Materiais salvos.");
@@ -347,7 +358,7 @@ export default function GeneratorClientOptimized({ campaign, items }: { campaign
   }
 
   async function saveAllIndividual() {
-    if (!items.length) return;
+    if (!items.length || !brandReady) return;
     setBusy(true);
     setStatus(`Preparando ${items.length} arte(s)...`);
     await yieldToBrowser();
@@ -467,9 +478,9 @@ export default function GeneratorClientOptimized({ campaign, items }: { campaign
             <div className="card" style={{ padding: 14 }}>
               <strong>4. Ações</strong>
               <div style={{ display: "grid", gap: 8, marginTop: 10 }}>
-                <button className="btn primary" type="button" onClick={() => void downloadCurrent()} disabled={busy || !selectedItems.length}>Baixar PNG da prévia</button>
-                <button className="btn" type="button" onClick={() => void saveCurrent()} disabled={busy || !selectedItems.length}>Salvar prévia no sistema</button>
-                {mode === "individual" && <button className="btn" type="button" onClick={() => void saveAllIndividual()} disabled={busy || !items.length}>Gerar e salvar todos os itens</button>}
+                <button className="btn primary" type="button" onClick={() => void downloadCurrent()} disabled={busy || !selectedItems.length || !brandReady}>Baixar PNG da prévia</button>
+                <button className="btn" type="button" onClick={() => void saveCurrent()} disabled={busy || !selectedItems.length || !brandReady}>Salvar prévia no sistema</button>
+                {mode === "individual" && <button className="btn" type="button" onClick={() => void saveAllIndividual()} disabled={busy || !items.length || !brandReady}>Gerar e salvar todos os itens</button>}
               </div>
             </div>
           </div>
@@ -514,7 +525,7 @@ export default function GeneratorClientOptimized({ campaign, items }: { campaign
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(230px,1fr))", gap: 12 }}>
             {materials.map((material) => (
               <article key={material.path} className="card" style={{ padding: 10 }}>
-                <div style={{ aspectRatio: "1 / 1", borderRadius: 10, background: "#f8fafc", overflow: "hidden", display: "grid", placeItems: "center" }}>
+                <div className="publication-media-frame" style={{ aspectRatio: "1 / 1", borderRadius: 10, background: "#f8fafc", overflow: "hidden", display: "grid", placeItems: "center" }}>
                   {material.url ? <img src={material.url} alt={material.name} loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "contain" }} /> : <span className="muted">Prévia indisponível</span>}
                 </div>
                 <div style={{ fontWeight: 800, fontSize: 13, marginTop: 8, overflowWrap: "anywhere" }}>{material.name}</div>
