@@ -76,6 +76,17 @@ function fitFont(
   return size;
 }
 
+function splitProductName(value: string) {
+  const words = value.trim().toUpperCase().split(/\s+/).filter(Boolean);
+  const lines = ["", "", ""];
+  for (const word of words) {
+    let target = 0;
+    for (let i = 1; i < lines.length; i++) if (lines[i].length < lines[target].length) target = i;
+    lines[target] = `${lines[target]} ${word}`.trim();
+  }
+  return lines;
+}
+
 function footerText(campaign: Campaign) {
   return campaign.end_date
     ? `Ofertas válidas até ${dateLabel(campaign.end_date)} ou enquanto durarem os estoques`
@@ -90,6 +101,9 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
   const [itemId, setItemId] = useState(items[0]?.id ?? "");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const [manualProductName, setManualProductName] = useState(false);
+  const [productLines, setProductLines] = useState<[string,string,string]>(["","",""]);
+  const [unitLabel, setUnitLabel] = useState("UN");
   const [materials, setMaterials] = useState<SavedMaterial[]>([]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageCacheRef = useRef(new Map<string, Promise<HTMLImageElement>>());
@@ -98,6 +112,7 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
 
   const item = useMemo(() => items.find((candidate) => candidate.id === itemId) ?? items[0] ?? null, [itemId, items]);
   const variant = useMemo(() => findTemplateVariant(currentMediaTemplate, format, "individual", 1), [format]);
+  useEffect(() => { if (!manualProductName && item) setProductLines(splitProductName(item.name_snapshot || "Produto") as [string,string,string]); }, [item, manualProductName]);
 
   const loadImage = useCallback((url: string) => {
     const cached = imageCacheRef.current.get(url);
@@ -146,7 +161,8 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
         continue;
       }
       const price=item.highlighted_price==="normal"?item.normal_price:item.offer_price??item.normal_price;
-      const values:Record<string,string>={product:(item.name_snapshot||"Produto").toUpperCase(),brand:(item.brand_snapshot||"").toUpperCase(),specification:(item.specification_snapshot||"").toUpperCase(),price:`R$ ${Number(price??0).toFixed(2).replace(".",",")}`,footer:footerText(campaign)};
+      const numericPrice=Number(price??0).toFixed(2).replace(".",",");
+      const values:Record<string,string>={productLine1:productLines[0],productLine2:productLines[1],productLine3:productLines[2],currency:"R$",unit:unitLabel,brand:(item.brand_snapshot||"").toUpperCase(),specification:(item.specification_snapshot||"").toUpperCase(),price:numericPrice,footer:footerText(campaign)};
       ctx.save();
       ctx.globalAlpha=field.opacity??1;
       const cx=rect.x+rect.width/2,cy=rect.y+rect.height/2;
@@ -156,7 +172,10 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
       const size=fitFont(ctx,values[key]||"",rect.width,field.fontSize*variant.width/1000,12,family,field.weight);
       ctx.font=`${field.weight} ${size}px ${family}`;ctx.textBaseline="top";ctx.textAlign=field.align;
       ctx.fillStyle=field.color==="#ff9b36"?accentColor:field.color;
+      ctx.strokeStyle=field.strokeColor??"#000000";ctx.lineWidth=field.strokeWidth??0;
+      ctx.shadowColor=field.shadowColor??"transparent";ctx.shadowBlur=field.shadowBlur??0;ctx.shadowOffsetX=field.shadowX??0;ctx.shadowOffsetY=field.shadowY??0;
       const x=rect.x+(field.align==="center"?rect.width/2:field.align==="right"?rect.width:0);
+      if((field.strokeWidth??0)>0)ctx.strokeText(values[key]||"",x,rect.y,rect.width);
       ctx.fillText(values[key]||"",x,rect.y,rect.width);ctx.restore();
     }
 
@@ -270,6 +289,12 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
               {items.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name_snapshot || "Produto"}</option>)}
             </select>
           </label>
+
+          <div className="card" style={{ padding: 12, display: "grid", gap: 8 }}>
+            <label><input type="checkbox" checked={manualProductName} onChange={(e)=>setManualProductName(e.target.checked)} /> Dividir nome manualmente</label>
+            {productLines.map((line,index)=><input key={index} className="input" value={line} disabled={!manualProductName} onChange={(e)=>setProductLines(old=>old.map((v,i)=>i===index?e.target.value:v) as [string,string,string])} placeholder={`Produto · linha ${index+1}`} />)}
+            <label className="field"><span>Unidade</span><input className="input" value={unitLabel} onChange={(e)=>setUnitLabel(e.target.value.toUpperCase().slice(0,8))} /></label>
+          </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             <button className="btn primary" type="button" disabled={busy || !item || !brandReady || !template.ready} onClick={() => void saveMaterial(false)}>Salvar no sistema</button>
