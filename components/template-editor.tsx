@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   defaultTemplate,
   fieldLabels,
@@ -78,12 +78,16 @@ export function TemplateEditor({
   onSaved,
   canEdit,
   ready,
+  persist = true,
+  title = "Configurar template e campos",
 }: {
   config: TemplateConfig;
   onChange: (config: TemplateConfig) => void;
   onSaved: () => Promise<void>;
   canEdit: boolean;
   ready: boolean;
+  persist?: boolean;
+  title?: string;
 }) {
   const [selected, setSelected] = useState(Object.keys(config.layout)[0]);
   const [file, setFile] = useState<File | null>(null);
@@ -91,6 +95,7 @@ export function TemplateEditor({
   const [quarter, setQuarter] = useState(false);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
+  const visualRef = useRef<HTMLDivElement>(null);
   const key =
     selected in config.layout ? selected : Object.keys(config.layout)[0];
   const field = config.layout[key];
@@ -99,6 +104,39 @@ export function TemplateEditor({
       ...config,
       layout: { ...config.layout, [key]: { ...field, ...values } },
     });
+  }
+  function startDrag(event: React.PointerEvent<HTMLElement>, dragKey: string, resize = false) {
+    if (!canEdit || !ready) return;
+    event.preventDefault();
+    setSelected(dragKey);
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const start = config.layout[dragKey];
+    const rect = visualRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const target = event.currentTarget;
+    target.setPointerCapture(event.pointerId);
+    const move = (moveEvent: PointerEvent) => {
+      const dx = ((moveEvent.clientX - startX) / rect.width) * 100;
+      const dy = ((moveEvent.clientY - startY) / rect.height) * 100;
+      if (resize) {
+        const width = Math.max(2, Math.min(100 - start.x, start.width + dx));
+        const height = Math.max(2, Math.min(100 - start.y, start.height + dy));
+        onChange({ ...config, layout: { ...config.layout, [dragKey]: { ...start, width, height } } });
+      } else {
+        const x = Math.max(0, Math.min(100 - start.width, start.x + dx));
+        const y = Math.max(0, Math.min(100 - start.height, start.y + dy));
+        onChange({ ...config, layout: { ...config.layout, [dragKey]: { ...start, x, y } } });
+      }
+    };
+    const end = () => {
+      target.removeEventListener("pointermove", move);
+      target.removeEventListener("pointerup", end);
+      target.removeEventListener("pointercancel", end);
+    };
+    target.addEventListener("pointermove", move);
+    target.addEventListener("pointerup", end);
+    target.addEventListener("pointercancel", end);
   }
   async function upload(input: File) {
     setBusy(true);
@@ -149,10 +187,9 @@ export function TemplateEditor({
   }
   return (
     <details className="card no-print" style={{ marginBottom: 18 }}>
-      <summary>Configurar template e campos</summary>
+      <summary>{title}</summary>
       <p className="muted">
-        Troque apenas o fundo ou ajuste os campos separadamente. As alterações
-        aparecem na prévia; salve para usar nas próximas artes.
+        {persist ? "Troque o fundo ou ajuste os campos. Salve para usar nas próximas artes." : "Ajuste os elementos desta arte sem modificar o Template Mestre."}
       </p>
       <fieldset
         disabled={!canEdit || !ready || busy}
@@ -180,6 +217,47 @@ export function TemplateEditor({
             }}
           />
         </label>
+        <div
+          ref={visualRef}
+          aria-label="Editor visual do template mestre"
+          style={{
+            position: "relative", width: "100%", maxWidth: 720, margin: "18px auto",
+            aspectRatio: config.id === "digital-story" ? "9 / 16" : "1 / 1",
+            overflow: "hidden", borderRadius: 12, border: "1px solid var(--line)",
+            background: config.backgroundUrl ? `url("${config.backgroundUrl}") center/cover no-repeat` : "rgba(255,255,255,.04)",
+            touchAction: "none",
+          }}
+        >
+          {Object.entries(config.layout).filter(([, item]) => item.visible).map(([name, item]) => (
+            <div
+              key={name}
+              onPointerDown={(event) => startDrag(event, name)}
+              onClick={() => setSelected(name)}
+              title={fieldLabels[name]}
+              style={{
+                position: "absolute", left: `${item.x}%`, top: `${item.y}%`,
+                width: `${item.width}%`, height: `${item.height}%`,
+                border: name === key ? "2px solid currentColor" : "1px dashed currentColor",
+                display: "grid", placeItems: "center", cursor: canEdit ? "move" : "default",
+                opacity: item.opacity ?? 1, transform: `rotate(${item.rotation ?? 0}deg)`,
+                zIndex: item.layer ?? 1, color: item.color, fontWeight: item.weight,
+                fontSize: "clamp(10px, 2vw, 18px)", textAlign: item.align,
+                background: name === key ? "rgba(255,255,255,.14)" : "rgba(0,0,0,.06)",
+                userSelect: "none",
+              }}
+            >
+              {fieldLabels[name]}
+              {name === key && canEdit ? (
+                <span
+                  aria-label="Redimensionar elemento"
+                  onPointerDown={(event) => { event.stopPropagation(); startDrag(event, name, true); }}
+                  style={{ position:"absolute", right:-5, bottom:-5, width:12, height:12, borderRadius:3, background:"currentColor", cursor:"nwse-resize" }}
+                />
+              ) : null}
+            </div>
+          ))}
+        </div>
+        <p className="muted">Arraste os elementos diretamente na prévia. Os controles abaixo permitem ajuste fino.</p>
         <div className="form-grid compact" style={{ marginTop: 16 }}>
           <label className="field">
             Campo
@@ -253,6 +331,18 @@ export function TemplateEditor({
             </select>
           </label>
           <label className="field">
+            Opacidade
+            <input className="input" type="number" min="0" max="1" step="0.05" value={field.opacity ?? 1} onChange={(e) => patch({ opacity: Number(e.target.value) })} />
+          </label>
+          <label className="field">
+            Rotação (°)
+            <input className="input" type="number" min="-180" max="180" step="1" value={field.rotation ?? 0} onChange={(e) => patch({ rotation: Number(e.target.value) })} />
+          </label>
+          <label className="field">
+            Camada
+            <input className="input" type="number" min="0" max="100" step="1" value={field.layer ?? 1} onChange={(e) => patch({ layer: Number(e.target.value) })} />
+          </label>
+          <label className="field">
             Cor
             <input
               type="color"
@@ -262,13 +352,13 @@ export function TemplateEditor({
           </label>
         </div>
         <div className="preview-actions" style={{ marginTop: 16 }}>
-          <button
+          {persist ? <button
             className="btn primary"
             type="button"
             onClick={() => void save()}
           >
-            Salvar template
-          </button>
+            Salvar Template Mestre
+          </button> : null}
           <button
             className="btn"
             type="button"
