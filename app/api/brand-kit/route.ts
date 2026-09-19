@@ -86,16 +86,22 @@ export async function POST(request: Request) {
   }
 
   if (kind === "font") {
-    const allowedTypes = new Set(["font/woff2","font/woff","font/ttf","font/otf","application/font-woff","application/x-font-ttf","application/x-font-opentype","application/octet-stream"]);
-    if (!allowedTypes.has(file.type)) return NextResponse.json({ error: "Fonte deve ser WOFF2, WOFF, TTF ou OTF." }, { status: 400 });
+    const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+    const canonicalTypes: Record<string,string> = {
+      woff2: "font/woff2",
+      woff: "font/woff",
+      ttf: "font/ttf",
+      otf: "font/otf",
+    };
+    const contentType = canonicalTypes[ext];
+    if (!contentType) return NextResponse.json({ error: "Fonte deve ser WOFF2, WOFF, TTF ou OTF." }, { status: 400 });
     const name = String(form.get("name") ?? file.name.replace(/\.[^.]+$/, "")).trim().slice(0,80);
     const familyBase = name.replace(/[^a-zA-Z0-9 _-]/g, "").trim() || "Fonte Varejao";
-    const family = `${familyBase}-${Date.now()}`;
-    const ext = file.name.split(".").pop()?.toLowerCase() || "woff2";
+    const family = `${familyBase}-${crypto.randomUUID()}`;
     const path = `fonts/${family.replace(/\s+/g,"-").toLowerCase()}.${ext}`;
-    const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: false, contentType: file.type || "application/octet-stream" });
+    const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: false, contentType });
     if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 400 });
-    const { error: insertError } = await supabase.from("brand_fonts").insert({ name, family, storage_path: path, mime_type: file.type || "application/octet-stream", created_by: user.id });
+    const { error: insertError } = await supabase.from("brand_fonts").insert({ name, family, storage_path: path, mime_type: contentType, created_by: user.id });
     if (insertError) {
       await supabase.storage.from(BUCKET).remove([path]);
       return NextResponse.json({ error: insertError.message }, { status: 400 });
