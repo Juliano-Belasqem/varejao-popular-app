@@ -121,7 +121,9 @@ export function validateLayout(
   const defaults = defaultTemplate(id).layout;
   const result: Record<string, LayoutField> = {};
   for (const key of Object.keys(defaults)) {
-    const f = input[key];
+    const legacy = input.product;
+    const fallback = defaults[key];
+    const f = input[key] ?? (key === "productLine1" && legacy ? legacy : fallback);
     if (
       !f ||
       ["x", "y", "width", "height", "fontSize", "weight"].some(
