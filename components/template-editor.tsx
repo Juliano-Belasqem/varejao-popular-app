@@ -105,7 +105,7 @@ export function TemplateEditor({
       layout: { ...config.layout, [key]: { ...field, ...values } },
     });
   }
-  function startDrag(event: React.PointerEvent<HTMLDivElement>, dragKey: string, resize = false) {
+  function startDrag(event: React.PointerEvent<HTMLElement>, dragKey: string, resize = false) {
     if (!canEdit || !ready) return;
     event.preventDefault();
     setSelected(dragKey);
