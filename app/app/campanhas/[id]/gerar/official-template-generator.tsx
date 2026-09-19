@@ -143,7 +143,11 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
       }
       const price=item.highlighted_price==="normal"?item.normal_price:item.offer_price??item.normal_price;
       const values:Record<string,string>={product:(item.name_snapshot||"Produto").toUpperCase(),brand:(item.brand_snapshot||"").toUpperCase(),specification:(item.specification_snapshot||"").toUpperCase(),price:`R$ ${Number(price??0).toFixed(2).replace(".",",")}`,footer:footerText(campaign)};
-      ctx.save();ctx.beginPath();ctx.rect(rect.x,rect.y,rect.width,rect.height);ctx.clip();
+      ctx.save();
+      ctx.globalAlpha=field.opacity??1;
+      const cx=rect.x+rect.width/2,cy=rect.y+rect.height/2;
+      ctx.translate(cx,cy);ctx.rotate(((field.rotation??0)*Math.PI)/180);ctx.translate(-cx,-cy);
+      ctx.beginPath();ctx.rect(rect.x,rect.y,rect.width,rect.height);ctx.clip();
       const family=fieldFonts[key]||fieldFonts.body;
       const size=fitFont(ctx,values[key]||"",rect.width,field.fontSize*variant.width/1000,12,family,field.weight);
       ctx.font=`${field.weight} ${size}px ${family}`;ctx.textBaseline="top";ctx.textAlign=field.align;
