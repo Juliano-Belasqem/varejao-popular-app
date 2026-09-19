@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { drawImageContain, drawTemplateBackground } from "@/lib/media/canvas-renderer";
 import { currentMediaTemplate, findTemplateVariant, type MediaFormat } from "@/lib/media/templates";
 import { useTemplate } from "@/lib/use-template";
+import type { TemplateConfig } from "@/lib/template-config";
 import { TemplateEditor } from "@/components/template-editor";
 import { useBrandKit } from "@/lib/brand-kit/client";
 
@@ -85,12 +86,15 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
   const { logoUrl, fieldFonts, ready:brandReady, accentColor } = useBrandKit("campaign");
   const [format, setFormat] = useState<MediaFormat>("feed");
   const template=useTemplate(format==="story"?"digital-story":"digital-feed");
+  const [artConfig, setArtConfig] = useState<TemplateConfig>(template.config);
   const [itemId, setItemId] = useState(items[0]?.id ?? "");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [materials, setMaterials] = useState<SavedMaterial[]>([]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageCacheRef = useRef(new Map<string, Promise<HTMLImageElement>>());
+
+  useEffect(() => { if (template.ready) setArtConfig(structuredClone(template.config)); }, [template.ready, template.config.id, template.config.revision]);
 
   const item = useMemo(() => items.find((candidate) => candidate.id === itemId) ?? items[0] ?? null, [itemId, items]);
   const variant = useMemo(() => findTemplateVariant(currentMediaTemplate, format, "individual", 1), [format]);
@@ -132,8 +136,8 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
     if (!ctx) throw new Error("Canvas indisponível");
 
     await document.fonts.ready;
-    await drawTemplateBackground(ctx, variant.width, variant.height, template.config.backgroundUrl?{kind:"image",value:template.config.backgroundUrl}:variant.background, loadImage);
-    for(const [key,field] of Object.entries(template.config.layout)){
+    await drawTemplateBackground(ctx, variant.width, variant.height, artConfig.backgroundUrl?{kind:"image",value:artConfig.backgroundUrl}:variant.background, loadImage);
+    for(const [key,field] of Object.entries(artConfig.layout).sort(([,a],[,b])=>(a.layer??1)-(b.layer??1))){
       if(!field.visible)continue;
       const rect={x:field.x*variant.width/100,y:field.y*variant.height/100,width:field.width*variant.width/100,height:field.height*variant.height/100};
       if(key==="image"||key==="logo"){
@@ -156,7 +160,7 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
       ctx.fillText(values[key]||"",x,rect.y,rect.width);ctx.restore();
     }
 
-  }, [campaign, fieldFonts, format, item, loadImage, logoUrl, variant, template.config, accentColor]);
+  }, [campaign, fieldFonts, format, item, loadImage, logoUrl, variant, artConfig, accentColor]);
 
   useEffect(() => {
     void loadMaterials();
@@ -243,7 +247,13 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
       </div>
 
       {template.error&&<p className="error">{template.error}</p>}
-      <TemplateEditor key={template.config.id} config={template.config} onChange={template.setConfig} onSaved={template.reload} canEdit={template.canEdit} ready={template.ready}/>
+      <div className="card" style={{ marginBottom: 16, padding: 12 }}>
+        <strong>Personalização desta arte</strong>
+        <p className="muted" style={{ marginBottom: 10 }}>Ajustes feitos aqui afetam somente a arte atual. O Template Mestre não é alterado.</p>
+        <button className="btn" type="button" onClick={() => setArtConfig(structuredClone(template.config))} disabled={!template.ready}>Restaurar do Template Mestre</button>
+      </div>
+      <TemplateEditor key={`art-${artConfig.id}`} config={artConfig} onChange={setArtConfig} onSaved={async()=>{}} canEdit={true} ready={template.ready} persist={false}/>
+      <TemplateEditor key={`master-${template.config.id}`} config={template.config} onChange={template.setConfig} onSaved={template.reload} canEdit={template.canEdit} ready={template.ready} title="Template Mestre"/>
       <div className="grid" style={{ alignItems: "start" }}>
         <div className="form">
           <label className="field">
