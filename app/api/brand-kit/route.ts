@@ -91,7 +91,7 @@ export async function POST(request: Request) {
       woff2: "font/woff2",
       woff: "font/woff",
       ttf: "font/ttf",
-      otf: "font/otf",
+      otf: "application/x-font-opentype",
     };
     const contentType = canonicalTypes[ext];
     if (!contentType) return NextResponse.json({ error: "Fonte deve ser WOFF2, WOFF, TTF ou OTF." }, { status: 400 });
