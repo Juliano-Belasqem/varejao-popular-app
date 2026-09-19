@@ -99,18 +99,19 @@ export async function POST(request: Request) {
     const familyBase = name.replace(/[^a-zA-Z0-9 _-]/g, "").trim() || "Fonte Varejao";
     const family = `${familyBase}-${crypto.randomUUID()}`;
     const path = `fonts/${family.replace(/\s+/g,"-").toLowerCase()}.${ext}`;
-    const bytes = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+    const fileBuffer = await file.arrayBuffer();
+    const bytes = new Uint8Array(fileBuffer.slice(0, 4));
     const signature = Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
     if (ext === "otf" && signature !== "4f54544f" && signature !== "00010000")
       return NextResponse.json({ error: "O arquivo OTF não contém uma fonte OpenType válida." }, { status: 400 });
-    const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: false, contentType });
-    if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 400 });
-    const { error: insertError } = await supabase.from("brand_fonts").insert({ name, family, storage_path: path, mime_type: contentType, created_by: user.id });
+    const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, fileBuffer, { upsert: false, contentType });
+    if (uploadError) return NextResponse.json({ error: `Falha ao armazenar fonte: ${uploadError.message}` }, { status: 400 });
+    const { data: inserted, error: insertError } = await supabase.from("brand_fonts").insert({ name, family, storage_path: path, mime_type: contentType, created_by: user.id }).select("id,name,family,storage_path,mime_type,active").single();
     if (insertError) {
       await supabase.storage.from(BUCKET).remove([path]);
-      return NextResponse.json({ error: insertError.message }, { status: 400 });
+      return NextResponse.json({ error: `Fonte enviada, mas não foi possível registrá-la: ${insertError.message}` }, { status: 400 });
     }
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, font: inserted });
   }
 
   return NextResponse.json({ error: "Tipo de upload inválido." }, { status: 400 });

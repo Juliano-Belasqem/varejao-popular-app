@@ -58,10 +58,19 @@ test("layout rejects out-of-bounds, missing and malformed fields", () => {
   assert.throws(() => validateLayout("validity", {}));
   const legacy = defaultTemplate("digital-feed").layout;
   const legacyProduct = { ...legacy.productLine1 };
-  const legacyLayout = { product: legacyProduct, brand: legacy.brand, specification: legacy.specification, image: legacy.image, price: legacy.price, footer: legacy.footer, logo: legacy.logo };
+  const legacyPrice = { ...legacy.priceReais };
+  const legacyLayout = { product: legacyProduct, brand: legacy.brand, specification: legacy.specification, image: legacy.image, price: legacyPrice, footer: legacy.footer, logo: legacy.logo };
   const migrated = validateLayout("digital-feed", legacyLayout);
   assert.deepEqual(migrated.productLine1, legacyProduct);
   assert.deepEqual(migrated.currency, defaultTemplate("digital-feed").layout.currency);
+  assert.deepEqual(migrated.priceReais, legacyPrice);
+  assert.deepEqual(migrated.priceCents, defaultTemplate("digital-feed").layout.priceCents);
+  const previousLayout = { ...legacy, price: legacyPrice } as Record<string, typeof legacyPrice>;
+  delete previousLayout.priceReais;
+  delete previousLayout.priceCents;
+  const previousMigrated = validateLayout("digital-feed", previousLayout);
+  assert.deepEqual(previousMigrated.priceReais, legacyPrice);
+  assert.deepEqual(previousMigrated.priceCents, defaultTemplate("digital-feed").layout.priceCents);
   assert.throws(() => validateLayout("digital-feed", { brand: legacy.brand }));
 });
 test("public IPv6 images work; local and mapped private addresses are rejected", () => {

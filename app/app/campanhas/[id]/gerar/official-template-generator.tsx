@@ -161,8 +161,8 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
         continue;
       }
       const price=item.highlighted_price==="normal"?item.normal_price:item.offer_price??item.normal_price;
-      const numericPrice=Number(price??0).toFixed(2).replace(".",",");
-      const values:Record<string,string>={productLine1:productLines[0],productLine2:productLines[1],productLine3:productLines[2],currency:"R$",unit:unitLabel,brand:(item.brand_snapshot||"").toUpperCase(),specification:(item.specification_snapshot||"").toUpperCase(),price:numericPrice,footer:footerText(campaign)};
+      const [priceReais, priceCents] = Number(price ?? 0).toFixed(2).split(".");
+      const values:Record<string,string>={productLine1:productLines[0],productLine2:productLines[1],productLine3:productLines[2],currency:"R$",unit:unitLabel,brand:(item.brand_snapshot||"").toUpperCase(),specification:(item.specification_snapshot||"").toUpperCase(),priceReais,priceCents,footer:footerText(campaign)};
       ctx.save();
       ctx.globalAlpha=field.opacity??1;
       const cx=rect.x+rect.width/2,cy=rect.y+rect.height/2;

@@ -74,11 +74,11 @@ export default async function CampaignPublishPage({ params }: { params: Promise<
                 <div><strong>Materiais salvos</strong><div className="muted" style={{ marginTop: 3 }}>Marque as imagens na ordem em que devem aparecer.</div></div>
                 <span className="pill">{materials.length} disponível(is)</span>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(100%,180px),1fr))", gap: 12, alignItems: "start" }}>
                 {materials.map((material, index) => (
-                  <label key={material.path} style={{ border: "1px solid #e5e7eb", borderRadius: 14, padding: 10, cursor: "pointer", display: "grid", gap: 8 }}>
-                    <div style={{ aspectRatio: "1 / 1", background: "#f8fafc", borderRadius: 10, overflow: "hidden", display: "grid", placeItems: "center" }}>
-                      {material.url ? <img src={material.url} alt={material.name} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "contain" }} /> : <span className="muted">Sem prévia</span>}
+                  <label key={material.path} style={{ border: "1px solid #e5e7eb", borderRadius: 14, padding: 10, cursor: "pointer", display: "grid", gap: 8, minWidth: 0, overflow: "hidden", isolation: "isolate" }}>
+                    <div style={{ aspectRatio: material.name.toLowerCase().includes("story") ? "9 / 16" : "1 / 1", background: "#f8fafc", borderRadius: 10, overflow: "hidden", display: "grid", placeItems: "center", position: "relative", width: "100%", minWidth: 0 }}>
+                      {material.url ? <img src={material.url} alt={material.name} loading="lazy" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", display: "block" }} /> : <span className="muted">Sem prévia</span>}
                     </div>
                     <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
                       <input type="checkbox" name="material_path" value={material.path} />
