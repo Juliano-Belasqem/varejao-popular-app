@@ -260,6 +260,7 @@ export function BrandKitClient({ editable = true }: { editable?: boolean }) {
               disabled={busy || !editable || !loaded}
               onChange={(event) => {
                 const file = event.target.files?.[0];
+                event.currentTarget.value = "";
                 if (!file) return;
                 const name = prompt(
                   "Nome para identificar esta fonte:",
