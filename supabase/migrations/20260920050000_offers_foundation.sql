@@ -123,4 +123,49 @@ $;
 revoke all on function public.upsert_campaign_offer(uuid,uuid,numeric,numeric,text,text,text,text,text,uuid) from public, anon;
 grant execute on function public.upsert_campaign_offer(uuid,uuid,numeric,numeric,text,text,text,text,text,uuid) to authenticated, service_role;
 
+
+create table public.visual_templates (
+  id uuid primary key default gen_random_uuid(),
+  slug text unique,
+  name text not null,
+  category text not null default 'custom',
+  width numeric not null check (width > 0),
+  height numeric not null check (height > 0),
+  unit text not null default 'px' check (unit in ('px','mm')),
+  active boolean not null default true,
+  current_version integer not null default 1 check (current_version > 0),
+  created_by uuid references public.profiles(id) on delete set null,
+  updated_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table public.visual_template_versions (
+  id uuid primary key default gen_random_uuid(),
+  template_id uuid not null references public.visual_templates(id) on delete cascade,
+  version integer not null check (version > 0),
+  document jsonb not null,
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  unique(template_id,version)
+);
+
+create index visual_templates_category_idx on public.visual_templates(category,active);
+create index visual_template_versions_template_idx on public.visual_template_versions(template_id,version desc);
+
+alter table public.visual_templates enable row level security;
+alter table public.visual_template_versions enable row level security;
+revoke all on public.visual_templates, public.visual_template_versions from anon;
+grant select,insert,update,delete on public.visual_templates, public.visual_template_versions to authenticated;
+grant all on public.visual_templates, public.visual_template_versions to service_role;
+
+create policy "visual templates read active users" on public.visual_templates for select to authenticated
+  using (exists(select 1 from public.profiles where id=(select auth.uid()) and active));
+create policy "visual templates edit" on public.visual_templates for all to authenticated
+  using (public.can_edit()) with check (public.can_edit());
+create policy "visual versions read active users" on public.visual_template_versions for select to authenticated
+  using (exists(select 1 from public.profiles where id=(select auth.uid()) and active));
+create policy "visual versions insert editors" on public.visual_template_versions for insert to authenticated
+  with check (public.can_edit());
+
 commit;
