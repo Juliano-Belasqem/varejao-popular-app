@@ -847,6 +847,16 @@ export function VisualEngineEditor({
         fit();
         return;
       }
+      if (mod && key === "'") {
+        event.preventDefault();
+        setShowGrid((value) => !value);
+        return;
+      }
+      if (mod && key === ";") {
+        event.preventDefault();
+        setCenterGuides((value) => !value);
+        return;
+      }
       if (locked || preview) return;
       if (mod && key === "z") {
         event.preventDefault();
@@ -2243,7 +2253,7 @@ export function VisualEngineEditor({
             </div>
           </div>
           <p className="muted">
-            Espaço+arraste navega · Ctrl/Cmd+roda ou +/- controla zoom · Ctrl/Cmd+0 ajusta à tela · Alt desativa encaixe · Shift mantém proporção/ângulo · setas movem.
+            Espaço+arraste navega · Ctrl/Cmd+roda ou +/- controla zoom · Ctrl/Cmd+0 ajusta à tela · Ctrl/Cmd+' alterna grade · Ctrl/Cmd+; alterna guias · Alt desativa encaixe · Shift mantém proporção/ângulo · setas movem.
           </p>
           <div className="visual-buttons">
             {[getPage(doc, 0), ...(doc.pages ?? [])].map((p, i) => (
