@@ -847,12 +847,12 @@ export function VisualEngineEditor({
         fit();
         return;
       }
-      if (mod && key === "'") {
+      if (mod && (event.code === "Quote" || key === "'")) {
         event.preventDefault();
         setShowGrid((value) => !value);
         return;
       }
-      if (mod && key === ";") {
+      if (mod && (event.code === "Semicolon" || key === ";")) {
         event.preventDefault();
         setCenterGuides((value) => !value);
         return;
