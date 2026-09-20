@@ -348,7 +348,7 @@ try {
     .waitFor();
   await page
     .locator(".visual-layer-list")
-    .getByRole("button", { name: /Preço segmentado/ })
+    .getByRole("button", { name: "Preço segmentado ▸", exact: true })
     .click();
   await button("Salvar seleção como componente").click();
   await page
