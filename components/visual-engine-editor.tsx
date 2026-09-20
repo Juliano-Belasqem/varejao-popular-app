@@ -188,7 +188,8 @@ export function VisualEngineEditor({
     [layersOpen, setLayersOpen] = useState(true),
     [sidebarOpen, setSidebarOpen] = useState(true),
     [savedComponents, setSavedComponents] = useState<{ id: string; name: string; elements: VisualElement[]; roots: string[] }[]>([]),
-    [componentName, setComponentName] = useState("");
+    [componentName, setComponentName] = useState(""),
+    [componentQuery, setComponentQuery] = useState("");
   const [templates, setTemplates] = useState<
       Awaited<ReturnType<typeof listVisualTemplates>>
     >({ items: [], hasMore: false }),
@@ -1029,11 +1030,11 @@ export function VisualEngineEditor({
       setBusy(false);
     }
   }
-  async function insertTemplate() {
-    if (!libraryId || locked) return;
+  async function insertTemplate(templateToInsert = libraryId) {
+    if (!templateToInsert || locked) return;
     setBusy(true);
     try {
-      const result = await loadVisualTemplate(libraryId),
+      const result = await loadVisualTemplate(templateToInsert),
         p = getPage(result.document, 0),
         roots = p.elements.filter((e) => !parentOf(p, e.id)).map((e) => e.id),
         copy = cloneElements(p, roots);
@@ -1810,10 +1811,13 @@ export function VisualEngineEditor({
             )}
             {activeTool === "components" && (
               <div className="visual-tool-stack">
-                <label className="field"><span>Nome do componente</span>
+                <label className="field"><span>Nome do componente rápido</span>
                   <input className="input" aria-label="Nome do componente" value={componentName} onChange={(e) => setComponentName(e.target.value)} placeholder="Ex.: Card de oferta" />
                 </label>
-                <button className="btn" disabled={locked || !selected.length} onClick={saveComponent}>+ Salvar seleção como componente</button>
+                <div className="visual-tool-grid">
+                  <button className="btn" disabled={locked || !selected.length} onClick={saveComponent}>+ Salvar nesta sessão</button>
+                  <button className="btn" disabled={locked || !selected.length || busy} onClick={() => save(false, true)}>Salvar na biblioteca</button>
+                </div>
                 {savedComponents.length ? (
                   <div className="visual-component-list">
                     {savedComponents.map((component) => (
@@ -1823,7 +1827,19 @@ export function VisualEngineEditor({
                       </div>
                     ))}
                   </div>
-                ) : <p className="muted">Selecione um ou mais elementos para criar um bloco reutilizável durante esta edição.</p>}
+                ) : <p className="muted">Componentes rápidos ficam disponíveis enquanto esta edição estiver aberta.</p>}
+                <label className="field"><span>Biblioteca persistente</span>
+                  <input className="input" aria-label="Buscar componente da biblioteca" value={componentQuery} onChange={(e) => setComponentQuery(e.target.value)} placeholder="Buscar componente salvo" />
+                </label>
+                <div className="visual-component-list">
+                  {templates.items.filter((template) => template.category === "component" && template.name.toLowerCase().includes(componentQuery.trim().toLowerCase())).map((template) => (
+                    <div key={template.id} className="visual-component-item">
+                      <div><strong>{template.name}</strong><span className="muted">v{template.current_version}</span></div>
+                      <button className="btn" disabled={locked || busy} onClick={() => void insertTemplate(template.id)}>Inserir</button>
+                    </div>
+                  ))}
+                </div>
+                {!templates.items.some((template) => template.category === "component") && <p className="muted">Ainda não há componentes persistentes nesta página da biblioteca.</p>}
               </div>
             )}
             {activeTool === "brand" && (
