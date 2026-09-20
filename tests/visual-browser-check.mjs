@@ -143,7 +143,7 @@ try {
   state = await document();
   assert.ok(state.elements[0].transform.scaleX > 0);
   assert.equal(state.elements.length, 2);
-  await page.getByRole("button", { name: "Imagens", exact: true, includeHidden: true }).click();
+  await page.locator(".visual-tool-rail button[title=\"Imagens\"]").click();
   await button("+ Quadro de imagem").click();
   await label("Enviar imagem").setInputFiles(
     "public/media-templates/validity-background.png",
@@ -154,12 +154,12 @@ try {
     .waitFor();
   await label("Enquadramento").selectOption("cover");
   await label("Recorte horizontal (%)").fill("25");
-  await page.getByRole("button", { name: "Elementos", exact: true, includeHidden: true }).click();
+  await page.locator(".visual-tool-rail button[title=\"Elementos\"]").click();
   await button("▭ Forma").click();
   await label("Forma").selectOption("ellipse");
   await button("▥ Código").click();
   await page.locator('.visual-canvas [aria-label^="EAN-13"]').waitFor();
-  await page.getByRole("button", { name: "Texto", exact: true, includeHidden: true }).click();
+  await page.locator(".visual-tool-rail button[title=\"Texto\"]").click();
   await button("R$ Preço segmentado").click();
   await page
     .locator(".visual-layer-list")
