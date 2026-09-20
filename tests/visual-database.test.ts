@@ -35,11 +35,44 @@ test("applied foundation preserves offers and immutable template versions under 
       ).rows[0].n,
       0,
     );
+    await db.exec(
+      readFileSync(
+        new URL(
+          "../supabase/migrations/20260920170000_offer_sync_hardening.sql",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+    );
     const role = async (n: number) =>
       db.exec(
         `reset role;set role authenticated;set test.uid='00000000-0000-4000-8000-${String(n).padStart(12, "0")}';`,
       );
     await role(1);
+    const existingOffer = (
+      await db.query<{ id: string }>(
+        "select offer_id id from campaign_items where campaign_id='00000000-0000-4000-8000-000000000020' and product_id='00000000-0000-4000-8000-000000000010'",
+      )
+    ).rows[0].id;
+    const reused = (
+      await db.query<{ id: string }>(
+        "select create_offer_with_campaign('00000000-0000-4000-8000-000000000010','00000000-0000-4000-8000-000000000020',7,4,'UN','2026-01-01','2026-01-02',null,auth.uid()) id",
+      )
+    ).rows[0].id;
+    assert.equal(reused, existingOffer, "campaign/product reuses the linked offer");
+    assert.equal(
+      (await db.query<{ n: number }>("select count(*)::int n from offers")).rows[0].n,
+      1,
+      "creating through Central does not orphan another active offer",
+    );
+    await db.exec("update campaigns set start_date='2026-10-01',end_date='2026-10-15' where id='00000000-0000-4000-8000-000000000020'; select sync_campaign_offer_dates('00000000-0000-4000-8000-000000000020',auth.uid());");
+    const dates = (await db.query<{ starts_on: string; ends_on: string }>("select starts_on::text,ends_on::text from offers where id=$1",[existingOffer])).rows[0];
+    assert.equal(dates.starts_on,"2026-10-01");
+    assert.equal(dates.ends_on,"2026-10-15");
+    await db.exec(`select set_offer_active('${existingOffer}',false,auth.uid())`);
+    assert.equal((await db.query<{ n:number }>("select count(*)::int n from campaign_items")).rows[0].n,0);
+    assert.equal((await db.query<{ active:boolean; campaign_id:string|null }>("select active,campaign_id from offers where id=$1",[existingOffer])).rows[0].active,false);
+
     const doc = createVisualDocument("Original");
     const save = async (id: string | null, name: string) =>
       db.query<{ template_id: string; version: number }>(
