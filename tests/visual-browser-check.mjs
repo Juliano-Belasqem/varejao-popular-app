@@ -57,6 +57,14 @@ try {
     .filter({ hasText: "Produto de exemplo" })
     .waitFor();
   await label("Nome do template").fill("Teste universal");
+  await page.getByRole("button", { name: "Recolher menu lateral" }).click();
+  assert.equal(await page.locator(".visual-workspace-sidebar-collapsed").count(), 1);
+  await page.getByRole("button", { name: "Expandir menu lateral" }).click();
+  assert.equal(await page.locator(".visual-workspace-sidebar-collapsed").count(), 0);
+  await page.keyboard.press("Control+\\");
+  assert.equal(await page.locator(".visual-workspace-sidebar-collapsed").count(), 1, "sidebar shortcut collapses the contextual panel");
+  await page.keyboard.press("Control+\\");
+  assert.equal(await page.locator(".visual-workspace-sidebar-collapsed").count(), 0, "sidebar shortcut expands the contextual panel");
   assert.equal(await page.locator(".visual-static-guide").count(), 2);
   await label("Mostrar grade").uncheck();
   assert.equal(await page.locator("#visual-grid").count(), 0);
@@ -187,6 +195,17 @@ try {
     "smart product block keeps editable data bindings",
   );
   await button("Excluir seleção").click();
+  await page.locator(".visual-tool-rail button[title=\"Marca\"]").click();
+  await button("+ Título da marca").click();
+  state = await document();
+  const brandTitle = state.elements.find((element) => element.name === "Título");
+  assert.ok(brandTitle, "Brand Kit inserts an editable title");
+  assert.equal(brandTitle.textStyle.fontFamily, "Arial, sans-serif");
+  await button("Primária").click();
+  state = await document();
+  const coloredBrandTitle = state.elements.find((element) => element.id === brandTitle.id);
+  assert.equal(coloredBrandTitle.textStyle.color, "#2F42A6", "Brand Kit applies the primary color");
+  await button("Excluir seleção").click();
   await page.locator(".visual-tool-rail button[title=\"Ofertas\"]").click();
   await label("Dados da oferta").selectOption(
     "00000000-0000-4000-8000-000000000010",
@@ -250,10 +269,18 @@ try {
   await page.locator('.visual-canvas [aria-label^="EAN-13"]').waitFor();
   await page.locator(".visual-tool-rail button[title=\"Texto\"]").click();
   await button("R$ Preço segmentado").click();
+  await page.locator(".visual-tool-rail button[title=\"Componentes\"]").click();
+  await label("Nome do componente").fill("Preço reutilizável");
+  await button("+ Salvar seleção como componente").click();
+  await page.getByText("Preço reutilizável", { exact: true }).waitFor();
+  const beforeComponentInsert = await document();
+  await page.locator(".visual-component-item").filter({ hasText: "Preço reutilizável" }).getByRole("button", { name: "Inserir" }).click();
+  const afterComponentInsert = await document();
+  assert.ok(afterComponentInsert.elements.length > beforeComponentInsert.elements.length, "saved component inserts a cloned editable block");
   await page.locator(".visual-tool-rail button[title=\"Camadas\"]").click();
   await page
     .locator(".visual-layer-list")
-    .getByRole("button", { name: /Preço segmentado/ })
+    .getByRole("button", { name: "Preço segmentado ▸", exact: true })
     .dblclick();
   await page
     .locator(".visual-layer-list")
@@ -336,7 +363,7 @@ try {
     .waitFor();
   await page
     .locator(".visual-layer-list")
-    .getByRole("button", { name: /Preço segmentado/ })
+    .getByRole("button", { name: "Preço segmentado ▸", exact: true })
     .click();
   await button("Salvar seleção como componente").click();
   await page

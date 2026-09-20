@@ -53,3 +53,20 @@
 .visual-static-guide{stroke:#4f8cff;stroke-dasharray:7 5;opacity:.55;vector-effect:non-scaling-stroke}
 .visual-snap-guide{stroke:#ff4773;opacity:.9;vector-effect:non-scaling-stroke}
 .visual-safe-area{stroke:#f59e0b;stroke-dasharray:5 4;opacity:.7;vector-effect:non-scaling-stroke}
+
+
+/* Editor Visual V2 · Phase 4 sidebar */
+.visual-workspace-sidebar-collapsed{grid-template-columns:72px minmax(0,1fr) 292px}
+.visual-layers-collapsed{padding:8px!important}
+.visual-layers-collapsed:before{display:none}
+.visual-layers-collapsed .visual-tool-rail{grid-template-columns:1fr;border-bottom:0;margin:0;padding:0;gap:6px}
+.visual-layers-collapsed .visual-tool-rail button{padding:8px 4px}
+.visual-layers-collapsed .visual-tool-rail span{display:none}
+.visual-sidebar-toggle{width:100%;margin-top:10px;justify-content:center}
+.visual-layers-collapsed .visual-sidebar-toggle{padding-inline:4px;font-size:18px}
+@media(max-width:1200px){.visual-workspace-sidebar-collapsed{grid-template-columns:72px minmax(0,1fr)}}
+@media(max-width:760px){.visual-workspace-sidebar-collapsed{grid-template-columns:minmax(0,1fr)}.visual-layers-collapsed .visual-tool-rail{grid-template-columns:repeat(9,minmax(38px,1fr));overflow-x:auto}.visual-layers-collapsed .visual-sidebar-toggle{font-size:14px}}
+
+.visual-component-list{display:grid;gap:7px;margin-top:4px}.visual-component-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px;border:1px solid #29364b;border-radius:8px;background:#111824}.visual-component-item strong{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.visual-component-item .btn{flex:0 0 auto}
+
+.visual-brand-colors{display:grid;grid-template-columns:1fr 1fr;gap:7px}.visual-brand-color{justify-content:flex-start}.visual-brand-color span{width:16px;height:16px;border-radius:4px;border:1px solid rgba(255,255,255,.2);flex:0 0 auto}.visual-brand-fonts{display:grid;gap:5px;padding:9px;border:1px solid #29364b;border-radius:8px;background:#111824}.visual-brand-fonts strong,.visual-brand-fonts>span:not(.muted){font-size:13px}

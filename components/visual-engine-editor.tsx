@@ -183,9 +183,12 @@ export function VisualEngineEditor({
     [safeArea, setSafeArea] = useState(false),
     [exportScale, setExportScale] = useState(1),
     [activeTool, setActiveTool] = useState<
-      "layers" | "elements" | "text" | "images" | "products" | "offers" | "templates" | "brand" | "uploads"
+      "layers" | "elements" | "text" | "images" | "products" | "offers" | "templates" | "components" | "brand" | "uploads"
     >("layers"),
-    [layersOpen, setLayersOpen] = useState(true);
+    [layersOpen, setLayersOpen] = useState(true),
+    [sidebarOpen, setSidebarOpen] = useState(true),
+    [savedComponents, setSavedComponents] = useState<{ id: string; name: string; elements: VisualElement[]; roots: string[] }[]>([]),
+    [componentName, setComponentName] = useState("");
   const [templates, setTemplates] = useState<
       Awaited<ReturnType<typeof listVisualTemplates>>
     >({ items: [], hasMore: false }),
@@ -526,6 +529,21 @@ export function VisualEngineEditor({
     const result = cloneElements(page, selected);
     siblingsInsert(result.elements, result.ids);
   }
+  function saveComponent() {
+    const roots = rootSelection(page, selected);
+    if (!roots.length) return;
+    const ids = descendants(page, roots);
+    const elements = page.elements.filter((e) => ids.includes(e.id)).map((e) => structuredClone(e));
+    const name = componentName.trim() || (roots.length === 1 ? page.elements.find((e) => e.id === roots[0])?.name : "") || `Componente ${savedComponents.length + 1}`;
+    setSavedComponents((items) => [...items, { id: crypto.randomUUID(), name, elements, roots }]);
+    setComponentName("");
+    setMessage(`Componente “${name}” salvo nesta sessão.`);
+  }
+  function insertComponent(component: { elements: VisualElement[]; roots: string[] }) {
+    const source: VisualPage = { ...page, elements: component.elements };
+    const result = cloneElements(source, component.roots);
+    siblingsInsert(result.elements, result.ids);
+  }
   function group() {
     operate(() => {
       const id = crypto.randomUUID(),
@@ -855,6 +873,11 @@ export function VisualEngineEditor({
       if (mod && (event.code === "Semicolon" || key === ";")) {
         event.preventDefault();
         setCenterGuides((value) => !value);
+        return;
+      }
+      if (mod && (event.code === "Backslash" || key === "\\")) {
+        event.preventDefault();
+        setSidebarOpen((open) => !open);
         return;
       }
       if (locked || preview) return;
@@ -1293,14 +1316,18 @@ export function VisualEngineEditor({
     setMessage(`Oferta de ${offer.name} inserida e vinculada.`);
   }
 
-  function addBoundText(binding: string, name: string) {
+  function addBoundText(binding: string | undefined, name: string, fontFamily = brand.fieldFonts.body) {
     const unit = page.unit === "mm" ? 0.2 : 1;
     const id = crypto.randomUUID();
     siblingsInsert([{
       id, type: "text", name, visible: true, locked: false, binding,
       transform: { x: 50 * unit, y: 50 * unit, width: 300 * unit, height: 70 * unit, rotation: 0, opacity: 1, layer: 0 },
-      textStyle: { fontFamily: brand.fieldFonts.body, fontSize: 32 * unit, color: "#111111" },
+      textStyle: { fontFamily, fontSize: 32 * unit, color: "#111111" },
     }], [id]);
+  }
+  function addBrandLogo(src: string) {
+    const unit = page.unit === "mm" ? 0.2 : 1, id = crypto.randomUUID();
+    siblingsInsert([{ id, type: "image", name: "Logo da marca", visible: true, locked: false, source: src, fit: "contain", transform: { x: 50 * unit, y: 50 * unit, width: 260 * unit, height: 120 * unit, rotation: 0, opacity: 1, layer: 0 } }], [id]);
   }
 
   function priceComponent() {
@@ -1623,8 +1650,8 @@ export function VisualEngineEditor({
           </section>
         </div>
       </details>
-      <div className="visual-workspace">
-        <aside className="card visual-layers">
+      <div className={`visual-workspace${sidebarOpen ? "" : " visual-workspace-sidebar-collapsed"}`}>
+        <aside className={`card visual-layers${sidebarOpen ? "" : " visual-layers-collapsed"}`}>
           <nav className="visual-tool-rail" aria-label="Ferramentas do editor">
             {([
               ["layers", "☷", "Camadas"],
@@ -1634,20 +1661,27 @@ export function VisualEngineEditor({
               ["products", "▦", "Produtos"],
               ["offers", "R$", "Ofertas"],
               ["templates", "◇", "Templates"],
+              ["components", "◫", "Componentes"],
               ["brand", "◆", "Marca"],
               ["uploads", "↑", "Uploads"],
             ] as const).map(([tool, icon, label]) => (
               <button
                 key={tool}
                 title={label}
-                aria-pressed={activeTool === tool}
-                onClick={() => setActiveTool(tool)}
+                aria-pressed={activeTool === tool && sidebarOpen}
+                onClick={() => {
+                  if (activeTool === tool && sidebarOpen) setSidebarOpen(false);
+                  else {
+                    setActiveTool(tool);
+                    setSidebarOpen(true);
+                  }
+                }}
               >
                 <b>{icon}</b><span>{label}</span>
               </button>
             ))}
           </nav>
-          <div className="visual-context-panel">
+          {sidebarOpen && <div className="visual-context-panel">
             <div className="visual-context-head">
               <h3>{({
                 layers: "Camadas",
@@ -1657,6 +1691,7 @@ export function VisualEngineEditor({
                 products: "Produtos",
                 offers: "Ofertas",
                 templates: "Templates",
+                components: "Componentes",
                 brand: "Marca",
                 uploads: "Uploads",
               } as const)[activeTool]}</h3>
@@ -1773,10 +1808,34 @@ export function VisualEngineEditor({
                 <button className="btn" disabled={!libraryId || locked} onClick={insertTemplate}>Inserir no design</button>
               </div>
             )}
+            {activeTool === "components" && (
+              <div className="visual-tool-stack">
+                <label className="field"><span>Nome do componente</span>
+                  <input className="input" aria-label="Nome do componente" value={componentName} onChange={(e) => setComponentName(e.target.value)} placeholder="Ex.: Card de oferta" />
+                </label>
+                <button className="btn" disabled={locked || !selected.length} onClick={saveComponent}>+ Salvar seleção como componente</button>
+                {savedComponents.length ? (
+                  <div className="visual-component-list">
+                    {savedComponents.map((component) => (
+                      <div key={component.id} className="visual-component-item">
+                        <strong>{component.name}</strong>
+                        <button className="btn" disabled={locked} onClick={() => insertComponent(component)}>Inserir</button>
+                      </div>
+                    ))}
+                  </div>
+                ) : <p className="muted">Selecione um ou mais elementos para criar um bloco reutilizável durante esta edição.</p>}
+              </div>
+            )}
             {activeTool === "brand" && (
-              <div className="visual-brand-summary">
-                <span className="visual-brand-swatch" style={{ background: brand.primaryColor }} />
-                <div><strong>Brand Kit</strong><p className="muted">Cores e fontes da marca são aplicadas aos novos elementos.</p></div>
+              <div className="visual-tool-stack">
+                <div className="visual-brand-summary"><span className="visual-brand-swatch" style={{ background: brand.primaryColor }} /><div><strong>Brand Kit</strong><p className="muted">Cores e fontes oficiais disponíveis para aplicar no design.</p></div></div>
+                <div className="visual-brand-colors">
+                  <button className="btn visual-brand-color" disabled={locked || !current || (current.type !== "text" && current.type !== "shape")} onClick={() => current?.type === "shape" ? patch({ shape: { ...current.shape!, fill: brand.primaryColor } }) : current?.type === "text" ? patch({ textStyle: { ...current.textStyle, color: brand.primaryColor } }) : undefined}><span style={{ background: brand.primaryColor }} />Primária</button>
+                  <button className="btn visual-brand-color" disabled={locked || !current || (current.type !== "text" && current.type !== "shape")} onClick={() => current?.type === "shape" ? patch({ shape: { ...current.shape!, fill: brand.accentColor } }) : current?.type === "text" ? patch({ textStyle: { ...current.textStyle, color: brand.accentColor } }) : undefined}><span style={{ background: brand.accentColor }} />Destaque</button>
+                </div>
+                <div className="visual-tool-grid"><button className="btn" disabled={locked} onClick={() => addBoundText(undefined, "Título", brand.fieldFonts.title)}>+ Título da marca</button><button className="btn" disabled={locked} onClick={() => addBoundText(undefined, "Texto", brand.fieldFonts.body)}>+ Texto da marca</button></div>
+                {brand.logoUrl && <button className="btn" disabled={locked} onClick={() => addBrandLogo(brand.logoUrl!)}>+ Logo da marca</button>}
+                <div className="visual-brand-fonts"><span className="muted">Fontes configuradas</span><strong style={{ fontFamily: brand.fieldFonts.title }}>Título</strong><span style={{ fontFamily: brand.fieldFonts.body }}>Texto principal</span></div>
               </div>
             )}
             {activeTool === "uploads" && (
@@ -1785,8 +1844,8 @@ export function VisualEngineEditor({
                 <button className="btn" disabled={locked} onClick={() => { add("image"); setActiveTool("images"); }}>+ Nova imagem</button>
               </div>
             )}
-          </div>
-          {activeTool === "layers" && layersOpen && <>
+          </div>}
+          {sidebarOpen && activeTool === "layers" && layersOpen && <>
           {scope && (
             <button
               className="btn"
@@ -1880,13 +1939,13 @@ export function VisualEngineEditor({
             ))}
           </div>
           </>}
-          {selected.length > 0 && (
+          {sidebarOpen && selected.length > 0 && (
             <div className="visual-selection-summary" role="status">
               <strong>{selected.length === 1 ? current?.name ?? "1 elemento" : `${selected.length} elementos`}</strong>
               <span>{selected.length === 1 ? names[current?.type ?? "text"] : "Seleção múltipla"}</span>
             </div>
           )}
-          {selected.length > 0 && (
+          {sidebarOpen && selected.length > 0 && (
             <div className="visual-selection-actions" aria-label="Ações da seleção">
               <button className="btn" disabled={locked} title="Duplicar seleção (Ctrl/Cmd+D)" onClick={duplicate}>Duplicar seleção</button>
               <button className="btn" disabled={locked} title="Excluir seleção (Delete)" onClick={remove}>Excluir seleção</button>
@@ -1898,6 +1957,7 @@ export function VisualEngineEditor({
               )}
             </div>
           )}
+          {sidebarOpen && <>
           <h3>Alinhar {selected.length > 1 ? "seleção" : "à prancheta"}</h3>
           <label>
             <input
@@ -1956,6 +2016,8 @@ export function VisualEngineEditor({
               Distribuir Y
             </button>
           </div>
+          </>}
+          <button className="btn visual-sidebar-toggle" aria-label={sidebarOpen ? "Recolher menu lateral" : "Expandir menu lateral"} title="Alternar menu lateral (Ctrl/Cmd+\\)" aria-expanded={sidebarOpen} onClick={() => setSidebarOpen((open) => !open)}>{sidebarOpen ? "‹ Recolher" : "›"}</button>
         </aside>
         <main className="visual-main">
           <div className="visual-toolbar">
