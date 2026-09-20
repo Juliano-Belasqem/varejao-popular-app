@@ -173,7 +173,9 @@ try {
     new Set([
       "product.image",
       "product.name",
+      "product.brand",
       "product.specification",
+      "product.salePrice",
       "product.ean",
     ]),
     "smart product block keeps editable data bindings",
