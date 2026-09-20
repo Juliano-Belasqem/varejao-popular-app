@@ -172,6 +172,36 @@ try {
     "smart product block keeps editable data bindings",
   );
   await button("Excluir seleção").click();
+  await page.locator(".visual-tool-rail button[title=\"Ofertas\"]").click();
+  await label("Dados da oferta").selectOption(
+    "00000000-0000-4000-8000-000000000010",
+  );
+  await button("+ Inserir oferta vinculada").click();
+  await page
+    .getByRole("status")
+    .filter({ hasText: "Oferta de LEITE inserida e vinculada" })
+    .waitFor();
+  state = await document();
+  const offerGroup = state.elements.find(
+    (element) => element.type === "group" && element.name === "Oferta · LEITE",
+  );
+  assert.ok(offerGroup, "smart offer block is inserted");
+  const offerChildren = state.elements.filter((element) =>
+    offerGroup.children.includes(element.id),
+  );
+  assert.ok(
+    offerChildren.some((element) => element.binding === "offer.price"),
+    "smart offer block binds offer price",
+  );
+  assert.ok(
+    offerChildren.some((element) => element.binding === "offer.normalPrice"),
+    "smart offer block binds normal price",
+  );
+  assert.ok(
+    offerChildren.some((element) => element.binding === "product.ean"),
+    "smart offer block binds product barcode",
+  );
+  await button("Excluir seleção").click();
   await page.locator(".visual-tool-rail button[title=\"Imagens\"]").click();
   await button("+ Quadro de imagem").click();
   await label("Enviar imagem").setInputFiles(
