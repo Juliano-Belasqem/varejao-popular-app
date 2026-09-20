@@ -68,7 +68,7 @@ export async function updateCampaign(formData: FormData) {
 }
 
 export async function addCampaignItem(formData: FormData) {
-  const { supabase } = await editorContext();
+  const { profile, supabase } = await editorContext();
   const campaignId = String(formData.get("campaign_id") ?? "");
   const productId = String(formData.get("product_id") ?? "");
   if (!campaignId || !productId) throw new Error("Campanha e produto são obrigatórios.");
@@ -84,18 +84,17 @@ export async function addCampaignItem(formData: FormData) {
   const normalPrice = numberValue(formData.get("normal_price")) ?? product.sale_price;
   const offerPrice = numberValue(formData.get("offer_price"));
 
-  const { error } = await supabase.from("campaign_items").upsert({
-    campaign_id: campaignId,
-    product_id: productId,
-    normal_price: normalPrice,
-    offer_price: offerPrice,
-    highlighted_price: "offer",
-    ean_snapshot: product.ean,
-    name_snapshot: product.name,
-    brand_snapshot: product.brand,
-    specification_snapshot: product.specification,
-  }, {
-    onConflict: "campaign_id,product_id",
+  const { error } = await supabase.rpc("upsert_campaign_offer", {
+    p_campaign_id: campaignId,
+    p_product_id: productId,
+    p_normal_price: normalPrice,
+    p_offer_price: offerPrice,
+    p_highlighted_price: "offer",
+    p_ean_snapshot: product.ean,
+    p_name_snapshot: product.name,
+    p_brand_snapshot: product.brand,
+    p_specification_snapshot: product.specification,
+    p_user_id: profile.id,
   });
 
   if (error) throw new Error(error.message);
