@@ -8,11 +8,11 @@ const seed=():VisualDocument=>({...createVisualDocument("Rascunho visual"),eleme
  {id:"price",type:"text",name:"Preço",visible:true,locked:false,binding:"offer.price",transform:{x:610,y:690,width:350,height:160,rotation:0,opacity:1,layer:3},textStyle:{fontSize:110,fontWeight:900,color:"#111111",textAlign:"center"}},
 ]});
 
-export function VisualEngineEditor(){
- const [doc,setDoc]=useState(seed); const [selected,setSelected]=useState("product"); const [history,setHistory]=useState<VisualDocument[]>([]); const [future,setFuture]=useState<VisualDocument[]>([]);
+export function VisualEngineEditor({initialDocument,initialTemplateId,initialVersion}:{initialDocument?:VisualDocument;initialTemplateId?:string;initialVersion?:number}){
+ const [doc,setDoc]=useState<VisualDocument>(()=>initialDocument??seed()); const [selected,setSelected]=useState("product"); const [history,setHistory]=useState<VisualDocument[]>([]); const [future,setFuture]=useState<VisualDocument[]>([]);
  const current=doc.elements.find(e=>e.id===selected);
  const ordered=useMemo(()=>[...doc.elements].sort((a,b)=>b.transform.layer-a.transform.layer),[doc.elements]);
- const [zoom,setZoom]=useState(67); const [templateId,setTemplateId]=useState<string|null>(null); const [version,setVersion]=useState<number|null>(null); const [saving,setSaving]=useState(false); const [saveMessage,setSaveMessage]=useState("");
+ const [zoom,setZoom]=useState(67); const [templateId,setTemplateId]=useState<string|null>(initialTemplateId??null); const [version,setVersion]=useState<number|null>(initialVersion??null); const [saving,setSaving]=useState(false); const [saveMessage,setSaveMessage]=useState("");
  useEffect(()=>{function keydown(event:KeyboardEvent){const target=event.target as HTMLElement|null;if(target&&["INPUT","TEXTAREA","SELECT"].includes(target.tagName))return;if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==="z"){event.preventDefault();event.shiftKey?redo():undo();return}if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==="d"){event.preventDefault();duplicate();return}if((event.key==="Delete"||event.key==="Backspace")&&current){event.preventDefault();remove();return}if(current&&!current.locked&&["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"].includes(event.key)){event.preventDefault();const step=event.shiftKey?10:1;const dx=event.key==="ArrowLeft"?-step:event.key==="ArrowRight"?step:0;const dy=event.key==="ArrowUp"?-step:event.key==="ArrowDown"?step:0;patch({transform:{...current.transform,x:current.transform.x+dx,y:current.transform.y+dy}})}}window.addEventListener("keydown",keydown);return()=>window.removeEventListener("keydown",keydown)})
  function commit(next:VisualDocument){setHistory(h=>[...h.slice(-49),doc]);setFuture([]);setDoc(next)}
  function patch(values:Partial<VisualElement>){if(!current)return;commit({...doc,elements:doc.elements.map(e=>e.id===current.id?{...e,...values}:e)})}
