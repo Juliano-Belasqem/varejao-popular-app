@@ -254,6 +254,14 @@ try {
   await page.locator('.visual-canvas [aria-label^="EAN-13"]').waitFor();
   await page.locator(".visual-tool-rail button[title=\"Texto\"]").click();
   await button("R$ Preço segmentado").click();
+  await page.locator(".visual-tool-rail button[title=\"Componentes\"]").click();
+  await label("Nome do componente").fill("Preço reutilizável");
+  await button("+ Salvar seleção como componente").click();
+  await page.getByText("Preço reutilizável", { exact: true }).waitFor();
+  const beforeComponentInsert = await document();
+  await page.locator(".visual-component-item").filter({ hasText: "Preço reutilizável" }).getByRole("button", { name: "Inserir" }).click();
+  const afterComponentInsert = await document();
+  assert.ok(afterComponentInsert.elements.length > beforeComponentInsert.elements.length, "saved component inserts a cloned editable block");
   await page.locator(".visual-tool-rail button[title=\"Camadas\"]").click();
   await page
     .locator(".visual-layer-list")
