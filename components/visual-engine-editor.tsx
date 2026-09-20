@@ -1311,14 +1311,18 @@ export function VisualEngineEditor({
     setMessage(`Oferta de ${offer.name} inserida e vinculada.`);
   }
 
-  function addBoundText(binding: string, name: string) {
+  function addBoundText(binding: string | undefined, name: string, fontFamily = brand.fieldFonts.body) {
     const unit = page.unit === "mm" ? 0.2 : 1;
     const id = crypto.randomUUID();
     siblingsInsert([{
       id, type: "text", name, visible: true, locked: false, binding,
       transform: { x: 50 * unit, y: 50 * unit, width: 300 * unit, height: 70 * unit, rotation: 0, opacity: 1, layer: 0 },
-      textStyle: { fontFamily: brand.fieldFonts.body, fontSize: 32 * unit, color: "#111111" },
+      textStyle: { fontFamily, fontSize: 32 * unit, color: "#111111" },
     }], [id]);
+  }
+  function addBrandLogo(src: string) {
+    const unit = page.unit === "mm" ? 0.2 : 1, id = crypto.randomUUID();
+    siblingsInsert([{ id, type: "image", name: "Logo da marca", visible: true, locked: false, src, fit: "contain", transform: { x: 50 * unit, y: 50 * unit, width: 260 * unit, height: 120 * unit, rotation: 0, opacity: 1, layer: 0 } }], [id]);
   }
 
   function priceComponent() {
@@ -1818,9 +1822,15 @@ export function VisualEngineEditor({
               </div>
             )}
             {activeTool === "brand" && (
-              <div className="visual-brand-summary">
-                <span className="visual-brand-swatch" style={{ background: brand.primaryColor }} />
-                <div><strong>Brand Kit</strong><p className="muted">Cores e fontes da marca são aplicadas aos novos elementos.</p></div>
+              <div className="visual-tool-stack">
+                <div className="visual-brand-summary"><span className="visual-brand-swatch" style={{ background: brand.primaryColor }} /><div><strong>Brand Kit</strong><p className="muted">Cores e fontes oficiais disponíveis para aplicar no design.</p></div></div>
+                <div className="visual-brand-colors">
+                  <button className="btn visual-brand-color" disabled={locked || !current || (current.type !== "text" && current.type !== "shape")} onClick={() => current?.type === "shape" ? patch({ shape: { ...current.shape!, fill: brand.primaryColor } }) : current?.type === "text" ? patch({ textStyle: { ...current.textStyle, color: brand.primaryColor } }) : undefined}><span style={{ background: brand.primaryColor }} />Primária</button>
+                  <button className="btn visual-brand-color" disabled={locked || !current || (current.type !== "text" && current.type !== "shape")} onClick={() => current?.type === "shape" ? patch({ shape: { ...current.shape!, fill: brand.accentColor } }) : current?.type === "text" ? patch({ textStyle: { ...current.textStyle, color: brand.accentColor } }) : undefined}><span style={{ background: brand.accentColor }} />Destaque</button>
+                </div>
+                <div className="visual-tool-grid"><button className="btn" disabled={locked} onClick={() => addBoundText(undefined, "Título", brand.fieldFonts.title)}>+ Título da marca</button><button className="btn" disabled={locked} onClick={() => addBoundText(undefined, "Texto", brand.fieldFonts.body)}>+ Texto da marca</button></div>
+                {brand.logoUrl && <button className="btn" disabled={locked} onClick={() => addBrandLogo(brand.logoUrl!)}>+ Logo da marca</button>}
+                <div className="visual-brand-fonts"><span className="muted">Fontes configuradas</span><strong style={{ fontFamily: brand.fieldFonts.title }}>Título</strong><span style={{ fontFamily: brand.fieldFonts.body }}>Texto principal</span></div>
               </div>
             )}
             {activeTool === "uploads" && (
