@@ -1634,13 +1634,13 @@ export function VisualEngineEditor({
           )}
           {selected.length > 0 && (
             <div className="visual-selection-actions" aria-label="Ações da seleção">
-              <button className="btn" disabled={locked} title="Duplicar (Ctrl/Cmd+D)" onClick={duplicate}>Duplicar</button>
-              <button className="btn" disabled={locked} title="Excluir (Delete)" onClick={remove}>Excluir</button>
+              <button className="btn" disabled={locked} title="Duplicar seleção (Ctrl/Cmd+D)" onClick={duplicate}>Duplicar seleção</button>
+              <button className="btn" disabled={locked} title="Excluir seleção (Delete)" onClick={remove}>Excluir seleção</button>
               {selected.length > 1 && (
-                <button className="btn" disabled={locked} title="Agrupar (Ctrl/Cmd+G)" onClick={group}>Agrupar</button>
+                <button className="btn" disabled={locked} title="Agrupar seleção (Ctrl/Cmd+G)" onClick={group}>Agrupar seleção</button>
               )}
               {selected.length === 1 && current?.type === "group" && (
-                <button className="btn" disabled={locked} title="Desagrupar (Ctrl/Cmd+Shift+G)" onClick={ungroup}>Desagrupar</button>
+                <button className="btn" disabled={locked} title="Desagrupar seleção (Ctrl/Cmd+Shift+G)" onClick={ungroup}>Desagrupar seleção</button>
               )}
             </div>
           )}
