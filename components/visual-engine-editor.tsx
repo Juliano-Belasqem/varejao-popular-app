@@ -177,7 +177,11 @@ export function VisualEngineEditor({
     [preview, setPreview] = useState(false),
     [alignToPage, setAlignToPage] = useState(false),
     [guides, setGuides] = useState<{ x?: number; y?: number }>({}),
-    [exportScale, setExportScale] = useState(1),\n    [activeTool, setActiveTool] = useState<\n      "layers" | "elements" | "text" | "images" | "offers" | "templates" | "brand" | "uploads"\n    >("layers"),\n    [layersOpen, setLayersOpen] = useState(true);
+    [exportScale, setExportScale] = useState(1),
+    [activeTool, setActiveTool] = useState<
+      "layers" | "elements" | "text" | "images" | "offers" | "templates" | "brand" | "uploads"
+    >("layers"),
+    [layersOpen, setLayersOpen] = useState(true);
   const [templates, setTemplates] = useState<
       Awaited<ReturnType<typeof listVisualTemplates>>
     >({ items: [], hasMore: false }),
