@@ -83,7 +83,7 @@ create or replace function public.upsert_campaign_offer(
 language plpgsql
 security invoker
 set search_path = public
-as $
+as $fn$
 declare
   v_offer_id uuid;
   v_unit text;
@@ -118,7 +118,7 @@ begin
 
   return v_offer_id;
 end;
-$;
+$fn$;
 
 revoke all on function public.upsert_campaign_offer(uuid,uuid,numeric,numeric,text,text,text,text,text,uuid) from public, anon;
 grant execute on function public.upsert_campaign_offer(uuid,uuid,numeric,numeric,text,text,text,text,text,uuid) to authenticated, service_role;
