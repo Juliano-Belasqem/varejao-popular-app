@@ -1202,6 +1202,72 @@ export function VisualEngineEditor({
     ], [id]);
     setMessage(`${product.name} inserido e vinculado aos dados do produto.`);
   }
+  function offerComponent() {
+    if (!offerId) return;
+    const offer = offers.items.find((item) => item.id === offerId);
+    if (!offer) return;
+    const unit = page.unit === "mm" ? 0.2 : 1;
+    const id = crypto.randomUUID();
+    const elements: VisualElement[] = [
+      {
+        id: crypto.randomUUID(), type: "image", name: "Imagem do produto", visible: true, locked: false,
+        binding: "product.image",
+        transform: { x: 0, y: 0, width: 250 * unit, height: 230 * unit, rotation: 0, opacity: 1, layer: 0 },
+      },
+      {
+        id: crypto.randomUUID(), type: "text", name: "Produto da oferta", visible: true, locked: false,
+        binding: "product.name",
+        transform: { x: 270 * unit, y: 5 * unit, width: 390 * unit, height: 75 * unit, rotation: 0, opacity: 1, layer: 1 },
+        textStyle: { fontFamily: brand.fieldFonts.body, fontSize: 38 * unit, fontWeight: 800, color: "#111111" },
+      },
+      {
+        id: crypto.randomUUID(), type: "text", name: "Especificação da oferta", visible: true, locked: false,
+        binding: "product.specification",
+        transform: { x: 270 * unit, y: 80 * unit, width: 390 * unit, height: 45 * unit, rotation: 0, opacity: 1, layer: 2 },
+        textStyle: { fontFamily: brand.fieldFonts.body, fontSize: 22 * unit, color: "#444444" },
+      },
+      {
+        id: crypto.randomUUID(), type: "text", name: "Preço normal", visible: true, locked: false,
+        binding: "offer.normalPrice",
+        text: "0,00",
+        transform: { x: 270 * unit, y: 135 * unit, width: 150 * unit, height: 42 * unit, rotation: 0, opacity: 1, layer: 3 },
+        textStyle: { fontFamily: brand.fieldFonts.body, fontSize: 20 * unit, color: "#555555" },
+      },
+      {
+        id: crypto.randomUUID(), type: "text", name: "Preço da oferta", visible: true, locked: false,
+        binding: "offer.price",
+        text: "0,00",
+        transform: { x: 425 * unit, y: 125 * unit, width: 235 * unit, height: 85 * unit, rotation: 0, opacity: 1, layer: 4 },
+        textStyle: { fontFamily: brand.fieldFonts.price, fontSize: 62 * unit, fontWeight: 900, color: brand.primaryColor },
+      },
+      {
+        id: crypto.randomUUID(), type: "barcode", name: "Código de barras da oferta", visible: true, locked: false,
+        binding: "product.ean",
+        transform: { x: 270 * unit, y: 185 * unit, width: 145 * unit, height: 48 * unit, rotation: 0, opacity: 1, layer: 5 },
+      },
+    ];
+    siblingsInsert([
+      ...elements,
+      {
+        id, type: "group", name: `Oferta · ${offer.name}`, visible: true, locked: false,
+        children: elements.map((element) => element.id),
+        groupSize: { width: 670 * unit, height: 240 * unit },
+        transform: { x: 50 * unit, y: 50 * unit, width: 670 * unit, height: 240 * unit, rotation: 0, opacity: 1, layer: 0 },
+      },
+    ], [id]);
+    setMessage(`Oferta de ${offer.name} inserida e vinculada.`);
+  }
+
+  function addBoundText(binding: string, name: string) {
+    const unit = page.unit === "mm" ? 0.2 : 1;
+    const id = crypto.randomUUID();
+    siblingsInsert([{
+      id, type: "text", name, visible: true, locked: false, binding,
+      transform: { x: 50 * unit, y: 50 * unit, width: 300 * unit, height: 70 * unit, rotation: 0, opacity: 1, layer: 0 },
+      textStyle: { fontFamily: brand.fieldFonts.body, fontSize: 32 * unit, color: "#111111" },
+    }], [id]);
+  }
+
   function priceComponent() {
     const unit = page.unit === "mm" ? 0.2 : 1,
       id = crypto.randomUUID(),
@@ -1613,8 +1679,16 @@ export function VisualEngineEditor({
                     {offers.items.map((o) => <option key={o.id} value={o.id}>{o.name} · {o.data.offer.price}</option>)}
                   </select>
                 </label>
+                <button className="btn" disabled={!offerId || locked} onClick={offerComponent}>+ Inserir oferta vinculada</button>
                 <button className="btn" disabled={locked} onClick={priceComponent}>+ Bloco de preço</button>
-                <button className="btn" disabled={locked} onClick={() => add("text")}>+ Campo vinculado</button>
+                <div className="visual-tool-grid">
+                  <button className="btn" disabled={locked} onClick={() => addBoundText("product.name", "Nome do produto")}>Nome</button>
+                  <button className="btn" disabled={locked} onClick={() => addBoundText("product.specification", "Especificação")}>Especificação</button>
+                  <button className="btn" disabled={locked} onClick={() => addBoundText("offer.normalPrice", "Preço normal")}>Preço normal</button>
+                  <button className="btn" disabled={locked} onClick={() => addBoundText("offer.price", "Preço da oferta")}>Preço oferta</button>
+                  <button className="btn" disabled={locked} onClick={() => addBoundText("offer.unit", "Unidade")}>Unidade</button>
+                  <button className="btn" disabled={locked} onClick={() => addBoundText("campaign.name", "Campanha")}>Campanha</button>
+                </div>
               </div>
             )}
             {activeTool === "templates" && (
