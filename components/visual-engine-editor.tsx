@@ -177,7 +177,7 @@ export function VisualEngineEditor({
     [preview, setPreview] = useState(false),
     [alignToPage, setAlignToPage] = useState(false),
     [guides, setGuides] = useState<{ x?: number; y?: number }>({}),
-    [exportScale, setExportScale] = useState(1),\n    [activeTool, setActiveTool] = useState<\n      "layers" | "elements" | "text" | "images" | "offers" | "templates" | "brand" | "uploads"\n    >("layers");
+    [exportScale, setExportScale] = useState(1),\n    [activeTool, setActiveTool] = useState<\n      "layers" | "elements" | "text" | "images" | "offers" | "templates" | "brand" | "uploads"\n    >("layers"),\n    [layersOpen, setLayersOpen] = useState(true);
   const [templates, setTemplates] = useState<
       Awaited<ReturnType<typeof listVisualTemplates>>
     >({ items: [], hasMore: false }),
@@ -1452,6 +1452,15 @@ export function VisualEngineEditor({
               } as const)[activeTool]}</h3>
               <span className="muted">{visible.length} itens</span>
             </div>
+            {activeTool === "layers" && (
+              <button
+                className="btn visual-collapse"
+                aria-expanded={layersOpen}
+                onClick={() => setLayersOpen((open) => !open)}
+              >
+                {layersOpen ? "Ocultar camadas" : "Mostrar camadas"}
+              </button>
+            )}
             {activeTool === "elements" && (
               <div className="visual-tool-grid">
                 <button className="btn" disabled={locked} onClick={() => add("shape")}>▭ Forma</button>
@@ -1504,7 +1513,7 @@ export function VisualEngineEditor({
               </div>
             )}
           </div>
-          {activeTool === "layers" && <>
+          {activeTool === "layers" && layersOpen && <>
           {scope && (
             <button
               className="btn"
@@ -1598,6 +1607,12 @@ export function VisualEngineEditor({
             ))}
           </div>
           </>}
+          {selected.length > 0 && (
+            <div className="visual-selection-summary" role="status">
+              <strong>{selected.length === 1 ? current?.name ?? "1 elemento" : `${selected.length} elementos`}</strong>
+              <span>{selected.length === 1 ? names[current?.type ?? "text"] : "Seleção múltipla"}</span>
+            </div>
+          )}
           <h3>Alinhar {selected.length > 1 ? "seleção" : "à prancheta"}</h3>
           <label>
             <input
