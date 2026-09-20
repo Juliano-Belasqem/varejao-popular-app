@@ -203,6 +203,7 @@ try {
   await button("+ Prancheta").click();
   await label("Formato").selectOption("210,297,mm");
   await label("Nome da prancheta").fill("Cartaz A4");
+  await page.locator(".visual-tool-rail button[title=\"Texto\"]").click();
   await button("+ Texto").click();
   await label("Texto livre / alternativa").fill("Segunda página");
   await button("Salvar template").click();
