@@ -3,13 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { canEdit, requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { parseMoney } from "@/lib/money";
 
-function money(value:FormDataEntryValue|null){
-  const raw=String(value??"").trim().replace(/\./g,"").replace(",",".");
-  if(!raw)return null;
-  const parsed=Number(raw);
-  return Number.isFinite(parsed)&&parsed>=0?parsed:null;
-}
+function money(value:FormDataEntryValue|null){return parseMoney(value)}
 function text(value:FormDataEntryValue|null){const v=String(value??"").trim();return v||null}
 
 export async function createOffer(formData:FormData){
