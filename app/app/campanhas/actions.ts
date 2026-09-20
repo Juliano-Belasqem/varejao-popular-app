@@ -104,19 +104,22 @@ export async function addCampaignItem(formData: FormData) {
 }
 
 export async function updateCampaignItem(formData: FormData) {
-  const { supabase } = await editorContext();
+  const { profile, supabase } = await editorContext();
   const id = String(formData.get("id") ?? "");
   const campaignId = String(formData.get("campaign_id") ?? "");
   const highlightedPrice = String(formData.get("highlighted_price") ?? "offer");
   if (!id || !campaignId) throw new Error("Item inválido.");
   if (!["offer", "normal"].includes(highlightedPrice)) throw new Error("Destaque de preço inválido.");
 
-  const { error } = await supabase.from("campaign_items").update({
-    normal_price: numberValue(formData.get("normal_price")),
-    offer_price: numberValue(formData.get("offer_price")),
-    highlighted_price: highlightedPrice,
-    sort_order: numberValue(formData.get("sort_order")) ?? 0,
-  }).eq("id", id).eq("campaign_id", campaignId);
+  const { error } = await supabase.rpc("update_campaign_offer_item", {
+    p_item_id: id,
+    p_campaign_id: campaignId,
+    p_normal_price: numberValue(formData.get("normal_price")),
+    p_offer_price: numberValue(formData.get("offer_price")),
+    p_highlighted_price: highlightedPrice,
+    p_sort_order: numberValue(formData.get("sort_order")) ?? 0,
+    p_user_id: profile.id,
+  });
 
   if (error) throw new Error(error.message);
   revalidatePath("/app/campanhas");
@@ -125,12 +128,16 @@ export async function updateCampaignItem(formData: FormData) {
 }
 
 export async function removeCampaignItem(formData: FormData) {
-  const { supabase } = await editorContext();
+  const { profile, supabase } = await editorContext();
   const id = String(formData.get("id") ?? "");
   const campaignId = String(formData.get("campaign_id") ?? "");
   if (!id || !campaignId) throw new Error("Item inválido.");
 
-  const { error } = await supabase.from("campaign_items").delete().eq("id", id).eq("campaign_id", campaignId);
+  const { error } = await supabase.rpc("remove_campaign_offer_item", {
+    p_item_id: id,
+    p_campaign_id: campaignId,
+    p_user_id: profile.id,
+  });
   if (error) throw new Error(error.message);
 
   revalidatePath("/app/campanhas");
