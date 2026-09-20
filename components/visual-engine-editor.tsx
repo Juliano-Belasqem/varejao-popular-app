@@ -43,6 +43,8 @@ import { useBrandKit } from "@/lib/brand-kit/client";
 import {
   listVisualOffers,
   listVisualProducts,
+  renameVisualTemplate,
+  archiveVisualTemplate,
   listVisualTemplates,
   listVisualVersions,
   loadVisualTemplate,
@@ -1030,6 +1032,26 @@ export function VisualEngineEditor({
       setBusy(false);
     }
   }
+  async function renameLibraryComponent(id: string, currentName: string) {
+    const name = window.prompt("Novo nome do componente", currentName)?.trim();
+    if (!name || name === currentName) return;
+    setBusy(true);
+    try {
+      await renameVisualTemplate(id, name);
+      setTemplates(await listVisualTemplates(templatePage));
+      setMessage(`Componente renomeado para “${name}”.`);
+    } catch (e) { fail(e); } finally { setBusy(false); }
+  }
+  async function archiveLibraryComponent(id: string, name: string) {
+    if (!window.confirm(`Remover “${name}” da biblioteca? O histórico salvo será preservado.`)) return;
+    setBusy(true);
+    try {
+      await archiveVisualTemplate(id);
+      if (libraryId === id) setLibraryId("");
+      setTemplates(await listVisualTemplates(templatePage));
+      setMessage(`Componente “${name}” removido da biblioteca.`);
+    } catch (e) { fail(e); } finally { setBusy(false); }
+  }
   async function insertTemplate(templateToInsert = libraryId) {
     if (!templateToInsert || locked) return;
     setBusy(true);
@@ -1835,7 +1857,11 @@ export function VisualEngineEditor({
                   {templates.items.filter((template) => template.category === "component" && template.name.toLowerCase().includes(componentQuery.trim().toLowerCase())).map((template) => (
                     <div key={template.id} className="visual-component-item">
                       <div><strong>{template.name}</strong><span className="muted">v{template.current_version}</span></div>
-                      <button className="btn" disabled={locked || busy} onClick={() => void insertTemplate(template.id)}>Inserir</button>
+                      <div className="visual-component-actions">
+                        <button className="btn" disabled={locked || busy} onClick={() => void insertTemplate(template.id)}>Inserir</button>
+                        <button className="btn" disabled={busy} aria-label={`Renomear ${template.name}`} onClick={() => void renameLibraryComponent(template.id, template.name)}>Renomear</button>
+                        <button className="btn" disabled={busy} aria-label={`Remover ${template.name}`} onClick={() => void archiveLibraryComponent(template.id, template.name)}>Remover</button>
+                      </div>
                     </div>
                   ))}
                 </div>
