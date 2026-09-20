@@ -177,7 +177,11 @@ export function VisualEngineEditor({
     [preview, setPreview] = useState(false),
     [alignToPage, setAlignToPage] = useState(false),
     [guides, setGuides] = useState<{ x?: number; y?: number }>({}),
-    [exportScale, setExportScale] = useState(1);
+    [exportScale, setExportScale] = useState(1),
+    [activeTool, setActiveTool] = useState<
+      "layers" | "elements" | "text" | "images" | "offers" | "templates" | "brand" | "uploads"
+    >("layers"),
+    [layersOpen, setLayersOpen] = useState(true);
   const [templates, setTemplates] = useState<
       Awaited<ReturnType<typeof listVisualTemplates>>
     >({ items: [], hasMore: false }),
@@ -769,6 +773,21 @@ export function VisualEngineEditor({
         if (!locked) void save();
         return;
       }
+      if (mod && (key === "+" || key === "=")) {
+        event.preventDefault();
+        setZoom((value) => Math.min(400, value + 10));
+        return;
+      }
+      if (mod && key === "-") {
+        event.preventDefault();
+        setZoom((value) => Math.max(10, value - 10));
+        return;
+      }
+      if (mod && key === "0") {
+        event.preventDefault();
+        fit();
+        return;
+      }
       if (locked || preview) return;
       if (mod && key === "z") {
         event.preventDefault();
@@ -1213,6 +1232,11 @@ export function VisualEngineEditor({
             )}
           </select>
         </label>
+        <span className="visual-top-spacer" />
+        <button className="btn" title="Desfazer (Ctrl/Cmd+Z)" disabled={locked || !history.length} onClick={undo}>↶</button>
+        <button className="btn" title="Refazer (Ctrl/Cmd+Y)" disabled={locked || !future.length} onClick={redo}>↷</button>
+        <button className="btn" title="Alternar preview limpo" aria-pressed={preview} onClick={() => setPreview(!preview)}>◉ Preview</button>
+        <button className="btn" title="Exportar PNG" disabled={busy} onClick={() => exportFile("png")}>⇩ Exportar</button>
         <button
           className="btn primary"
           disabled={locked}
@@ -1412,22 +1436,103 @@ export function VisualEngineEditor({
       </details>
       <div className="visual-workspace">
         <aside className="card visual-layers">
-          <h3>Elementos</h3>
-          <div className="visual-buttons">
-            {(["text", "image", "shape", "barcode"] as const).map((type) => (
+          <nav className="visual-tool-rail" aria-label="Ferramentas do editor">
+            {([
+              ["layers", "☷", "Camadas"],
+              ["elements", "○", "Elementos"],
+              ["text", "T", "Texto"],
+              ["images", "▧", "Imagens"],
+              ["offers", "R$", "Ofertas"],
+              ["templates", "◇", "Templates"],
+              ["brand", "◆", "Marca"],
+              ["uploads", "↑", "Uploads"],
+            ] as const).map(([tool, icon, label]) => (
               <button
-                className="btn"
-                key={type}
-                disabled={locked}
-                onClick={() => add(type)}
+                key={tool}
+                title={label}
+                aria-pressed={activeTool === tool}
+                onClick={() => setActiveTool(tool)}
               >
-                + {names[type]}
+                <b>{icon}</b><span>{label}</span>
               </button>
             ))}
-            <button className="btn" disabled={locked} onClick={priceComponent}>
-              + Preço segmentado
-            </button>
+          </nav>
+          <div className="visual-context-panel">
+            <div className="visual-context-head">
+              <h3>{({
+                layers: "Camadas",
+                elements: "Elementos",
+                text: "Texto",
+                images: "Imagens",
+                offers: "Ofertas",
+                templates: "Templates",
+                brand: "Marca",
+                uploads: "Uploads",
+              } as const)[activeTool]}</h3>
+              <span className="muted">{visible.length} itens</span>
+            </div>
+            {activeTool === "layers" && (
+              <button
+                className="btn visual-collapse"
+                aria-expanded={layersOpen}
+                onClick={() => setLayersOpen((open) => !open)}
+              >
+                {layersOpen ? "Ocultar camadas" : "Mostrar camadas"}
+              </button>
+            )}
+            {activeTool === "elements" && (
+              <div className="visual-tool-grid">
+                <button className="btn" disabled={locked} onClick={() => add("shape")}>▭ Forma</button>
+                <button className="btn" disabled={locked} onClick={() => add("barcode")}>▥ Código</button>
+              </div>
+            )}
+            {activeTool === "text" && (
+              <div className="visual-tool-grid">
+                <button className="btn" disabled={locked} onClick={() => add("text")}>+ Texto</button>
+                <button className="btn" disabled={locked} onClick={priceComponent}>R$ Preço segmentado</button>
+              </div>
+            )}
+            {activeTool === "images" && (
+              <div className="visual-tool-grid">
+                <button className="btn" disabled={locked} onClick={() => add("image")}>+ Quadro de imagem</button>
+                <p className="muted">Selecione a imagem para substituir, ajustar ou vincular a fonte nas propriedades.</p>
+              </div>
+            )}
+            {activeTool === "offers" && (
+              <div className="visual-tool-stack">
+                <label className="field"><span>Dados da oferta</span>
+                  <select className="input" value={offerId} onChange={(e) => { setOfferId(e.target.value); setBindingData(null); }}>
+                    <option value="">Dados de exemplo</option>
+                    {offers.items.map((o) => <option key={o.id} value={o.id}>{o.name} · {o.data.offer.price}</option>)}
+                  </select>
+                </label>
+                <button className="btn" disabled={locked} onClick={priceComponent}>+ Bloco de preço</button>
+                <button className="btn" disabled={locked} onClick={() => add("text")}>+ Campo vinculado</button>
+              </div>
+            )}
+            {activeTool === "templates" && (
+              <div className="visual-tool-stack">
+                <select className="input" aria-label="Template para inserir" value={libraryId} onChange={(e) => setLibraryId(e.target.value)}>
+                  <option value="">Selecione um template</option>
+                  {templates.items.map((t) => <option key={t.id} value={t.id}>{t.name} · v{t.current_version}</option>)}
+                </select>
+                <button className="btn" disabled={!libraryId || locked} onClick={insertTemplate}>Inserir no design</button>
+              </div>
+            )}
+            {activeTool === "brand" && (
+              <div className="visual-brand-summary">
+                <span className="visual-brand-swatch" style={{ background: brand.primaryColor }} />
+                <div><strong>Brand Kit</strong><p className="muted">Cores e fontes da marca são aplicadas aos novos elementos.</p></div>
+              </div>
+            )}
+            {activeTool === "uploads" && (
+              <div className="visual-tool-stack">
+                <p className="muted">Crie um quadro de imagem e use “Enviar imagem” nas propriedades para guardar um arquivo no acervo visual.</p>
+                <button className="btn" disabled={locked} onClick={() => { add("image"); setActiveTool("images"); }}>+ Nova imagem</button>
+              </div>
+            )}
           </div>
+          {activeTool === "layers" && layersOpen && <>
           {scope && (
             <button
               className="btn"
@@ -1520,6 +1625,25 @@ export function VisualEngineEditor({
               </button>
             ))}
           </div>
+          </>}
+          {selected.length > 0 && (
+            <div className="visual-selection-summary" role="status">
+              <strong>{selected.length === 1 ? current?.name ?? "1 elemento" : `${selected.length} elementos`}</strong>
+              <span>{selected.length === 1 ? names[current?.type ?? "text"] : "Seleção múltipla"}</span>
+            </div>
+          )}
+          {selected.length > 0 && (
+            <div className="visual-selection-actions" aria-label="Ações da seleção">
+              <button className="btn" disabled={locked} title="Duplicar seleção (Ctrl/Cmd+D)" onClick={duplicate}>Duplicar seleção</button>
+              <button className="btn" disabled={locked} title="Excluir seleção (Delete)" onClick={remove}>Excluir seleção</button>
+              {selected.length > 1 && (
+                <button className="btn" disabled={locked} title="Agrupar seleção (Ctrl/Cmd+G)" onClick={group}>Agrupar seleção</button>
+              )}
+              {selected.length === 1 && current?.type === "group" && (
+                <button className="btn" disabled={locked} title="Desagrupar seleção (Ctrl/Cmd+Shift+G)" onClick={ungroup}>Desagrupar seleção</button>
+              )}
+            </div>
+          )}
           <h3>Alinhar {selected.length > 1 ? "seleção" : "à prancheta"}</h3>
           <label>
             <input
@@ -1602,15 +1726,11 @@ export function VisualEngineEditor({
             >
               Preview limpo
             </button>
-            <button className="btn" onClick={fit}>
-              Ajustar à tela
-            </button>
-            <NumberField
-              label="Zoom (%)"
-              value={zoom}
-              min={1}
-              onChange={setZoom}
-            />
+            <div className="visual-zoom-controls" aria-label="Controles de zoom">
+              <button className="btn" title="Reduzir zoom (Ctrl/Cmd+-)" onClick={() => setZoom((value) => Math.max(10, value - 10))}>−</button>
+              <button className="btn visual-zoom-value" title="Ajustar à tela (Ctrl/Cmd+0)" onClick={fit}>{Math.round(zoom)}%</button>
+              <button className="btn" title="Aumentar zoom (Ctrl/Cmd++)" onClick={() => setZoom((value) => Math.min(400, value + 10))}>+</button>
+            </div>
             <label>
               <input
                 type="checkbox"
@@ -1629,6 +1749,11 @@ export function VisualEngineEditor({
           <div
             className="visual-viewport"
             ref={viewport}
+            onWheel={(event) => {
+              if (!(event.ctrlKey || event.metaKey)) return;
+              event.preventDefault();
+              setZoom((value) => Math.max(10, Math.min(400, value + (event.deltaY < 0 ? 10 : -10))));
+            }}
             onPointerDown={(event) => {
               if (space.current || event.button === 1) pan(event);
             }}
@@ -1809,8 +1934,7 @@ export function VisualEngineEditor({
             </div>
           </div>
           <p className="muted">
-            Espaço+arraste para navegar · Alt desativa encaixe durante o arraste
-            · Shift mantém proporção/ângulo · setas movem · Ctrl/Cmd+Z desfaz.
+            Espaço+arraste navega · Ctrl/Cmd+roda ou +/- controla zoom · Ctrl/Cmd+0 ajusta à tela · Alt desativa encaixe · Shift mantém proporção/ângulo · setas movem.
           </p>
           <div className="visual-buttons">
             {[getPage(doc, 0), ...(doc.pages ?? [])].map((p, i) => (

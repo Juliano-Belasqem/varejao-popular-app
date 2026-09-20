@@ -143,7 +143,8 @@ try {
   state = await document();
   assert.ok(state.elements[0].transform.scaleX > 0);
   assert.equal(state.elements.length, 2);
-  await button("+ Imagem").click();
+  await page.locator(".visual-tool-rail button[title=\"Imagens\"]").click();
+  await button("+ Quadro de imagem").click();
   await label("Enviar imagem").setInputFiles(
     "public/media-templates/validity-background.png",
   );
@@ -153,11 +154,14 @@ try {
     .waitFor();
   await label("Enquadramento").selectOption("cover");
   await label("Recorte horizontal (%)").fill("25");
-  await button("+ Forma").click();
+  await page.locator(".visual-tool-rail button[title=\"Elementos\"]").click();
+  await button("▭ Forma").click();
   await label("Forma").selectOption("ellipse");
-  await button("+ Código de barras").click();
+  await button("▥ Código").click();
   await page.locator('.visual-canvas [aria-label^="EAN-13"]').waitFor();
-  await button("+ Preço segmentado").click();
+  await page.locator(".visual-tool-rail button[title=\"Texto\"]").click();
+  await button("R$ Preço segmentado").click();
+  await page.locator(".visual-tool-rail button[title=\"Camadas\"]").click();
   await page
     .locator(".visual-layer-list")
     .getByRole("button", { name: /Preço segmentado/ })
@@ -199,6 +203,7 @@ try {
   await button("+ Prancheta").click();
   await label("Formato").selectOption("210,297,mm");
   await label("Nome da prancheta").fill("Cartaz A4");
+  await page.locator(".visual-tool-rail button[title=\"Texto\"]").click();
   await button("+ Texto").click();
   await label("Texto livre / alternativa").fill("Segunda página");
   await button("Salvar template").click();
@@ -258,7 +263,7 @@ try {
     .filter({ hasText: "Inserida cópia" })
     .waitFor();
   await page.setViewportSize({ width: 390, height: 844 });
-  await button("Ajustar à tela").click();
+  await page.locator(".visual-zoom-controls button[title^=\"Ajustar à tela\"]").click();
   assert.ok(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth + 1,
