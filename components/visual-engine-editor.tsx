@@ -1322,7 +1322,7 @@ export function VisualEngineEditor({
   }
   function addBrandLogo(src: string) {
     const unit = page.unit === "mm" ? 0.2 : 1, id = crypto.randomUUID();
-    siblingsInsert([{ id, type: "image", name: "Logo da marca", visible: true, locked: false, src, fit: "contain", transform: { x: 50 * unit, y: 50 * unit, width: 260 * unit, height: 120 * unit, rotation: 0, opacity: 1, layer: 0 } }], [id]);
+    siblingsInsert([{ id, type: "image", name: "Logo da marca", visible: true, locked: false, source: src, fit: "contain", transform: { x: 50 * unit, y: 50 * unit, width: 260 * unit, height: 120 * unit, rotation: 0, opacity: 1, layer: 0 } }], [id]);
   }
 
   function priceComponent() {
