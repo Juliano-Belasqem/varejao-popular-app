@@ -45,3 +45,6 @@
 .visual-zoom-controls{display:inline-flex;align-items:center;border:1px solid #344158;border-radius:7px;overflow:hidden}
 .visual-zoom-controls .btn{border:0!important;border-radius:0!important;min-width:34px}
 .visual-zoom-controls .visual-zoom-value{min-width:62px;border-left:1px solid #344158!important;border-right:1px solid #344158!important;font-variant-numeric:tabular-nums}
+
+.visual-selection-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:0 0 12px}
+.visual-selection-actions .btn{min-width:0;padding-inline:7px}
