@@ -161,6 +161,7 @@ try {
   await page.locator('.visual-canvas [aria-label^="EAN-13"]').waitFor();
   await page.locator(".visual-tool-rail button[title=\"Texto\"]").click();
   await button("R$ Preço segmentado").click();
+  await page.locator(".visual-tool-rail button[title=\"Camadas\"]").click();
   await page
     .locator(".visual-layer-list")
     .getByRole("button", { name: /Preço segmentado/ })
