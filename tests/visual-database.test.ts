@@ -65,7 +65,7 @@ test("applied foundation preserves offers and immutable template versions under 
       1,
       "creating through Central does not orphan another active offer",
     );
-    await db.exec("update campaigns set start_date='2026-10-01',end_date='2026-10-15' where id='00000000-0000-4000-8000-000000000020'; select sync_campaign_offer_dates('00000000-0000-4000-8000-000000000020',auth.uid());");
+    await db.exec("reset role; update campaigns set start_date='2026-10-01',end_date='2026-10-15' where id='00000000-0000-4000-8000-000000000020'; set role authenticated; select sync_campaign_offer_dates('00000000-0000-4000-8000-000000000020',auth.uid());");
     const dates = (await db.query<{ starts_on: string; ends_on: string }>("select starts_on::text,ends_on::text from offers where id=$1",[existingOffer])).rows[0];
     assert.equal(dates.starts_on,"2026-10-01");
     assert.equal(dates.ends_on,"2026-10-15");
