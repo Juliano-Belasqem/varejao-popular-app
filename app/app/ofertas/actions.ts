@@ -18,20 +18,22 @@ export async function createOffer(formData:FormData){
   const endsOn=text(formData.get("ends_on"));
   if(startsOn&&endsOn&&startsOn>endsOn)throw new Error("A data final não pode ser anterior à data inicial.");
   const supabase=await createClient();
-  const {error}=await supabase.from("offers").insert({
-    product_id:productId,
-    campaign_id:text(formData.get("campaign_id")),
-    normal_price:money(formData.get("normal_price")),
-    offer_price:offerPrice,
-    unit:text(formData.get("unit")),
-    starts_on:startsOn,
-    ends_on:endsOn,
-    notes:text(formData.get("notes")),
-    created_by:profile.id,
-    updated_by:profile.id,
+  const {error}=await supabase.rpc("create_offer_with_campaign",{
+    p_product_id:productId,
+    p_campaign_id:text(formData.get("campaign_id")),
+    p_normal_price:money(formData.get("normal_price")),
+    p_offer_price:offerPrice,
+    p_unit:text(formData.get("unit")),
+    p_starts_on:startsOn,
+    p_ends_on:endsOn,
+    p_notes:text(formData.get("notes")),
+    p_user_id:profile.id,
   });
   if(error)throw new Error(error.message);
   revalidatePath("/app/ofertas");
+  revalidatePath("/app/campanhas");
+  const campaignId=text(formData.get("campaign_id"));
+  if(campaignId)revalidatePath(`/app/campanhas/${campaignId}`);
 }
 
 export async function setOfferActive(formData:FormData){
