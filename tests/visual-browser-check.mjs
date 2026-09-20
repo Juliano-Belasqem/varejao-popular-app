@@ -204,15 +204,20 @@ try {
   await button("Excluir seleção").click();
   await page.locator(".visual-tool-rail button[title=\"Imagens\"]").click();
   await button("+ Quadro de imagem").click();
-  await label("Enviar imagem").setInputFiles(
+  await label("Enviar ou substituir imagem").setInputFiles(
     "public/media-templates/validity-background.png",
   );
   await page
     .getByRole("status")
     .filter({ hasText: "Imagem guardada" })
     .waitFor();
-  await label("Enquadramento").selectOption("cover");
+  await button("Preencher").click();
   await label("Recorte horizontal (%)").fill("25");
+  await button("Centralizar recorte").click();
+  state = await document();
+  const imageElement = state.elements.find((element) => element.type === "image");
+  assert.equal(imageElement.fit, "cover");
+  assert.deepEqual(imageElement.imagePosition, { x: 0.5, y: 0.5 });
   await page.locator(".visual-tool-rail button[title=\"Elementos\"]").click();
   await button("▭ Forma").click();
   await label("Forma").selectOption("ellipse");
