@@ -64,6 +64,10 @@ try {
   await label("Guias centrais").uncheck();
   assert.equal(await page.locator(".visual-static-guide").count(), 0);
   await label("Guias centrais").check();
+  await label("Margem segura").check();
+  assert.equal(await page.locator('[data-safe-area="true"]').count(), 1);
+  await label("Margem segura").uncheck();
+  assert.equal(await page.locator('[data-safe-area="true"]').count(), 0);
   await label("Encaixe e guias").uncheck();
   const hit = page.locator('[data-hit-id="product"]');
   await hit.scrollIntoViewIfNeeded();
