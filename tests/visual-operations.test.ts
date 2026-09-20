@@ -132,6 +132,22 @@ test("snap chooses nearest target rather than the last target, and free movement
   assert.equal(free.x, 98.2);
   assert.equal(free.y, 47.3);
 });
+test("snap supports zero-size center-guide targets", () => {
+  const result = snapPosition(
+    { x: 447, y: 448, width: 100, height: 100 },
+    [
+      { x: 500, y: 0, width: 0, height: 1000 },
+      { x: 0, y: 500, width: 1000, height: 0 },
+    ],
+    6,
+    10,
+  );
+  assert.equal(result.x, 450);
+  assert.equal(result.y, 450);
+  assert.equal(result.gx, 500);
+  assert.equal(result.gy, 500);
+});
+
 test("legacy documents and additional pages round-trip without losing the first artboard", () => {
   const doc = document();
   const second = getPage(createVisualDocument("A4", 210, 297), 0);

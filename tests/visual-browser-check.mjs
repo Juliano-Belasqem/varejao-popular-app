@@ -57,6 +57,19 @@ try {
     .filter({ hasText: "Produto de exemplo" })
     .waitFor();
   await label("Nome do template").fill("Teste universal");
+  assert.equal(await page.locator(".visual-static-guide").count(), 2);
+  await label("Mostrar grade").uncheck();
+  assert.equal(await page.locator("#visual-grid").count(), 0);
+  await label("Mostrar grade").check();
+  assert.equal(await page.locator("#visual-grid").count(), 1);
+  await label("Guias centrais").uncheck();
+  assert.equal(await page.locator(".visual-static-guide").count(), 0);
+  await label("Guias centrais").check();
+  assert.equal(await page.locator(".visual-static-guide").count(), 2);
+  await label("Margem segura").check();
+  assert.equal(await page.locator('[data-safe-area="true"]').count(), 1);
+  await label("Margem segura").uncheck();
+  assert.equal(await page.locator('[data-safe-area="true"]').count(), 0);
   await label("Encaixe e guias").uncheck();
   const hit = page.locator('[data-hit-id="product"]');
   await hit.scrollIntoViewIfNeeded();
@@ -143,17 +156,93 @@ try {
   state = await document();
   assert.ok(state.elements[0].transform.scaleX > 0);
   assert.equal(state.elements.length, 2);
+  await page.locator(".visual-tool-rail button[title=\"Produtos\"]").click();
+  await label("Buscar produto").fill("LEITE");
+  await label("Produto para inserir").selectOption(
+    "00000000-0000-4000-8000-000000000010",
+  );
+  await button("+ Inserir produto vinculado").click();
+  await page
+    .getByRole("status")
+    .filter({ hasText: "LEITE inserido e vinculado" })
+    .waitFor();
+  state = await document();
+  const productGroup = state.elements.find(
+    (element) => element.type === "group" && element.name === "LEITE",
+  );
+  assert.ok(productGroup, "smart product block is inserted");
+  const productChildren = state.elements.filter((element) =>
+    productGroup.children.includes(element.id),
+  );
+  assert.deepEqual(
+    new Set(productChildren.map((element) => element.binding)),
+    new Set([
+      "product.image",
+      "product.name",
+      "product.brand",
+      "product.specification",
+      "product.salePrice",
+      "product.ean",
+    ]),
+    "smart product block keeps editable data bindings",
+  );
+  await button("Excluir seleção").click();
+  await page.locator(".visual-tool-rail button[title=\"Ofertas\"]").click();
+  await label("Dados da oferta").selectOption(
+    "00000000-0000-4000-8000-000000000010",
+  );
+  await page.locator(".visual-tool-rail button[title=\"Produtos\"]").click();
+  assert.equal(await label("Produto para inserir").inputValue(), "");
+  await label("Produto para inserir").selectOption(
+    "00000000-0000-4000-8000-000000000010",
+  );
+  await page.locator(".visual-tool-rail button[title=\"Ofertas\"]").click();
+  assert.equal(await label("Dados da oferta").inputValue(), "");
+  await label("Dados da oferta").selectOption(
+    "00000000-0000-4000-8000-000000000010",
+  );
+  await button("+ Inserir oferta vinculada").click();
+  await page
+    .getByRole("status")
+    .filter({ hasText: "Oferta de LEITE inserida e vinculada" })
+    .waitFor();
+  state = await document();
+  const offerGroup = state.elements.find(
+    (element) => element.type === "group" && element.name === "Oferta · LEITE",
+  );
+  assert.ok(offerGroup, "smart offer block is inserted");
+  const offerChildren = state.elements.filter((element) =>
+    offerGroup.children.includes(element.id),
+  );
+  assert.ok(
+    offerChildren.some((element) => element.binding === "offer.price"),
+    "smart offer block binds offer price",
+  );
+  assert.ok(
+    offerChildren.some((element) => element.binding === "offer.normalPrice"),
+    "smart offer block binds normal price",
+  );
+  assert.ok(
+    offerChildren.some((element) => element.binding === "product.ean"),
+    "smart offer block binds product barcode",
+  );
+  await button("Excluir seleção").click();
   await page.locator(".visual-tool-rail button[title=\"Imagens\"]").click();
   await button("+ Quadro de imagem").click();
-  await label("Enviar imagem").setInputFiles(
+  await label("Enviar ou substituir imagem").setInputFiles(
     "public/media-templates/validity-background.png",
   );
   await page
     .getByRole("status")
     .filter({ hasText: "Imagem guardada" })
     .waitFor();
-  await label("Enquadramento").selectOption("cover");
+  await button("Preencher").click();
   await label("Recorte horizontal (%)").fill("25");
+  await button("Centralizar recorte").click();
+  state = await document();
+  const imageElement = state.elements.find((element) => element.type === "image");
+  assert.equal(imageElement.fit, "cover");
+  assert.deepEqual(imageElement.imagePosition, { x: 0.5, y: 0.5 });
   await page.locator(".visual-tool-rail button[title=\"Elementos\"]").click();
   await button("▭ Forma").click();
   await label("Forma").selectOption("ellipse");

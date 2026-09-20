@@ -42,6 +42,7 @@ import {
 import { useBrandKit } from "@/lib/brand-kit/client";
 import {
   listVisualOffers,
+  listVisualProducts,
   listVisualTemplates,
   listVisualVersions,
   loadVisualTemplate,
@@ -173,13 +174,16 @@ export function VisualEngineEditor({
     [message, setMessage] = useState(""),
     [zoom, setZoom] = useState(60),
     [snap, setSnap] = useState(true),
+    [showGrid, setShowGrid] = useState(true),
     [grid, setGrid] = useState(10),
     [preview, setPreview] = useState(false),
     [alignToPage, setAlignToPage] = useState(false),
     [guides, setGuides] = useState<{ x?: number; y?: number }>({}),
+    [centerGuides, setCenterGuides] = useState(true),
+    [safeArea, setSafeArea] = useState(false),
     [exportScale, setExportScale] = useState(1),
     [activeTool, setActiveTool] = useState<
-      "layers" | "elements" | "text" | "images" | "offers" | "templates" | "brand" | "uploads"
+      "layers" | "elements" | "text" | "images" | "products" | "offers" | "templates" | "brand" | "uploads"
     >("layers"),
     [layersOpen, setLayersOpen] = useState(true);
   const [templates, setTemplates] = useState<
@@ -191,6 +195,11 @@ export function VisualEngineEditor({
       Awaited<ReturnType<typeof listVisualVersions>>
     >({ items: [], hasMore: false }),
     [versionPage, setVersionPage] = useState(0);
+  const [products, setProducts] = useState<
+      Awaited<ReturnType<typeof listVisualProducts>>
+    >([]),
+    [productQuery, setProductQuery] = useState(""),
+    [productId, setProductId] = useState("");
   const [offers, setOffers] = useState<
       Awaited<ReturnType<typeof listVisualOffers>>
     >({ items: [], hasMore: false }),
@@ -208,12 +217,44 @@ export function VisualEngineEditor({
       .sort((a, b) => b.transform.layer - a.transform.layer);
   const dirty = JSON.stringify(doc) !== saved || category !== savedCategory,
     locked = busy || !editable;
-  const data = {
-    ...(bindingData ??
-      offers.items.find((o) => o.id === offerId)?.data ??
-      demo),
-    brand: { logo: brand.logoUrl ?? "" },
-  };
+  const selectedProduct = products.find((item) => item.id === productId),
+    selectedOfferData = offers.items.find((o) => o.id === offerId)?.data,
+    productPreview = selectedProduct
+      ? {
+          name: selectedProduct.name,
+          brand: selectedProduct.brand ?? "",
+          specification: selectedProduct.specification ?? "",
+          ean: selectedProduct.ean,
+          unit: selectedProduct.unit ?? "",
+          salePrice:
+            selectedProduct.sale_price == null
+              ? ""
+              : Number(selectedProduct.sale_price).toFixed(2).replace(".", ","),
+          image: selectedProduct.image,
+        }
+      : undefined,
+    data = {
+      ...demo,
+      ...(bindingData ?? {}),
+      ...(selectedOfferData ?? {}),
+      product: {
+        ...demo.product,
+        ...(productPreview ?? {}),
+        ...((bindingData?.product as Record<string, unknown> | undefined) ?? {}),
+        ...((selectedOfferData?.product as Record<string, unknown> | undefined) ?? {}),
+      },
+      offer: {
+        ...demo.offer,
+        ...((bindingData?.offer as Record<string, unknown> | undefined) ?? {}),
+        ...((selectedOfferData?.offer as Record<string, unknown> | undefined) ?? {}),
+      },
+      campaign: {
+        ...demo.campaign,
+        ...((bindingData?.campaign as Record<string, unknown> | undefined) ?? {}),
+        ...((selectedOfferData?.campaign as Record<string, unknown> | undefined) ?? {}),
+      },
+      brand: { logo: brand.logoUrl ?? "" },
+    };
   const svgRef = useRef<SVGSVGElement | null>(null),
     viewport = useRef<HTMLDivElement>(null),
     printRefs = useRef<(SVGSVGElement | null)[]>([]),
@@ -240,6 +281,15 @@ export function VisualEngineEditor({
       active = false;
     };
   }, [templatePage]);
+  useEffect(() => {
+    if (activeTool !== "products") return;
+    const timer = window.setTimeout(() => {
+      listVisualProducts(productQuery)
+        .then(setProducts)
+        .catch(fail);
+    }, 180);
+    return () => window.clearTimeout(timer);
+  }, [activeTool, productQuery]);
   useEffect(() => {
     let active = true;
     listVisualOffers(offerPage)
@@ -595,13 +645,22 @@ export function VisualEngineEditor({
       .filter((e) => !moveIds.includes(e.id) && e.visible)
       .map((e) => bounds(e));
     const parent = parentOf(page, id);
+    const parentWidth =
+        parent?.groupSize?.width ?? parent?.transform.width ?? page.width,
+      parentHeight =
+        parent?.groupSize?.height ?? parent?.transform.height ?? page.height;
     targets.push({
       x: 0,
       y: 0,
-      width: parent?.groupSize?.width ?? parent?.transform.width ?? page.width,
-      height:
-        parent?.groupSize?.height ?? parent?.transform.height ?? page.height,
+      width: parentWidth,
+      height: parentHeight,
     });
+    if (centerGuides) {
+      targets.push(
+        { x: parentWidth / 2, y: 0, width: 0, height: parentHeight },
+        { x: 0, y: parentHeight / 2, width: parentWidth, height: 0 },
+      );
+    }
     startGesture(event, (e) => {
       const cp = canvasPoint(e.clientX, e.clientY),
         p = point(inv, cp.x, cp.y);
@@ -786,6 +845,16 @@ export function VisualEngineEditor({
       if (mod && key === "0") {
         event.preventDefault();
         fit();
+        return;
+      }
+      if (mod && (event.code === "Quote" || key === "'")) {
+        event.preventDefault();
+        setShowGrid((value) => !value);
+        return;
+      }
+      if (mod && (event.code === "Semicolon" || key === ";")) {
+        event.preventDefault();
+        setCenterGuides((value) => !value);
         return;
       }
       if (locked || preview) return;
@@ -1114,6 +1183,126 @@ export function VisualEngineEditor({
     commit({ ...pages[0], version: 1, pages: pages.slice(1) });
     selectPage(0);
   }
+  function productComponent() {
+    if (!productId) return;
+    const product = products.find((item) => item.id === productId);
+    if (!product) return;
+    const unit = page.unit === "mm" ? 0.2 : 1;
+    const id = crypto.randomUUID();
+    const elements: VisualElement[] = [
+      {
+        id: crypto.randomUUID(), type: "image", name: "Imagem do produto", visible: true, locked: false,
+        binding: "product.image",
+        transform: { x: 0, y: 0, width: 260 * unit, height: 220 * unit, rotation: 0, opacity: 1, layer: 0 },
+      },
+      {
+        id: crypto.randomUUID(), type: "text", name: "Nome do produto", visible: true, locked: false,
+        binding: "product.name",
+        transform: { x: 280 * unit, y: 10 * unit, width: 360 * unit, height: 90 * unit, rotation: 0, opacity: 1, layer: 1 },
+        textStyle: { fontFamily: brand.fieldFonts.body, fontSize: 42 * unit, fontWeight: 800, color: "#111111" },
+      },
+      {
+        id: crypto.randomUUID(), type: "text", name: "Especificação", visible: true, locked: false,
+        binding: "product.specification",
+        transform: { x: 280 * unit, y: 105 * unit, width: 360 * unit, height: 55 * unit, rotation: 0, opacity: 1, layer: 2 },
+        textStyle: { fontFamily: brand.fieldFonts.body, fontSize: 25 * unit, color: "#444444" },
+      },
+      {
+        id: crypto.randomUUID(), type: "text", name: "Marca", visible: true, locked: false,
+        binding: "product.brand",
+        transform: { x: 280 * unit, y: 150 * unit, width: 170 * unit, height: 38 * unit, rotation: 0, opacity: 1, layer: 3 },
+        textStyle: { fontFamily: brand.fieldFonts.body, fontSize: 18 * unit, fontWeight: 650, color: "#555555" },
+      },
+      {
+        id: crypto.randomUUID(), type: "text", name: "Preço de venda", visible: true, locked: false,
+        binding: "product.salePrice",
+        text: "0,00",
+        transform: { x: 455 * unit, y: 142 * unit, width: 185 * unit, height: 58 * unit, rotation: 0, opacity: 1, layer: 4 },
+        textStyle: { fontFamily: brand.fieldFonts.price, fontSize: 40 * unit, fontWeight: 900, color: brand.primaryColor },
+      },
+      {
+        id: crypto.randomUUID(), type: "barcode", name: "Código de barras", visible: true, locked: false,
+        binding: "product.ean",
+        transform: { x: 280 * unit, y: 200 * unit, width: 240 * unit, height: 70 * unit, rotation: 0, opacity: 1, layer: 5 },
+      },
+    ];
+    siblingsInsert([
+      ...elements,
+      {
+        id, type: "group", name: product.name, visible: true, locked: false,
+        children: elements.map((element) => element.id),
+        groupSize: { width: 650 * unit, height: 275 * unit },
+        transform: { x: 50 * unit, y: 50 * unit, width: 650 * unit, height: 275 * unit, rotation: 0, opacity: 1, layer: 0 },
+      },
+    ], [id]);
+    setMessage(`${product.name} inserido e vinculado aos dados do produto.`);
+  }
+  function offerComponent() {
+    if (!offerId) return;
+    const offer = offers.items.find((item) => item.id === offerId);
+    if (!offer) return;
+    const unit = page.unit === "mm" ? 0.2 : 1;
+    const id = crypto.randomUUID();
+    const elements: VisualElement[] = [
+      {
+        id: crypto.randomUUID(), type: "image", name: "Imagem do produto", visible: true, locked: false,
+        binding: "product.image",
+        transform: { x: 0, y: 0, width: 250 * unit, height: 230 * unit, rotation: 0, opacity: 1, layer: 0 },
+      },
+      {
+        id: crypto.randomUUID(), type: "text", name: "Produto da oferta", visible: true, locked: false,
+        binding: "product.name",
+        transform: { x: 270 * unit, y: 5 * unit, width: 390 * unit, height: 75 * unit, rotation: 0, opacity: 1, layer: 1 },
+        textStyle: { fontFamily: brand.fieldFonts.body, fontSize: 38 * unit, fontWeight: 800, color: "#111111" },
+      },
+      {
+        id: crypto.randomUUID(), type: "text", name: "Especificação da oferta", visible: true, locked: false,
+        binding: "product.specification",
+        transform: { x: 270 * unit, y: 80 * unit, width: 390 * unit, height: 45 * unit, rotation: 0, opacity: 1, layer: 2 },
+        textStyle: { fontFamily: brand.fieldFonts.body, fontSize: 22 * unit, color: "#444444" },
+      },
+      {
+        id: crypto.randomUUID(), type: "text", name: "Preço normal", visible: true, locked: false,
+        binding: "offer.normalPrice",
+        text: "0,00",
+        transform: { x: 270 * unit, y: 135 * unit, width: 150 * unit, height: 42 * unit, rotation: 0, opacity: 1, layer: 3 },
+        textStyle: { fontFamily: brand.fieldFonts.body, fontSize: 20 * unit, color: "#555555" },
+      },
+      {
+        id: crypto.randomUUID(), type: "text", name: "Preço da oferta", visible: true, locked: false,
+        binding: "offer.price",
+        text: "0,00",
+        transform: { x: 425 * unit, y: 125 * unit, width: 235 * unit, height: 85 * unit, rotation: 0, opacity: 1, layer: 4 },
+        textStyle: { fontFamily: brand.fieldFonts.price, fontSize: 62 * unit, fontWeight: 900, color: brand.primaryColor },
+      },
+      {
+        id: crypto.randomUUID(), type: "barcode", name: "Código de barras da oferta", visible: true, locked: false,
+        binding: "product.ean",
+        transform: { x: 270 * unit, y: 185 * unit, width: 145 * unit, height: 48 * unit, rotation: 0, opacity: 1, layer: 5 },
+      },
+    ];
+    siblingsInsert([
+      ...elements,
+      {
+        id, type: "group", name: `Oferta · ${offer.name}`, visible: true, locked: false,
+        children: elements.map((element) => element.id),
+        groupSize: { width: 670 * unit, height: 240 * unit },
+        transform: { x: 50 * unit, y: 50 * unit, width: 670 * unit, height: 240 * unit, rotation: 0, opacity: 1, layer: 0 },
+      },
+    ], [id]);
+    setMessage(`Oferta de ${offer.name} inserida e vinculada.`);
+  }
+
+  function addBoundText(binding: string, name: string) {
+    const unit = page.unit === "mm" ? 0.2 : 1;
+    const id = crypto.randomUUID();
+    siblingsInsert([{
+      id, type: "text", name, visible: true, locked: false, binding,
+      transform: { x: 50 * unit, y: 50 * unit, width: 300 * unit, height: 70 * unit, rotation: 0, opacity: 1, layer: 0 },
+      textStyle: { fontFamily: brand.fieldFonts.body, fontSize: 32 * unit, color: "#111111" },
+    }], [id]);
+  }
+
   function priceComponent() {
     const unit = page.unit === "mm" ? 0.2 : 1,
       id = crypto.randomUUID(),
@@ -1442,6 +1631,7 @@ export function VisualEngineEditor({
               ["elements", "○", "Elementos"],
               ["text", "T", "Texto"],
               ["images", "▧", "Imagens"],
+              ["products", "▦", "Produtos"],
               ["offers", "R$", "Ofertas"],
               ["templates", "◇", "Templates"],
               ["brand", "◆", "Marca"],
@@ -1464,6 +1654,7 @@ export function VisualEngineEditor({
                 elements: "Elementos",
                 text: "Texto",
                 images: "Imagens",
+                products: "Produtos",
                 offers: "Ofertas",
                 templates: "Templates",
                 brand: "Marca",
@@ -1493,21 +1684,84 @@ export function VisualEngineEditor({
               </div>
             )}
             {activeTool === "images" && (
-              <div className="visual-tool-grid">
+              <div className="visual-tool-stack">
                 <button className="btn" disabled={locked} onClick={() => add("image")}>+ Quadro de imagem</button>
-                <p className="muted">Selecione a imagem para substituir, ajustar ou vincular a fonte nas propriedades.</p>
+                {current?.type === "image" ? (
+                  <>
+                    <label className="field"><span>Enviar / substituir</span>
+                      <input
+                        aria-label="Enviar ou substituir imagem"
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        disabled={locked || current.locked}
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          if (file) upload(file, "image");
+                          event.target.value = "";
+                        }}
+                      />
+                    </label>
+                    <div className="visual-tool-grid">
+                      {(["contain", "cover", "fill"] as const).map((fit) => (
+                        <button
+                          key={fit}
+                          className="btn"
+                          aria-pressed={(current.fit ?? "contain") === fit}
+                          disabled={locked || current.locked}
+                          onClick={() => patch({ fit })}
+                        >
+                          {fit === "contain" ? "Ajustar" : fit === "cover" ? "Preencher" : "Esticar"}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      className="btn"
+                      disabled={locked || current.locked}
+                      onClick={() => patch({ imagePosition: { x: 0.5, y: 0.5 } })}
+                    >
+                      Centralizar recorte
+                    </button>
+                  </>
+                ) : (
+                  <p className="muted">Selecione um quadro para enviar, substituir e enquadrar a imagem diretamente por aqui.</p>
+                )}
+              </div>
+            )}
+            {activeTool === "products" && (
+              <div className="visual-tool-stack">
+                <label className="field"><span>Buscar produto</span>
+                  <input className="input" value={productQuery} onChange={(e) => setProductQuery(e.target.value)} placeholder="Nome, marca ou EAN" />
+                </label>
+                <select className="input" aria-label="Produto para inserir" value={productId} onChange={(e) => { setProductId(e.target.value); if (e.target.value) { setOfferId(""); setBindingData(null); } }}>
+                  <option value="">Selecione um produto</option>
+                  {products.map((product) => (
+                    <option key={product.id} value={product.id}>
+                      {product.name}{product.brand ? ` · ${product.brand}` : ""}{product.specification ? ` · ${product.specification}` : ""}
+                    </option>
+                  ))}
+                </select>
+                <button className="btn" disabled={!productId || locked} onClick={productComponent}>+ Inserir produto vinculado</button>
+                <p className="muted">Insere imagem, nome, marca, especificação, preço de venda e código de barras como um bloco editável e vinculado.</p>
               </div>
             )}
             {activeTool === "offers" && (
               <div className="visual-tool-stack">
                 <label className="field"><span>Dados da oferta</span>
-                  <select className="input" value={offerId} onChange={(e) => { setOfferId(e.target.value); setBindingData(null); }}>
+                  <select aria-label="Dados da oferta" className="input" value={offerId} onChange={(e) => { setOfferId(e.target.value); if (e.target.value) setProductId(""); setBindingData(null); }}>
                     <option value="">Dados de exemplo</option>
                     {offers.items.map((o) => <option key={o.id} value={o.id}>{o.name} · {o.data.offer.price}</option>)}
                   </select>
                 </label>
+                <button className="btn" disabled={!offerId || locked} onClick={offerComponent}>+ Inserir oferta vinculada</button>
                 <button className="btn" disabled={locked} onClick={priceComponent}>+ Bloco de preço</button>
-                <button className="btn" disabled={locked} onClick={() => add("text")}>+ Campo vinculado</button>
+                <div className="visual-tool-grid">
+                  <button className="btn" disabled={locked} onClick={() => addBoundText("product.name", "Nome do produto")}>Nome</button>
+                  <button className="btn" disabled={locked} onClick={() => addBoundText("product.specification", "Especificação")}>Especificação</button>
+                  <button className="btn" disabled={locked} onClick={() => addBoundText("offer.normalPrice", "Preço normal")}>Preço normal</button>
+                  <button className="btn" disabled={locked} onClick={() => addBoundText("offer.price", "Preço da oferta")}>Preço oferta</button>
+                  <button className="btn" disabled={locked} onClick={() => addBoundText("offer.unit", "Unidade")}>Unidade</button>
+                  <button className="btn" disabled={locked} onClick={() => addBoundText("campaign.name", "Campanha")}>Campanha</button>
+                </div>
               </div>
             )}
             {activeTool === "templates" && (
@@ -1733,11 +1987,21 @@ export function VisualEngineEditor({
             </div>
             <label>
               <input
+                aria-label="Encaixe e guias"
                 type="checkbox"
                 checked={snap}
                 onChange={(e) => setSnap(e.target.checked)}
               />{" "}
               Encaixe e guias
+            </label>
+            <label>
+              <input
+                aria-label="Mostrar grade"
+                type="checkbox"
+                checked={showGrid}
+                onChange={(e) => setShowGrid(e.target.checked)}
+              />{" "}
+              Mostrar grade
             </label>
             <NumberField
               label={`Grade (${page.unit})`}
@@ -1745,6 +2009,24 @@ export function VisualEngineEditor({
               min={0}
               onChange={setGrid}
             />
+            <label>
+              <input
+                aria-label="Guias centrais"
+                type="checkbox"
+                checked={centerGuides}
+                onChange={(e) => setCenterGuides(e.target.checked)}
+              />{" "}
+              Guias centrais
+            </label>
+            <label>
+              <input
+                aria-label="Margem segura"
+                type="checkbox"
+                checked={safeArea}
+                onChange={(e) => setSafeArea(e.target.checked)}
+              />{" "}
+              Margem segura
+            </label>
           </div>
           <div
             className="visual-viewport"
@@ -1780,7 +2062,7 @@ export function VisualEngineEditor({
               >
                 {!preview && (
                   <g data-editor-overlay="true">
-                    {snap && grid > 0 && (
+                    {showGrid && grid > 0 && (
                       <defs>
                         <pattern
                           id="visual-grid"
@@ -1797,11 +2079,46 @@ export function VisualEngineEditor({
                         </pattern>
                       </defs>
                     )}
-                    {snap && grid > 0 && (
+                    {showGrid && grid > 0 && (
                       <rect
                         width={page.width}
                         height={page.height}
                         fill="url(#visual-grid)"
+                        pointerEvents="none"
+                      />
+                    )}
+                    {centerGuides && (
+                      <>
+                        <line
+                          x1={page.width / 2}
+                          y1={0}
+                          x2={page.width / 2}
+                          y2={page.height}
+                          className="visual-static-guide"
+                          strokeWidth={0.7 / scale}
+                          pointerEvents="none"
+                        />
+                        <line
+                          x1={0}
+                          y1={page.height / 2}
+                          x2={page.width}
+                          y2={page.height / 2}
+                          className="visual-static-guide"
+                          strokeWidth={0.7 / scale}
+                          pointerEvents="none"
+                        />
+                      </>
+                    )}
+                    {safeArea && (
+                      <rect
+                        data-safe-area="true"
+                        x={page.width * 0.05}
+                        y={page.height * 0.05}
+                        width={page.width * 0.9}
+                        height={page.height * 0.9}
+                        fill="none"
+                        className="visual-safe-area"
+                        strokeWidth={0.7 / scale}
                         pointerEvents="none"
                       />
                     )}
@@ -1909,21 +2226,23 @@ export function VisualEngineEditor({
                     >
                       {guides.x !== undefined && (
                         <line
+                          data-snap-guide="x"
                           x1={guides.x}
                           x2={guides.x}
                           y1={-page.height * 5}
                           y2={page.height * 5}
-                          stroke="#e11d48"
+                          className="visual-snap-guide"
                           strokeWidth={1 / scale}
                         />
                       )}
                       {guides.y !== undefined && (
                         <line
+                          data-snap-guide="y"
                           y1={guides.y}
                           y2={guides.y}
                           x1={-page.width * 5}
                           x2={page.width * 5}
-                          stroke="#e11d48"
+                          className="visual-snap-guide"
                           strokeWidth={1 / scale}
                         />
                       )}
@@ -1934,7 +2253,7 @@ export function VisualEngineEditor({
             </div>
           </div>
           <p className="muted">
-            Espaço+arraste navega · Ctrl/Cmd+roda ou +/- controla zoom · Ctrl/Cmd+0 ajusta à tela · Alt desativa encaixe · Shift mantém proporção/ângulo · setas movem.
+            Espaço+arraste navega · Ctrl/Cmd+roda ou +/- controla zoom · Ctrl/Cmd+0 ajusta à tela · Ctrl/Cmd+' alterna grade · Ctrl/Cmd+; alterna guias · Alt desativa encaixe · Shift mantém proporção/ângulo · setas movem.
           </p>
           <div className="visual-buttons">
             {[getPage(doc, 0), ...(doc.pages ?? [])].map((p, i) => (

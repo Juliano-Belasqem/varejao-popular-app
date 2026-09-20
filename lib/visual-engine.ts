@@ -85,6 +85,8 @@ export const visualBindings = [
   "product.specification",
   "product.ean",
   "product.image",
+  "product.salePrice",
+  "product.unit",
   "offer.normalPrice",
   "offer.price",
   "offer.priceReais",
