@@ -1506,7 +1506,7 @@ export function VisualEngineEditor({
               <button
                 className="btn"
                 disabled={!libraryId || locked}
-                onClick={insertTemplate}
+                onClick={() => void insertTemplate()}
               >
                 Inserir como componente
               </button>
@@ -1806,7 +1806,7 @@ export function VisualEngineEditor({
                   <option value="">Selecione um template</option>
                   {templates.items.map((t) => <option key={t.id} value={t.id}>{t.name} · v{t.current_version}</option>)}
                 </select>
-                <button className="btn" disabled={!libraryId || locked} onClick={insertTemplate}>Inserir no design</button>
+                <button className="btn" disabled={!libraryId || locked} onClick={() => void insertTemplate()}>Inserir no design</button>
               </div>
             )}
             {activeTool === "components" && (
