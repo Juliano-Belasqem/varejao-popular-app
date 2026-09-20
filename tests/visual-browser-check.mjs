@@ -197,6 +197,16 @@ try {
   await label("Dados da oferta").selectOption(
     "00000000-0000-4000-8000-000000000010",
   );
+  await page.locator(".visual-tool-rail button[title=\"Produtos\"]").click();
+  assert.equal(await label("Produto para inserir").inputValue(), "");
+  await label("Produto para inserir").selectOption(
+    "00000000-0000-4000-8000-000000000010",
+  );
+  await page.locator(".visual-tool-rail button[title=\"Ofertas\"]").click();
+  assert.equal(await label("Dados da oferta").inputValue(), "");
+  await label("Dados da oferta").selectOption(
+    "00000000-0000-4000-8000-000000000010",
+  );
   await button("+ Inserir oferta vinculada").click();
   await page
     .getByRole("status")
