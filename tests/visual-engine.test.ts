@@ -30,3 +30,22 @@ test("money parser rejects invalid or negative values",()=>{
   assert.equal(parseMoney("12,345"),null);
   assert.equal(parseMoney("abc"),null);
 });
+
+
+test("visual engine rejects circular groups",()=>{
+  const doc=createVisualDocument();
+  const transform={x:0,y:0,width:100,height:50,rotation:0,opacity:1,layer:1};
+  doc.elements=[
+    {id:"a",type:"group",name:"A",visible:true,locked:false,transform,children:["b"]},
+    {id:"b",type:"group",name:"B",visible:true,locked:false,transform:{...transform,layer:2},children:["a"]},
+  ];
+  assert.throws(()=>validateVisualDocument(doc),/referência circular/);
+});
+
+test("visual engine supports skew and requires integer layers",()=>{
+  const doc=createVisualDocument();
+  doc.elements=[{id:"text",type:"text",name:"Texto",visible:true,locked:false,transform:{x:0,y:0,width:100,height:50,rotation:0,opacity:1,layer:1,skewX:12,skewY:-4}}];
+  assert.equal(validateVisualDocument(doc).elements[0].transform.skewX,12);
+  doc.elements[0].transform.layer=1.5;
+  assert.throws(()=>validateVisualDocument(doc),/Transformação inválida/);
+});
