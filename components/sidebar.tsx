@@ -4,7 +4,7 @@ import { logout } from "@/app/login/actions";
 
 const links = [
   ["Visão geral", "/app"],
-  ["Campanhas", "/app/campanhas"],
+  ["Campanhas", "/app/campanhas"],\n  ["Central de Ofertas", "/app/ofertas"],
   ["Produtos", "/app/produtos"],
   ["Validade Próxima", "/app/validade-proxima"],
   ["Conteúdo para Redes", "/app/conteudo-redes"],
