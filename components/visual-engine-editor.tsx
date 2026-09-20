@@ -1649,9 +1649,47 @@ export function VisualEngineEditor({
               </div>
             )}
             {activeTool === "images" && (
-              <div className="visual-tool-grid">
+              <div className="visual-tool-stack">
                 <button className="btn" disabled={locked} onClick={() => add("image")}>+ Quadro de imagem</button>
-                <p className="muted">Selecione a imagem para substituir, ajustar ou vincular a fonte nas propriedades.</p>
+                {current?.type === "image" ? (
+                  <>
+                    <label className="field"><span>Enviar / substituir</span>
+                      <input
+                        aria-label="Enviar ou substituir imagem"
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        disabled={locked || current.locked}
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          if (file) upload(file, "image");
+                          event.target.value = "";
+                        }}
+                      />
+                    </label>
+                    <div className="visual-tool-grid">
+                      {(["contain", "cover", "fill"] as const).map((fit) => (
+                        <button
+                          key={fit}
+                          className="btn"
+                          aria-pressed={(current.fit ?? "contain") === fit}
+                          disabled={locked || current.locked}
+                          onClick={() => patch({ fit })}
+                        >
+                          {fit === "contain" ? "Ajustar" : fit === "cover" ? "Preencher" : "Esticar"}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      className="btn"
+                      disabled={locked || current.locked}
+                      onClick={() => patch({ imagePosition: { x: 0.5, y: 0.5 } })}
+                    >
+                      Centralizar recorte
+                    </button>
+                  </>
+                ) : (
+                  <p className="muted">Selecione um quadro para enviar, substituir e enquadrar a imagem diretamente por aqui.</p>
+                )}
               </div>
             )}
             {activeTool === "products" && (
