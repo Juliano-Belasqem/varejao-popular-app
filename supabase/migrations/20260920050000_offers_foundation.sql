@@ -124,6 +124,46 @@ revoke all on function public.upsert_campaign_offer(uuid,uuid,numeric,numeric,te
 grant execute on function public.upsert_campaign_offer(uuid,uuid,numeric,numeric,text,text,text,text,text,uuid) to authenticated, service_role;
 
 
+create or replace function public.create_offer_with_campaign(
+  p_product_id uuid, p_campaign_id uuid, p_normal_price numeric, p_offer_price numeric,
+  p_unit text, p_starts_on date, p_ends_on date, p_notes text, p_user_id uuid
+) returns uuid
+language plpgsql security invoker set search_path = public
+as $fn$
+declare
+  v_offer_id uuid;
+  v_product public.products%rowtype;
+begin
+  if not public.can_edit() then raise exception 'Sem permissão.'; end if;
+  if p_offer_price is null or p_offer_price < 0 then raise exception 'Preço de oferta inválido.'; end if;
+  if p_starts_on is not null and p_ends_on is not null and p_starts_on > p_ends_on then
+    raise exception 'Período da oferta inválido.';
+  end if;
+  select * into v_product from public.products where id=p_product_id;
+  if not found then raise exception 'Produto não encontrado.'; end if;
+
+  insert into public.offers(product_id,campaign_id,normal_price,offer_price,unit,starts_on,ends_on,notes,created_by,updated_by)
+  values(p_product_id,p_campaign_id,p_normal_price,p_offer_price,coalesce(p_unit,v_product.unit),p_starts_on,p_ends_on,p_notes,p_user_id,p_user_id)
+  returning id into v_offer_id;
+
+  if p_campaign_id is not null then
+    insert into public.campaign_items(campaign_id,product_id,normal_price,offer_price,highlighted_price,
+      ean_snapshot,name_snapshot,brand_snapshot,specification_snapshot,offer_id)
+    values(p_campaign_id,p_product_id,p_normal_price,p_offer_price,'offer',
+      v_product.ean,v_product.name,v_product.brand,v_product.specification,v_offer_id)
+    on conflict(campaign_id,product_id) do update set
+      normal_price=excluded.normal_price,offer_price=excluded.offer_price,highlighted_price='offer',
+      ean_snapshot=excluded.ean_snapshot,name_snapshot=excluded.name_snapshot,brand_snapshot=excluded.brand_snapshot,
+      specification_snapshot=excluded.specification_snapshot,offer_id=excluded.offer_id;
+  end if;
+  return v_offer_id;
+end;
+$fn$;
+
+revoke all on function public.create_offer_with_campaign(uuid,uuid,numeric,numeric,text,date,date,text,uuid) from public, anon;
+grant execute on function public.create_offer_with_campaign(uuid,uuid,numeric,numeric,text,date,date,text,uuid) to authenticated, service_role;
+
+
 create or replace function public.update_campaign_offer_item(
   p_item_id uuid, p_campaign_id uuid, p_normal_price numeric, p_offer_price numeric,
   p_highlighted_price text, p_sort_order integer, p_user_id uuid
