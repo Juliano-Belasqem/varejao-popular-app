@@ -14,6 +14,9 @@ export async function createOffer(formData:FormData){
   const productId=String(formData.get("product_id")??"");
   const offerPrice=money(formData.get("offer_price"));
   if(!productId||offerPrice===null)throw new Error("Produto e preço de oferta são obrigatórios.");
+  const startsOn=text(formData.get("starts_on"));
+  const endsOn=text(formData.get("ends_on"));
+  if(startsOn&&endsOn&&startsOn>endsOn)throw new Error("A data final não pode ser anterior à data inicial.");
   const supabase=await createClient();
   const {error}=await supabase.from("offers").insert({
     product_id:productId,
@@ -21,8 +24,8 @@ export async function createOffer(formData:FormData){
     normal_price:money(formData.get("normal_price")),
     offer_price:offerPrice,
     unit:text(formData.get("unit")),
-    starts_on:text(formData.get("starts_on")),
-    ends_on:text(formData.get("ends_on")),
+    starts_on:startsOn,
+    ends_on:endsOn,
     notes:text(formData.get("notes")),
     created_by:profile.id,
     updated_by:profile.id,
