@@ -68,4 +68,59 @@ from source s
 join inserted i on i.id=s.offer_id
 where ci.id=s.campaign_item_id;
 
+create or replace function public.upsert_campaign_offer(
+  p_campaign_id uuid,
+  p_product_id uuid,
+  p_normal_price numeric,
+  p_offer_price numeric,
+  p_highlighted_price text,
+  p_ean_snapshot text,
+  p_name_snapshot text,
+  p_brand_snapshot text,
+  p_specification_snapshot text,
+  p_user_id uuid
+) returns uuid
+language plpgsql
+security invoker
+set search_path = public
+as $
+declare
+  v_offer_id uuid;
+  v_unit text;
+  v_start date;
+  v_end date;
+begin
+  if not public.can_edit() then raise exception 'Sem permissão.'; end if;
+  select p.unit into v_unit from public.products p where p.id=p_product_id;
+  select c.start_date,c.end_date into v_start,v_end from public.campaigns c where c.id=p_campaign_id;
+
+  select ci.offer_id into v_offer_id
+  from public.campaign_items ci
+  where ci.campaign_id=p_campaign_id and ci.product_id=p_product_id;
+
+  if v_offer_id is null then
+    insert into public.offers(product_id,campaign_id,normal_price,offer_price,unit,starts_on,ends_on,created_by,updated_by)
+    values(p_product_id,p_campaign_id,p_normal_price,coalesce(p_offer_price,p_normal_price,0),v_unit,v_start,v_end,p_user_id,p_user_id)
+    returning id into v_offer_id;
+  else
+    update public.offers
+    set normal_price=p_normal_price,offer_price=coalesce(p_offer_price,p_normal_price,0),unit=v_unit,
+        starts_on=v_start,ends_on=v_end,updated_by=p_user_id,updated_at=now()
+    where id=v_offer_id;
+  end if;
+
+  insert into public.campaign_items(campaign_id,product_id,normal_price,offer_price,highlighted_price,ean_snapshot,name_snapshot,brand_snapshot,specification_snapshot,offer_id)
+  values(p_campaign_id,p_product_id,p_normal_price,p_offer_price,p_highlighted_price,p_ean_snapshot,p_name_snapshot,p_brand_snapshot,p_specification_snapshot,v_offer_id)
+  on conflict(campaign_id,product_id) do update set
+    normal_price=excluded.normal_price,offer_price=excluded.offer_price,highlighted_price=excluded.highlighted_price,
+    ean_snapshot=excluded.ean_snapshot,name_snapshot=excluded.name_snapshot,brand_snapshot=excluded.brand_snapshot,
+    specification_snapshot=excluded.specification_snapshot,offer_id=excluded.offer_id;
+
+  return v_offer_id;
+end;
+$;
+
+revoke all on function public.upsert_campaign_offer(uuid,uuid,numeric,numeric,text,text,text,text,text,uuid) from public, anon;
+grant execute on function public.upsert_campaign_offer(uuid,uuid,numeric,numeric,text,text,text,text,text,uuid) to authenticated, service_role;
+
 commit;
