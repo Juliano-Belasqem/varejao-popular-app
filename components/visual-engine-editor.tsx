@@ -1792,7 +1792,8 @@ export function VisualEngineEditor({
                 <button className="btn" disabled={locked} onClick={() => { add("image"); setActiveTool("images"); }}>+ Nova imagem</button>
               </div>
             )}
-          </div>}          {activeTool === "layers" && layersOpen && <>
+          </div>}
+          {sidebarOpen && activeTool === "layers" && layersOpen && <>
           {scope && (
             <button
               className="btn"
@@ -1886,13 +1887,13 @@ export function VisualEngineEditor({
             ))}
           </div>
           </>}
-          {selected.length > 0 && (
+          {sidebarOpen && selected.length > 0 && (
             <div className="visual-selection-summary" role="status">
               <strong>{selected.length === 1 ? current?.name ?? "1 elemento" : `${selected.length} elementos`}</strong>
               <span>{selected.length === 1 ? names[current?.type ?? "text"] : "Seleção múltipla"}</span>
             </div>
           )}
-          {selected.length > 0 && (
+          {sidebarOpen && selected.length > 0 && (
             <div className="visual-selection-actions" aria-label="Ações da seleção">
               <button className="btn" disabled={locked} title="Duplicar seleção (Ctrl/Cmd+D)" onClick={duplicate}>Duplicar seleção</button>
               <button className="btn" disabled={locked} title="Excluir seleção (Delete)" onClick={remove}>Excluir seleção</button>
@@ -1904,6 +1905,7 @@ export function VisualEngineEditor({
               )}
             </div>
           )}
+          {sidebarOpen && <>
           <h3>Alinhar {selected.length > 1 ? "seleção" : "à prancheta"}</h3>
           <label>
             <input
@@ -1962,6 +1964,7 @@ export function VisualEngineEditor({
               Distribuir Y
             </button>
           </div>
+          </>}
           <button className="btn visual-sidebar-toggle" aria-label={sidebarOpen ? "Recolher menu lateral" : "Expandir menu lateral"} aria-expanded={sidebarOpen} onClick={() => setSidebarOpen((open) => !open)}>{sidebarOpen ? "‹ Recolher" : "›"}</button>
         </aside>
         <main className="visual-main">
