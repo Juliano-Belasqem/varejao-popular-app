@@ -174,6 +174,7 @@ export function VisualEngineEditor({
     [message, setMessage] = useState(""),
     [zoom, setZoom] = useState(60),
     [snap, setSnap] = useState(true),
+    [showGrid, setShowGrid] = useState(true),
     [grid, setGrid] = useState(10),
     [preview, setPreview] = useState(false),
     [alignToPage, setAlignToPage] = useState(false),
@@ -1952,11 +1953,21 @@ export function VisualEngineEditor({
             </div>
             <label>
               <input
+                aria-label="Encaixe e guias"
                 type="checkbox"
                 checked={snap}
                 onChange={(e) => setSnap(e.target.checked)}
               />{" "}
               Encaixe e guias
+            </label>
+            <label>
+              <input
+                aria-label="Mostrar grade"
+                type="checkbox"
+                checked={showGrid}
+                onChange={(e) => setShowGrid(e.target.checked)}
+              />{" "}
+              Mostrar grade
             </label>
             <NumberField
               label={`Grade (${page.unit})`}
@@ -1999,7 +2010,7 @@ export function VisualEngineEditor({
               >
                 {!preview && (
                   <g data-editor-overlay="true">
-                    {snap && grid > 0 && (
+                    {showGrid && grid > 0 && (
                       <defs>
                         <pattern
                           id="visual-grid"
@@ -2016,7 +2027,7 @@ export function VisualEngineEditor({
                         </pattern>
                       </defs>
                     )}
-                    {snap && grid > 0 && (
+                    {showGrid && grid > 0 && (
                       <rect
                         width={page.width}
                         height={page.height}
