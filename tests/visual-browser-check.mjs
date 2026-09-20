@@ -191,6 +191,17 @@ try {
     "smart product block keeps editable data bindings",
   );
   await button("Excluir seleção").click();
+  await page.locator(".visual-tool-rail button[title=\"Marca\"]").click();
+  await button("+ Título da marca").click();
+  state = await document();
+  const brandTitle = state.elements.find((element) => element.name === "Título");
+  assert.ok(brandTitle, "Brand Kit inserts an editable title");
+  assert.equal(brandTitle.textStyle.fontFamily, "Arial, sans-serif");
+  await button("Primária").click();
+  state = await document();
+  const coloredBrandTitle = state.elements.find((element) => element.id === brandTitle.id);
+  assert.equal(coloredBrandTitle.textStyle.color, "#2F42A6", "Brand Kit applies the primary color");
+  await button("Excluir seleção").click();
   await page.locator(".visual-tool-rail button[title=\"Ofertas\"]").click();
   await label("Dados da oferta").selectOption(
     "00000000-0000-4000-8000-000000000010",
