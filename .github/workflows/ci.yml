@@ -16,8 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-key
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54329
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: local-test-key
       SUPABASE_SECRET_KEY: ci-placeholder-secret
       META_GRAPH_API_VERSION: v26.0
       META_FACEBOOK_PAGE_ID: ci-placeholder-page
@@ -52,3 +52,17 @@ jobs:
 
       - name: Production build
         run: pnpm run build
+
+      - name: Install browser for visual editor tests
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Visual editor end-to-end (local fixtures)
+        run: node tests/run-visual-browser.mjs
+
+      - name: Save browser verification artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-editor-verification
+          path: test-results/
+          retention-days: 7

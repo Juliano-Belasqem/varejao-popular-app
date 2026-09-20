@@ -38,6 +38,8 @@ const templates = Object.fromEntries(
   ]),
 );
 const objects = new Map([["product-images/test.png", png]]);
+const visualTemplates=[];
+const visualVersions=[];
 let settings = {
   id: "default",
   logo_path: null,
@@ -123,6 +125,15 @@ const server = createServer(async (req, res) => {
     return;
   }
   if (url.pathname.startsWith("/rest/v1/rpc/")) {
+    if(url.pathname.endsWith("save_visual_template")){
+      if(profile.role==="viewer")return json({message:"Sem permissão."},403);
+      const templateId=body.p_template_id||crypto.randomUUID();
+      let template=visualTemplates.find(t=>t.id===templateId);
+      if(!template){template={id:templateId,current_version:0,active:true};visualTemplates.push(template)}
+      Object.assign(template,{name:body.p_name,category:body.p_category,current_version:template.current_version+1,updated_at:new Date().toISOString()});
+      visualVersions.push({template_id:templateId,version:template.current_version,document:body.p_document,created_at:new Date().toISOString()});
+      return json([{template_id:templateId,version:template.current_version}]);
+    }
     if (url.pathname.endsWith("register_product_image")) {
       images.forEach((i) => (i.is_primary = false));
       const image = {
@@ -141,6 +152,9 @@ const server = createServer(async (req, res) => {
   const table = url.pathname.split("/").pop();
   const eq = (name) => url.searchParams.get(name)?.replace(/^eq\./, "");
   let data = [];
+  if(table==="visual_templates")data=visualTemplates.filter(t=>!eq("id")||t.id===eq("id")).slice().reverse();
+  if(table==="visual_template_versions")data=visualVersions.filter(v=>(!eq("template_id")||v.template_id===eq("template_id"))&&(!eq("version")||String(v.version)===eq("version"))).slice().reverse();
+  if(table==="offers")data=[{id:productId,product_id:productId,offer_price:4.95,normal_price:5.49,unit:"UN",starts_on:"2026-09-01",ends_on:"2026-09-30",products:product,campaigns:campaign}];
   if (table === "profiles") data = [profile];
   if (table === "products") data = [product];
   if (table === "product_images") data = [...images].sort((a,b)=>Number(b.is_primary)-Number(a.is_primary));

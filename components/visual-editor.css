@@ -1,0 +1,182 @@
+.visual-editor {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.visual-editor h3 {
+  margin: 4px 0 12px;
+}
+.visual-toolbar,
+.visual-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.visual-toolbar .field {
+  flex: 0 1 170px;
+  min-width: 90px;
+}
+.visual-toolbar .field input {
+  width: 100%;
+}
+.visual-workspace {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr) 265px;
+  gap: 12px;
+  align-items: start;
+}
+.visual-main {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+.visual-viewport {
+  height: 65vh;
+  min-height: 380px;
+  overflow: auto;
+  background: #e2e8f0;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 32px;
+  overscroll-behavior: contain;
+}
+.visual-canvas-shell {
+  position: relative;
+  flex-shrink: 0;
+  margin: auto;
+  box-shadow: 0 2px 12px #0002;
+}
+.visual-canvas {
+  display: block;
+  overflow: visible;
+  touch-action: none;
+  background: white;
+}
+.visual-fields {
+  display: grid;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+  margin-top: 12px;
+}
+.visual-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.visual-editor .field {
+  min-width: 0;
+}
+.visual-editor input,
+.visual-editor select,
+.visual-editor textarea {
+  max-width: 100%;
+  min-width: 0;
+}
+.visual-editor input[type="file"] {
+  width: 100%;
+  font-size: 12px;
+}
+.visual-layer-list {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+  max-height: 42vh;
+  overflow: auto;
+}
+.visual-layer-list button {
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.visual-editor button[aria-pressed="true"] {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1e40af;
+}
+.visual-properties {
+  max-height: 85vh;
+  overflow: auto;
+  position: sticky;
+  top: 10px;
+}
+.visual-color {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.visual-color input {
+  width: 36px;
+}
+.visual-library {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 14px;
+}
+.visual-editor summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.visual-print-source {
+  position: fixed;
+  left: -100000px;
+  top: 0;
+  width: 1000px;
+  pointer-events: none;
+}
+.visual-print-source svg {
+  display: block;
+  width: 1000px;
+}
+.visual-editor .muted {
+  font-size: 12px;
+}
+.visual-editor fieldset:disabled {
+  opacity: 0.65;
+}
+@media (max-width: 1200px) {
+  .visual-workspace {
+    grid-template-columns: 175px minmax(0, 1fr);
+  }
+  .visual-properties {
+    grid-column: 1/-1;
+    position: static;
+    max-height: none;
+  }
+  .visual-properties > .visual-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .visual-library {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 700px) {
+  .visual-workspace,
+  .visual-library {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .visual-layers {
+    order: 2;
+  }
+  .visual-properties {
+    order: 3;
+  }
+  .visual-properties > .visual-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .visual-viewport {
+    height: 52vh;
+    min-height: 300px;
+  }
+  .visual-layer-list {
+    max-height: 200px;
+  }
+  .visual-toolbar {
+    align-items: flex-end;
+  }
+  .visual-toolbar .field {
+    flex-basis: 130px;
+  }
+}
