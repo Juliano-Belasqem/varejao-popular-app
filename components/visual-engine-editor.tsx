@@ -1197,9 +1197,22 @@ export function VisualEngineEditor({
         textStyle: { fontFamily: brand.fieldFonts.body, fontSize: 25 * unit, color: "#444444" },
       },
       {
+        id: crypto.randomUUID(), type: "text", name: "Marca", visible: true, locked: false,
+        binding: "product.brand",
+        transform: { x: 280 * unit, y: 150 * unit, width: 170 * unit, height: 38 * unit, rotation: 0, opacity: 1, layer: 3 },
+        textStyle: { fontFamily: brand.fieldFonts.body, fontSize: 18 * unit, fontWeight: 650, color: "#555555" },
+      },
+      {
+        id: crypto.randomUUID(), type: "text", name: "Preço de venda", visible: true, locked: false,
+        binding: "product.salePrice",
+        text: "0,00",
+        transform: { x: 455 * unit, y: 142 * unit, width: 185 * unit, height: 58 * unit, rotation: 0, opacity: 1, layer: 4 },
+        textStyle: { fontFamily: brand.fieldFonts.price, fontSize: 40 * unit, fontWeight: 900, color: brand.primaryColor },
+      },
+      {
         id: crypto.randomUUID(), type: "barcode", name: "Código de barras", visible: true, locked: false,
         binding: "product.ean",
-        transform: { x: 280 * unit, y: 165 * unit, width: 240 * unit, height: 70 * unit, rotation: 0, opacity: 1, layer: 3 },
+        transform: { x: 280 * unit, y: 200 * unit, width: 240 * unit, height: 70 * unit, rotation: 0, opacity: 1, layer: 5 },
       },
     ];
     siblingsInsert([
@@ -1207,8 +1220,8 @@ export function VisualEngineEditor({
       {
         id, type: "group", name: product.name, visible: true, locked: false,
         children: elements.map((element) => element.id),
-        groupSize: { width: 650 * unit, height: 240 * unit },
-        transform: { x: 50 * unit, y: 50 * unit, width: 650 * unit, height: 240 * unit, rotation: 0, opacity: 1, layer: 0 },
+        groupSize: { width: 650 * unit, height: 275 * unit },
+        transform: { x: 50 * unit, y: 50 * unit, width: 650 * unit, height: 275 * unit, rotation: 0, opacity: 1, layer: 0 },
       },
     ], [id]);
     setMessage(`${product.name} inserido e vinculado aos dados do produto.`);
@@ -1717,7 +1730,7 @@ export function VisualEngineEditor({
                   ))}
                 </select>
                 <button className="btn" disabled={!productId || locked} onClick={productComponent}>+ Inserir produto vinculado</button>
-                <p className="muted">Insere imagem, nome, especificação e código de barras como um bloco editável e vinculado.</p>
+                <p className="muted">Insere imagem, nome, marca, especificação, preço de venda e código de barras como um bloco editável e vinculado.</p>
               </div>
             )}
             {activeTool === "offers" && (
