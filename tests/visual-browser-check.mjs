@@ -57,6 +57,10 @@ try {
     .filter({ hasText: "Produto de exemplo" })
     .waitFor();
   await label("Nome do template").fill("Teste universal");
+  await button("‹ Recolher").click();
+  assert.equal(await page.locator(".visual-workspace-sidebar-collapsed").count(), 1);
+  await page.getByRole("button", { name: "Expandir menu lateral" }).click();
+  assert.equal(await page.locator(".visual-workspace-sidebar-collapsed").count(), 0);
   assert.equal(await page.locator(".visual-static-guide").count(), 2);
   await label("Mostrar grade").uncheck();
   assert.equal(await page.locator("#visual-grid").count(), 0);
