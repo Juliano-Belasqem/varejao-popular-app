@@ -257,4 +257,48 @@ create policy "visual versions read active users" on public.visual_template_vers
 create policy "visual versions insert editors" on public.visual_template_versions for insert to authenticated
   with check (public.can_edit());
 
+
+create or replace function public.save_visual_template(
+  p_template_id uuid, p_name text, p_category text, p_document jsonb, p_user_id uuid
+) returns table(template_id uuid, version integer)
+language plpgsql security invoker set search_path = public
+as $fn$
+declare
+  v_id uuid;
+  v_version integer;
+  v_width numeric;
+  v_height numeric;
+  v_unit text;
+begin
+  if not public.can_edit() then raise exception 'Sem permissão.'; end if;
+  if p_document is null or jsonb_typeof(p_document) <> 'object' then raise exception 'Documento visual inválido.'; end if;
+  v_width := nullif(p_document->>'width','')::numeric;
+  v_height := nullif(p_document->>'height','')::numeric;
+  v_unit := coalesce(nullif(p_document->>'unit',''),'px');
+  if v_width is null or v_width <= 0 or v_height is null or v_height <= 0 or v_unit not in ('px','mm') then
+    raise exception 'Prancheta inválida.';
+  end if;
+
+  if p_template_id is null then
+    insert into public.visual_templates(name,category,width,height,unit,current_version,created_by,updated_by)
+    values(p_name,coalesce(nullif(p_category,''),'custom'),v_width,v_height,v_unit,1,p_user_id,p_user_id)
+    returning id,current_version into v_id,v_version;
+  else
+    select id,current_version into v_id,v_version from public.visual_templates where id=p_template_id for update;
+    if not found then raise exception 'Template visual não encontrado.'; end if;
+    v_version := v_version + 1;
+    update public.visual_templates set name=p_name,category=coalesce(nullif(p_category,''),'custom'),
+      width=v_width,height=v_height,unit=v_unit,current_version=v_version,updated_by=p_user_id,updated_at=now()
+    where id=v_id;
+  end if;
+
+  insert into public.visual_template_versions(template_id,version,document,created_by)
+  values(v_id,v_version,p_document,p_user_id);
+  return query select v_id,v_version;
+end;
+$fn$;
+
+revoke all on function public.save_visual_template(uuid,text,text,jsonb,uuid) from public, anon;
+grant execute on function public.save_visual_template(uuid,text,text,jsonb,uuid) to authenticated, service_role;
+
 commit;
