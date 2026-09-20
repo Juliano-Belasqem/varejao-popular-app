@@ -97,6 +97,28 @@ export async function loadVisualTemplate(templateId: string, version?: number) {
     version: Number(saved.version),
   };
 }
+export async function listVisualProducts(query = "") {
+  await requireProfile();
+  const db = await createClient();
+  const term = query.trim().slice(0, 80);
+  let request = db
+    .from("products")
+    .select("id,ean,name,brand,specification,unit,sale_price")
+    .eq("active", true)
+    .order("name")
+    .limit(30);
+  if (term) {
+    const safe = term.replace(/[,%()]/g, " ").trim();
+    if (safe) request = request.or(`name.ilike.%${safe}%,brand.ilike.%${safe}%,ean.ilike.%${safe}%`);
+  }
+  const { data, error } = await request;
+  if (error) throw new Error("Não foi possível carregar os produtos.");
+  return (data ?? []).map((product) => ({
+    ...product,
+    image: `/api/product-image/${product.id}`,
+  }));
+}
+
 export async function listVisualOffers(page = 0) {
   await requireProfile();
   const db = await createClient(),
