@@ -180,6 +180,7 @@ export function VisualEngineEditor({
     [alignToPage, setAlignToPage] = useState(false),
     [guides, setGuides] = useState<{ x?: number; y?: number }>({}),
     [centerGuides, setCenterGuides] = useState(true),
+    [safeArea, setSafeArea] = useState(false),
     [exportScale, setExportScale] = useState(1),
     [activeTool, setActiveTool] = useState<
       "layers" | "elements" | "text" | "images" | "products" | "offers" | "templates" | "brand" | "uploads"
@@ -2007,6 +2008,15 @@ export function VisualEngineEditor({
               />{" "}
               Guias centrais
             </label>
+            <label>
+              <input
+                aria-label="Margem segura"
+                type="checkbox"
+                checked={safeArea}
+                onChange={(e) => setSafeArea(e.target.checked)}
+              />{" "}
+              Margem segura
+            </label>
           </div>
           <div
             className="visual-viewport"
@@ -2088,6 +2098,19 @@ export function VisualEngineEditor({
                           pointerEvents="none"
                         />
                       </>
+                    )}
+                    {safeArea && (
+                      <rect
+                        data-safe-area="true"
+                        x={page.width * 0.05}
+                        y={page.height * 0.05}
+                        width={page.width * 0.9}
+                        height={page.height * 0.9}
+                        fill="none"
+                        className="visual-safe-area"
+                        strokeWidth={0.7 / scale}
+                        pointerEvents="none"
+                      />
                     )}
                     {visible
                       .filter((e) => e.visible)
