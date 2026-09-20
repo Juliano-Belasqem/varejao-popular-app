@@ -1,0 +1,1937 @@
+"use client";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
+import {
+  createVisualDocument,
+  validateVisualDocument,
+  type VisualDocument,
+  type VisualElement,
+  type VisualPage,
+} from "@/lib/visual-engine";
+import {
+  alignElements,
+  bounds,
+  cloneElements,
+  descendants,
+  distributeElements,
+  getPage,
+  groupElements,
+  inverse,
+  isLocked,
+  matrix,
+  parentMatrix,
+  parentOf,
+  point,
+  reorderElements,
+  rootSelection,
+  selectionBounds,
+  setPage,
+  snapPosition,
+  ungroupElement,
+  worldMatrix,
+} from "@/lib/visual-operations";
+import {
+  downloadVisual,
+  rasterizeVisual,
+  standaloneSvg,
+} from "@/lib/visual-export";
+import { useBrandKit } from "@/lib/brand-kit/client";
+import {
+  listVisualOffers,
+  listVisualTemplates,
+  listVisualVersions,
+  loadVisualTemplate,
+  saveVisualTemplate,
+} from "@/app/app/editor-visual/actions";
+import { VisualRenderer } from "./visual-renderer";
+import {
+  ElementProperties,
+  NumberField,
+  PageProperties,
+  TextField,
+} from "./visual-properties";
+import "./visual-editor.css";
+
+const demo = {
+  product: {
+    name: "Produto de exemplo",
+    brand: "Marca",
+    specification: "1 kg",
+    ean: "7891234567895",
+    image: "",
+  },
+  offer: {
+    normalPrice: "12,99",
+    price: "9,99",
+    priceReais: "9",
+    priceCents: "99",
+    unit: "UN",
+    startsOn: "01/09/2026",
+    endsOn: "30/09/2026",
+  },
+  campaign: { name: "Ofertas da semana" },
+};
+function seed(): VisualDocument {
+  return {
+    ...createVisualDocument("Novo template"),
+    elements: [
+      {
+        id: "product",
+        type: "text",
+        name: "Produto",
+        visible: true,
+        locked: false,
+        binding: "product.name",
+        transform: {
+          x: 70,
+          y: 90,
+          width: 750,
+          height: 150,
+          rotation: 0,
+          opacity: 1,
+          layer: 0,
+        },
+        textStyle: { fontSize: 56, fontWeight: 800, color: "#111111" },
+      },
+      {
+        id: "price",
+        type: "text",
+        name: "Preço",
+        visible: true,
+        locked: false,
+        binding: "offer.price",
+        transform: {
+          x: 610,
+          y: 690,
+          width: 350,
+          height: 160,
+          rotation: 0,
+          opacity: 1,
+          layer: 1,
+        },
+        textStyle: {
+          fontSize: 110,
+          fontWeight: 900,
+          color: "#111111",
+          textAlign: "center",
+        },
+      },
+    ],
+  };
+}
+const names = {
+  text: "Texto",
+  image: "Imagem",
+  shape: "Forma",
+  barcode: "Código de barras",
+  group: "Grupo",
+};
+const handles = [
+  [-1, -1],
+  [0, -1],
+  [1, -1],
+  [-1, 0],
+  [1, 0],
+  [-1, 1],
+  [0, 1],
+  [1, 1],
+] as const;
+type Props = {
+  initialDocument?: VisualDocument;
+  initialTemplateId?: string;
+  initialVersion?: number;
+  initialCategory?: string;
+  editable?: boolean;
+};
+export function VisualEngineEditor({
+  initialDocument,
+  initialTemplateId,
+  initialVersion,
+  initialCategory = "custom",
+  editable = true,
+}: Props) {
+  const [doc, setDoc] = useState(() => initialDocument ?? seed()),
+    docRef = useRef(doc);
+  docRef.current = doc;
+  const [history, setHistory] = useState<VisualDocument[]>([]),
+    [future, setFuture] = useState<VisualDocument[]>([]),
+    [pageIndex, setPageIndex] = useState(0),
+    [scope, setScope] = useState<string | null>(null),
+    [selected, setSelected] = useState<string[]>([]);
+  const [templateId, setTemplateId] = useState(initialTemplateId),
+    [version, setVersion] = useState(initialVersion),
+    [category, setCategory] = useState(initialCategory),
+    [saved, setSaved] = useState(
+      initialDocument ? JSON.stringify(initialDocument) : "",
+    ),
+    [savedCategory, setSavedCategory] = useState(initialCategory);
+  const [busy, setBusy] = useState(false),
+    [message, setMessage] = useState(""),
+    [zoom, setZoom] = useState(60),
+    [snap, setSnap] = useState(true),
+    [grid, setGrid] = useState(10),
+    [preview, setPreview] = useState(false),
+    [alignToPage, setAlignToPage] = useState(false),
+    [guides, setGuides] = useState<{ x?: number; y?: number }>({}),
+    [exportScale, setExportScale] = useState(1);
+  const [templates, setTemplates] = useState<
+      Awaited<ReturnType<typeof listVisualTemplates>>
+    >({ items: [], hasMore: false }),
+    [templatePage, setTemplatePage] = useState(0),
+    [libraryId, setLibraryId] = useState(""),
+    [versions, setVersions] = useState<
+      Awaited<ReturnType<typeof listVisualVersions>>
+    >({ items: [], hasMore: false }),
+    [versionPage, setVersionPage] = useState(0);
+  const [offers, setOffers] = useState<
+      Awaited<ReturnType<typeof listVisualOffers>>
+    >({ items: [], hasMore: false }),
+    [offerPage, setOfferPage] = useState(0),
+    [offerId, setOfferId] = useState(""),
+    [customData, setCustomData] = useState(""),
+    [bindingData, setBindingData] = useState<Record<string, unknown> | null>(
+      null,
+    );
+  const brand = useBrandKit(),
+    page = getPage(doc, pageIndex),
+    current = page.elements.find((e) => e.id === selected[0]),
+    visible = page.elements
+      .filter((e) => parentOf(page, e.id)?.id === (scope ?? undefined))
+      .sort((a, b) => b.transform.layer - a.transform.layer);
+  const dirty = JSON.stringify(doc) !== saved || category !== savedCategory,
+    locked = busy || !editable;
+  const data = {
+    ...(bindingData ??
+      offers.items.find((o) => o.id === offerId)?.data ??
+      demo),
+    brand: { logo: brand.logoUrl ?? "" },
+  };
+  const svgRef = useRef<SVGSVGElement | null>(null),
+    viewport = useRef<HTMLDivElement>(null),
+    printRefs = useRef<(SVGSVGElement | null)[]>([]),
+    gesture = useRef<(() => void) | null>(null),
+    space = useRef(false),
+    clipboard = useRef<VisualElement[]>([]);
+  const ratio = page.unit === "mm" ? 96 / 25.4 : 1,
+    scale = (zoom / 100) * ratio;
+  function fail(error: unknown) {
+    setMessage(
+      error instanceof Error
+        ? error.message
+        : "Não foi possível concluir a operação.",
+    );
+  }
+  useEffect(() => {
+    let active = true;
+    listVisualTemplates(templatePage)
+      .then((result) => {
+        if (active) setTemplates(result);
+      })
+      .catch(fail);
+    return () => {
+      active = false;
+    };
+  }, [templatePage]);
+  useEffect(() => {
+    let active = true;
+    listVisualOffers(offerPage)
+      .then((result) => {
+        if (active) {
+          setOffers(result);
+          setOfferId("");
+        }
+      })
+      .catch(fail);
+    return () => {
+      active = false;
+    };
+  }, [offerPage]);
+  useEffect(() => {
+    if (!templateId) return;
+    let active = true;
+    listVisualVersions(templateId, versionPage)
+      .then((result) => {
+        if (active) setVersions(result);
+      })
+      .catch(fail);
+    return () => {
+      active = false;
+    };
+  }, [templateId, version, versionPage]);
+  useEffect(() => {
+    function leave(event: BeforeUnloadEvent) {
+      if (dirty) {
+        event.preventDefault();
+        event.returnValue = "";
+      }
+    }
+    window.addEventListener("beforeunload", leave);
+    return () => window.removeEventListener("beforeunload", leave);
+  }, [dirty]);
+  useEffect(
+    () => () => {
+      gesture.current?.();
+    },
+    [],
+  );
+  function commit(next: VisualDocument) {
+    if (locked) return;
+    const before = docRef.current;
+    setHistory((h) => [...h, before]);
+    setFuture([]);
+    setDoc(next);
+    docRef.current = next;
+    setMessage("");
+  }
+  function updatePage(next: VisualPage) {
+    commit(setPage(docRef.current, pageIndex, next));
+  }
+  function operate(fn: () => void) {
+    try {
+      fn();
+    } catch (e) {
+      fail(e);
+    }
+  }
+  function patch(value: Partial<VisualElement>) {
+    if (!current || locked) return;
+    if (
+      isLocked(page, current.id) &&
+      !(
+        Object.keys(value).length === 1 &&
+        "locked" in value &&
+        !parentOf(page, current.id)?.locked
+      )
+    )
+      return;
+    if (value.transform && current.type === "group" && !current.groupSize)
+      value = {
+        ...value,
+        groupSize: {
+          width: current.transform.width,
+          height: current.transform.height,
+        },
+      };
+    const next = {
+      ...page,
+      elements: page.elements.map((e) =>
+        e.id === current.id ? { ...e, ...value } : e,
+      ),
+    };
+    if (value.transform)
+      try {
+        validateVisualDocument({ ...next, version: 1 });
+      } catch (error) {
+        fail(error);
+        return;
+      }
+    updatePage(next);
+  }
+  function undo() {
+    if (locked || !history.length) return;
+    gesture.current?.();
+    const before = docRef.current;
+    setFuture((f) => [before, ...f]);
+    const prev = history.at(-1)!;
+    setHistory((h) => h.slice(0, -1));
+    setDoc(prev);
+    docRef.current = prev;
+    setSelected([]);
+    setScope(null);
+    setPageIndex((i) => Math.min(i, prev.pages?.length ?? 0));
+  }
+  function redo() {
+    if (locked || !future.length) return;
+    const before = docRef.current;
+    setHistory((h) => [...h, before]);
+    const next = future[0];
+    setFuture((f) => f.slice(1));
+    setDoc(next);
+    docRef.current = next;
+    setSelected([]);
+    setScope(null);
+    setPageIndex((i) => Math.min(i, next.pages?.length ?? 0));
+  }
+  function selectPage(index: number) {
+    gesture.current?.();
+    setPageIndex(index);
+    setSelected([]);
+    setScope(null);
+  }
+  function siblingsInsert(elements: VisualElement[], ids: string[]) {
+    const parent = scope
+      ? page.elements.find((e) => e.id === scope)
+      : undefined;
+    if (parent && isLocked(page, parent.id)) return;
+    const top = Math.max(-1, ...visible.map((e) => e.transform.layer));
+    const result = elements.map((e) =>
+      ids.includes(e.id)
+        ? {
+            ...e,
+            transform: { ...e.transform, layer: top + 1 + ids.indexOf(e.id) },
+          }
+        : e,
+    );
+    updatePage({
+      ...page,
+      elements: [
+        ...page.elements.map((e) =>
+          e.id === parent?.id
+            ? { ...e, children: [...(e.children ?? []), ...ids] }
+            : e,
+        ),
+        ...result,
+      ],
+    });
+    setSelected(ids);
+  }
+  function add(type: VisualElement["type"]) {
+    const id = crypto.randomUUID(),
+      unit = page.unit === "mm" ? 0.2 : 1;
+    const element: VisualElement = {
+      id,
+      type,
+      name: names[type],
+      visible: true,
+      locked: false,
+      transform: {
+        x: 50 * unit,
+        y: 50 * unit,
+        width: 260 * unit,
+        height: 100 * unit,
+        rotation: 0,
+        opacity: 1,
+        layer: 0,
+      },
+      text:
+        type === "text"
+          ? "Texto"
+          : type === "barcode"
+            ? "7891234567895"
+            : undefined,
+      textStyle:
+        type === "text"
+          ? {
+              fontFamily: brand.fieldFonts.body,
+              fontSize: 48 * unit,
+              color: "#111111",
+            }
+          : undefined,
+      shape:
+        type === "shape"
+          ? {
+              kind: "rectangle",
+              fill: brand.primaryColor,
+              stroke: "#111111",
+              strokeWidth: unit,
+            }
+          : undefined,
+    };
+    siblingsInsert([element], [id]);
+  }
+  function remove() {
+    const ids = rootSelection(page, selected).filter(
+        (id) => !isLocked(page, id),
+      ),
+      all = new Set(descendants(page, ids));
+    updatePage({
+      ...page,
+      elements: page.elements
+        .filter((e) => !all.has(e.id))
+        .map((e) =>
+          e.children
+            ? { ...e, children: e.children.filter((id) => !all.has(id)) }
+            : e,
+        ),
+    });
+    setSelected([]);
+  }
+  function copy() {
+    clipboard.current = cloneElements(
+      page,
+      selected,
+      () => crypto.randomUUID(),
+      0,
+    ).elements;
+    setMessage("Elementos copiados. Use Ctrl/Cmd+V para colar.");
+  }
+  function paste() {
+    if (!clipboard.current.length) return;
+    const source = { ...page, elements: clipboard.current },
+      roots = source.elements
+        .filter((e) => !parentOf(source, e.id))
+        .map((e) => e.id),
+      result = cloneElements(source, roots);
+    siblingsInsert(result.elements, result.ids);
+  }
+  function duplicate() {
+    const result = cloneElements(page, selected);
+    siblingsInsert(result.elements, result.ids);
+  }
+  function group() {
+    operate(() => {
+      const id = crypto.randomUUID(),
+        next = groupElements(page, selected, id);
+      if (next !== page) {
+        updatePage(next);
+        setSelected([id]);
+      }
+    });
+  }
+  function ungroup() {
+    if (!current) return;
+    updatePage(ungroupElement(page, current.id));
+    setSelected(current.children ?? []);
+  }
+  function moveBy(dx: number, dy: number) {
+    const ids = rootSelection(page, selected).filter(
+      (id) => !isLocked(page, id),
+    );
+    updatePage({
+      ...page,
+      elements: page.elements.map((e) =>
+        ids.includes(e.id)
+          ? {
+              ...e,
+              transform: {
+                ...e.transform,
+                x: e.transform.x + dx,
+                y: e.transform.y + dy,
+              },
+            }
+          : e,
+      ),
+    });
+  }
+  function canvasPoint(x: number, y: number) {
+    const ctm = svgRef.current?.getScreenCTM();
+    if (!ctm) return { x: 0, y: 0 };
+    const p = new DOMPoint(x, y).matrixTransform(ctm.inverse());
+    return { x: p.x, y: p.y };
+  }
+  function startGesture(
+    event: ReactPointerEvent,
+    move: (e: PointerEvent) => VisualPage,
+  ) {
+    if (locked || preview) return;
+    event.preventDefault();
+    event.stopPropagation();
+    gesture.current?.();
+    const before = docRef.current;
+    let changed = false;
+    const onMove = (e: PointerEvent) => {
+      if (e.pointerId !== event.pointerId) return;
+      try {
+        const next = move(e);
+        changed = true;
+        const updated = setPage(before, pageIndex, next);
+        docRef.current = updated;
+        setDoc(updated);
+      } catch (error) {
+        fail(error);
+        cancel();
+      }
+    };
+    const cleanup = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", cancel);
+      window.removeEventListener("blur", cancel);
+      gesture.current = null;
+      setGuides({});
+    };
+    const cancel = () => {
+      cleanup();
+      if (changed) {
+        docRef.current = before;
+        setDoc(before);
+      }
+    };
+    const onUp = (e: PointerEvent) => {
+      if (e.pointerId !== event.pointerId) return;
+      cleanup();
+      if (changed) {
+        setHistory((h) => [...h, before]);
+        setFuture([]);
+      }
+    };
+    gesture.current = cancel;
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", cancel);
+    window.addEventListener("blur", cancel);
+  }
+  function drag(event: ReactPointerEvent, id: string) {
+    if (space.current || event.button === 1) {
+      pan(event);
+      return;
+    }
+    if (event.button !== 0) return;
+    if (event.shiftKey) {
+      setSelected((ids) =>
+        ids.includes(id) ? ids.filter((i) => i !== id) : [...ids, id],
+      );
+      event.stopPropagation();
+      return;
+    }
+    const ids = selected.includes(id) ? selected : [id];
+    setSelected(ids);
+    event.stopPropagation();
+    if (isLocked(page, id)) return;
+    const moveIds = rootSelection(page, ids).filter((i) => !isLocked(page, i)),
+      base = selectionBounds(page, moveIds),
+      inv = inverse(parentMatrix(page, id)),
+      cp = canvasPoint(event.clientX, event.clientY),
+      start = point(inv, cp.x, cp.y);
+    const targets = visible
+      .filter((e) => !moveIds.includes(e.id) && e.visible)
+      .map((e) => bounds(e));
+    const parent = parentOf(page, id);
+    targets.push({
+      x: 0,
+      y: 0,
+      width: parent?.groupSize?.width ?? parent?.transform.width ?? page.width,
+      height:
+        parent?.groupSize?.height ?? parent?.transform.height ?? page.height,
+    });
+    startGesture(event, (e) => {
+      const cp = canvasPoint(e.clientX, e.clientY),
+        p = point(inv, cp.x, cp.y);
+      let dx = p.x - start.x,
+        dy = p.y - start.y;
+      if (e.shiftKey) {
+        if (Math.abs(dx) > Math.abs(dy)) dy = 0;
+        else dx = 0;
+      }
+      if (snap && !e.altKey) {
+        const snapped = snapPosition(
+          { ...base, x: base.x + dx, y: base.y + dy },
+          targets,
+          6 / scale,
+          grid,
+        );
+        dx = snapped.x - base.x;
+        dy = snapped.y - base.y;
+        setGuides({ x: snapped.gx, y: snapped.gy });
+      } else setGuides({});
+      return {
+        ...page,
+        elements: page.elements.map((el) =>
+          moveIds.includes(el.id)
+            ? {
+                ...el,
+                transform: {
+                  ...el.transform,
+                  x: el.transform.x + dx,
+                  y: el.transform.y + dy,
+                },
+              }
+            : el,
+        ),
+      };
+    });
+  }
+  function resize(
+    event: ReactPointerEvent,
+    el: VisualElement,
+    hx: number,
+    hy: number,
+  ) {
+    const original = el.transform,
+      localInverse = inverse(worldMatrix(page, el)),
+      m = matrix(original);
+    startGesture(event, (e) => {
+      const cp = canvasPoint(e.clientX, e.clientY),
+        p = point(localInverse, cp.x, cp.y);
+      let left = hx < 0 ? Math.min(p.x, original.width - 0.1) : 0,
+        top = hy < 0 ? Math.min(p.y, original.height - 0.1) : 0,
+        right = hx > 0 ? Math.max(0.1, p.x) : original.width,
+        bottom = hy > 0 ? Math.max(0.1, p.y) : original.height;
+      if (e.shiftKey) {
+        const aspect = original.width / original.height;
+        let w = right - left,
+          h = bottom - top;
+        if (hx && hy) {
+          if (w / h > aspect) h = w / aspect;
+          else w = h * aspect;
+        } else if (hx) h = w / aspect;
+        else w = h * aspect;
+        if (hx < 0) left = right - w;
+        else right = left + w;
+        if (hy < 0) top = bottom - h;
+        else bottom = top + h;
+      }
+      const width = right - left,
+        height = bottom - top,
+        center = point(m, (left + right) / 2, (top + bottom) / 2);
+      return {
+        ...page,
+        elements: page.elements.map((item) =>
+          item.id === el.id
+            ? {
+                ...item,
+                groupSize:
+                  item.type === "group"
+                    ? (item.groupSize ?? {
+                        width: original.width,
+                        height: original.height,
+                      })
+                    : item.groupSize,
+                transform: {
+                  ...original,
+                  x: center.x - width / 2,
+                  y: center.y - height / 2,
+                  width,
+                  height,
+                },
+              }
+            : item,
+        ),
+      };
+    });
+  }
+  function rotate(event: ReactPointerEvent, el: VisualElement) {
+    const inv = inverse(parentMatrix(page, el.id)),
+      t = el.transform,
+      cx = t.x + t.width / 2,
+      cy = t.y + t.height / 2;
+    function angle(x: number, y: number) {
+      const cp = canvasPoint(x, y),
+        p = point(inv, cp.x, cp.y);
+      return (Math.atan2(p.y - cy, p.x - cx) * 180) / Math.PI;
+    }
+    const start = angle(event.clientX, event.clientY);
+    startGesture(event, (e) => {
+      let rotation = t.rotation + angle(e.clientX, e.clientY) - start;
+      if (e.shiftKey) rotation = Math.round(rotation / 15) * 15;
+      return {
+        ...page,
+        elements: page.elements.map((item) =>
+          item.id === el.id ? { ...item, transform: { ...t, rotation } } : item,
+        ),
+      };
+    });
+  }
+  function pan(event: ReactPointerEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    const host = viewport.current;
+    if (!host) return;
+    const x = event.clientX,
+      y = event.clientY,
+      left = host.scrollLeft,
+      top = host.scrollTop;
+    const move = (e: PointerEvent) => {
+      host.scrollLeft = left + x - e.clientX;
+      host.scrollTop = top + y - e.clientY;
+    };
+    const end = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", end);
+      gesture.current = null;
+    };
+    gesture.current?.();
+    gesture.current = end;
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end);
+  }
+  function fit() {
+    const width = viewport.current?.clientWidth ?? 600;
+    setZoom(Math.max(1, ((width - 64) / (page.width * ratio)) * 100));
+  }
+  useEffect(() => {
+    fit();
+  }, [pageIndex, page.width, page.height, page.unit]);
+  useEffect(() => {
+    function down(event: KeyboardEvent) {
+      const target = event.target as HTMLElement;
+      if (target?.closest("input,textarea,select,[contenteditable=true]"))
+        return;
+      if (event.code === "Space") {
+        space.current = true;
+        event.preventDefault();
+      }
+      if (event.key === "Escape") {
+        gesture.current?.();
+        setSelected([]);
+        return;
+      }
+      const mod = event.ctrlKey || event.metaKey,
+        key = event.key.toLowerCase();
+      if (mod && key === "s") {
+        event.preventDefault();
+        if (!locked) void save();
+        return;
+      }
+      if (locked || preview) return;
+      if (mod && key === "z") {
+        event.preventDefault();
+        event.shiftKey ? redo() : undo();
+      } else if (mod && key === "y") {
+        event.preventDefault();
+        redo();
+      } else if (mod && key === "d") {
+        event.preventDefault();
+        duplicate();
+      } else if (mod && key === "c" && selected.length) {
+        event.preventDefault();
+        copy();
+      } else if (mod && key === "v") {
+        event.preventDefault();
+        paste();
+      } else if (mod && key === "a") {
+        event.preventDefault();
+        setSelected(visible.map((e) => e.id));
+      } else if (mod && key === "g") {
+        event.preventDefault();
+        event.shiftKey ? ungroup() : group();
+      } else if ((key === "delete" || key === "backspace") && selected.length) {
+        event.preventDefault();
+        remove();
+      } else if (selected.length && event.key.startsWith("Arrow")) {
+        event.preventDefault();
+        const step = event.shiftKey ? 10 : 1;
+        moveBy(
+          event.key === "ArrowLeft"
+            ? -step
+            : event.key === "ArrowRight"
+              ? step
+              : 0,
+          event.key === "ArrowUp"
+            ? -step
+            : event.key === "ArrowDown"
+              ? step
+              : 0,
+        );
+      }
+    }
+    function up(event: KeyboardEvent) {
+      if (event.code === "Space") space.current = false;
+    }
+    function blur() {
+      space.current = false;
+    }
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    window.addEventListener("blur", blur);
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", blur);
+    };
+  });
+  async function save(asCopy = false, asComponent = false) {
+    if (locked) return;
+    setBusy(true);
+    setMessage("");
+    const snapshot = docRef.current;
+    try {
+      let document = snapshot;
+      if (asComponent) {
+        if (!selected.length)
+          throw new Error("Selecione os elementos do componente.");
+        const copied = cloneElements(
+          page,
+          selected,
+          () => crypto.randomUUID(),
+          0,
+        );
+        document = {
+          ...createVisualDocument(
+            `${page.name} · componente`,
+            page.width,
+            page.height,
+          ),
+          unit: page.unit,
+          elements: copied.elements,
+        };
+      }
+      validateVisualDocument(document);
+      const result = await saveVisualTemplate({
+        templateId: asCopy || asComponent ? null : templateId,
+        name: document.name,
+        category: asComponent ? "component" : category,
+        document,
+      });
+      if (!asComponent) {
+        setTemplateId(result.templateId);
+        setVersion(result.version);
+        setSaved(JSON.stringify(snapshot));
+        setSavedCategory(category);
+      }
+      setMessage(
+        asComponent
+          ? "Componente salvo na biblioteca."
+          : `Salvo · versão ${result.version}`,
+      );
+      setTemplates(await listVisualTemplates(templatePage));
+    } catch (e) {
+      fail(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function upload(file: File, target: "background" | "image") {
+    if (locked) return;
+    const id = current?.id,
+      index = pageIndex;
+    if (target === "image" && (!id || isLocked(page, id))) return;
+    setBusy(true);
+    setMessage("Enviando imagem…");
+    try {
+      const form = new FormData();
+      form.set("file", file);
+      const response = await fetch("/api/visual-assets", {
+          method: "POST",
+          body: form,
+        }),
+        result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? "Falha no envio.");
+      const before = docRef.current,
+        p = getPage(before, index),
+        next =
+          target === "background"
+            ? { ...p, background: { ...p.background, image: result.source } }
+            : {
+                ...p,
+                elements: p.elements.map((e) =>
+                  e.id === id
+                    ? { ...e, source: result.source, binding: undefined }
+                    : e,
+                ),
+              };
+      setHistory((h) => [...h, before]);
+      setFuture([]);
+      const updated = setPage(before, index, next);
+      setDoc(updated);
+      docRef.current = updated;
+      setMessage("Imagem guardada. Salve o template para criar a versão.");
+    } catch (e) {
+      fail(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function insertTemplate() {
+    if (!libraryId || locked) return;
+    setBusy(true);
+    try {
+      const result = await loadVisualTemplate(libraryId),
+        p = getPage(result.document, 0),
+        roots = p.elements.filter((e) => !parentOf(p, e.id)).map((e) => e.id),
+        copy = cloneElements(p, roots);
+      const top = Math.max(0, ...page.elements.map((e) => e.transform.layer));
+      const elements = copy.elements.map((e) =>
+        copy.ids.includes(e.id)
+          ? {
+              ...e,
+              transform: {
+                ...e.transform,
+                layer: top + 1 + copy.ids.indexOf(e.id),
+              },
+            }
+          : e,
+      );
+      const before = docRef.current;
+      setHistory((h) => [...h, before]);
+      setFuture([]);
+      const next = setPage(before, pageIndex, {
+        ...page,
+        elements: [...page.elements, ...elements],
+      });
+      setDoc(next);
+      docRef.current = next;
+      setScope(null);
+      setSelected(copy.ids);
+      setMessage(`Inserida cópia da versão ${result.version}.`);
+    } catch (e) {
+      fail(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function restore(v: number) {
+    if (!templateId || busy) return;
+    if (
+      dirty &&
+      !window.confirm(
+        "Abrir esta versão e substituir as alterações não salvas?",
+      )
+    )
+      return;
+    setBusy(true);
+    try {
+      const result = await loadVisualTemplate(templateId, v),
+        before = docRef.current;
+      setHistory((h) => [...h, before]);
+      setFuture([]);
+      setDoc(result.document);
+      docRef.current = result.document;
+      setCategory(result.template.category);
+      setPageIndex(0);
+      setScope(null);
+      setSelected([]);
+      setMessage(
+        `Versão ${v} carregada. Salvar cria uma nova versão; o histórico é preservado.`,
+      );
+    } catch (e) {
+      fail(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function exportFile(format: "svg" | "png" | "json") {
+    if (busy) return;
+    setBusy(true);
+    try {
+      validateVisualDocument(docRef.current);
+      if (format === "json") {
+        downloadVisual(
+          new Blob([JSON.stringify(docRef.current, null, 2)], {
+            type: "application/json",
+          }),
+          `${doc.name}.json`,
+        );
+      } else if (svgRef.current) {
+        const svg = await standaloneSvg(svgRef.current, page, brand.fonts);
+        downloadVisual(
+          format === "svg"
+            ? new Blob([svg], { type: "image/svg+xml" })
+            : await rasterizeVisual(svg, page, exportScale),
+          `${page.name}.${format}`,
+        );
+      }
+      setMessage("Arquivo exportado.");
+    } catch (e) {
+      fail(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function print() {
+    if (busy) return;
+    setBusy(true);
+    let frame: HTMLIFrameElement | undefined;
+    try {
+      const pages = [getPage(doc, 0), ...(doc.pages ?? [])],
+        svgs = await Promise.all(
+          pages.map((p, i) =>
+            standaloneSvg(printRefs.current[i]!, p, brand.fonts),
+          ),
+        );
+      frame = document.createElement("iframe");
+      frame.style.cssText = "position:fixed;width:0;height:0;border:0";
+      document.body.append(frame);
+      const target = frame.contentDocument!;
+      target.open();
+      target.write(
+        `<!doctype html><html><head><title>Imprimir artes</title><style>body{margin:0}section>svg{width:100%;height:100%}section{break-after:page;overflow:hidden}${pages
+          .map((p, i) => {
+            const mm = p.unit === "mm" ? 1 : 25.4 / 96;
+            return `@page sheet${i}{size:${p.width * mm}mm ${p.height * mm}mm;margin:0}section:nth-child(${i + 1}){page:sheet${i};width:${p.width * mm}mm;height:${p.height * mm}mm}`;
+          })
+          .join(
+            "",
+          )}</style></head><body>${svgs.map((s) => `<section>${s}</section>`).join("")}</body></html>`,
+      );
+      target.close();
+      await target.fonts.ready;
+      const cleanup = () => frame?.remove();
+      frame.contentWindow!.addEventListener("afterprint", cleanup, {
+        once: true,
+      });
+      frame.contentWindow!.focus();
+      frame.contentWindow!.print();
+      setMessage(
+        "Impressão preparada. Escolha Salvar como PDF para gerar o documento.",
+      );
+    } catch (e) {
+      frame?.remove();
+      fail(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function importFile(file: File) {
+    if (locked) return;
+    try {
+      const next = validateVisualDocument(JSON.parse(await file.text()));
+      commit(next);
+      setPageIndex(0);
+      setScope(null);
+      setSelected([]);
+      setMessage(
+        "Documento importado. Salvar como cópia cria um template independente.",
+      );
+    } catch (e) {
+      fail(e);
+    }
+  }
+  function addPage(copy = false) {
+    const next = copy
+      ? structuredClone(page)
+      : getPage(
+          createVisualDocument(
+            `Prancheta ${(doc.pages?.length ?? 0) + 2}`,
+            page.width,
+            page.height,
+          ),
+          0,
+        );
+    if (!copy) next.unit = page.unit;
+    commit({ ...doc, pages: [...(doc.pages ?? []), next] });
+    selectPage((doc.pages?.length ?? 0) + 1);
+  }
+  function deletePage() {
+    if (!doc.pages?.length) return;
+    const pages = [getPage(doc, 0), ...doc.pages];
+    pages.splice(pageIndex, 1);
+    commit({ ...pages[0], version: 1, pages: pages.slice(1) });
+    selectPage(0);
+  }
+  function priceComponent() {
+    const unit = page.unit === "mm" ? 0.2 : 1,
+      id = crypto.randomUUID(),
+      parts = [
+        { name: "Moeda", text: "R$", x: 0, y: 35, w: 60, h: 60, size: 40 },
+        {
+          name: "Reais",
+          binding: "offer.priceReais",
+          x: 65,
+          y: 0,
+          w: 200,
+          h: 160,
+          size: 140,
+        },
+        {
+          name: "Centavos",
+          binding: "offer.priceCents",
+          x: 265,
+          y: 10,
+          w: 95,
+          h: 75,
+          size: 65,
+        },
+        {
+          name: "Unidade",
+          binding: "offer.unit",
+          x: 270,
+          y: 90,
+          w: 90,
+          h: 50,
+          size: 30,
+        },
+      ];
+    const elements: VisualElement[] = parts.map((p, i) => ({
+      id: crypto.randomUUID(),
+      type: "text",
+      name: p.name,
+      visible: true,
+      locked: false,
+      text: p.text,
+      binding: p.binding,
+      transform: {
+        x: p.x * unit,
+        y: p.y * unit,
+        width: p.w * unit,
+        height: p.h * unit,
+        rotation: 0,
+        opacity: 1,
+        layer: i,
+      },
+      textStyle: {
+        fontFamily: brand.fieldFonts.price,
+        fontSize: p.size * unit,
+        fontWeight: 800,
+        color: "#111111",
+      },
+    }));
+    siblingsInsert(
+      [
+        ...elements,
+        {
+          id,
+          type: "group",
+          name: "Preço segmentado",
+          visible: true,
+          locked: false,
+          children: elements.map((e) => e.id),
+          groupSize: { width: 360 * unit, height: 160 * unit },
+          transform: {
+            x: 50 * unit,
+            y: 50 * unit,
+            width: 360 * unit,
+            height: 160 * unit,
+            rotation: 0,
+            opacity: 1,
+            layer: 0,
+          },
+        },
+      ],
+      [id],
+    );
+  }
+  return (
+    <div className="visual-editor">
+      <section className="card visual-toolbar">
+        <fieldset disabled={locked} className="visual-fields">
+          <TextField
+            label="Nome do template"
+            value={doc.name}
+            onChange={(name) => commit({ ...doc, name })}
+          />
+        </fieldset>
+        <label className="field">
+          <span>Categoria</span>
+          <select
+            aria-label="Categoria"
+            className="input"
+            disabled={locked}
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
+            {["custom", "digital", "print", "validity", "component"].map(
+              (v, i) => (
+                <option key={v} value={v}>
+                  {
+                    [
+                      "Personalizado",
+                      "Digital",
+                      "Impresso",
+                      "Validade",
+                      "Componente",
+                    ][i]
+                  }
+                </option>
+              ),
+            )}
+          </select>
+        </label>
+        <button
+          className="btn primary"
+          disabled={locked}
+          onClick={() => save()}
+        >
+          Salvar template
+        </button>
+        <button className="btn" disabled={locked} onClick={() => save(true)}>
+          Salvar como cópia
+        </button>
+        <span role="status">
+          {message ||
+            `${dirty ? "Alterações não salvas" : "Salvo"}${version ? ` · v${version}` : ""}`}
+        </span>
+        {!editable && <span className="pill">Somente leitura</span>}
+      </section>
+      <details className="card">
+        <summary>Biblioteca, versões e dados de preview</summary>
+        <div className="visual-library">
+          <section>
+            <h3>Templates e componentes</h3>
+            <select
+              className="input"
+              aria-label="Template da biblioteca"
+              value={libraryId}
+              onChange={(e) => setLibraryId(e.target.value)}
+            >
+              <option value="">Selecione</option>
+              {templates.items.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} · v{t.current_version}
+                  {t.category === "component" ? " · componente" : ""}
+                </option>
+              ))}
+            </select>
+            <div className="visual-buttons">
+              <button
+                className="btn"
+                disabled={!libraryId || busy}
+                onClick={() => {
+                  if (
+                    !dirty ||
+                    window.confirm("Sair sem salvar as alterações?")
+                  )
+                    location.href = `/app/editor-visual?template=${encodeURIComponent(libraryId)}`;
+                }}
+              >
+                Abrir template
+              </button>
+              <button
+                className="btn"
+                disabled={!libraryId || locked}
+                onClick={insertTemplate}
+              >
+                Inserir como componente
+              </button>
+              <button
+                className="btn"
+                disabled={locked || !selected.length}
+                onClick={() => save(false, true)}
+              >
+                Salvar seleção como componente
+              </button>
+              <button
+                className="btn"
+                onClick={() => {
+                  if (
+                    !dirty ||
+                    window.confirm("Sair sem salvar as alterações?")
+                  )
+                    location.href = "/app/editor-visual";
+                }}
+              >
+                Novo template
+              </button>
+              <button
+                className="btn"
+                disabled={!templatePage}
+                onClick={() => setTemplatePage((p) => p - 1)}
+              >
+                Templates anteriores
+              </button>
+              <button
+                className="btn"
+                disabled={!templates.hasMore}
+                onClick={() => setTemplatePage((p) => p + 1)}
+              >
+                Mais templates
+              </button>
+            </div>
+          </section>
+          <section>
+            <h3>Histórico</h3>
+            {templateId ? (
+              <>
+                <div className="visual-buttons">
+                  {versions.items.map((v) => (
+                    <button
+                      className="btn"
+                      key={v.version}
+                      disabled={busy}
+                      onClick={() => restore(v.version)}
+                    >
+                      Abrir v{v.version}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  className="btn"
+                  disabled={!versionPage}
+                  onClick={() => setVersionPage((p) => p - 1)}
+                >
+                  Versões recentes
+                </button>
+                <button
+                  className="btn"
+                  disabled={!versions.hasMore}
+                  onClick={() => setVersionPage((p) => p + 1)}
+                >
+                  Versões anteriores
+                </button>
+                <p className="muted">
+                  Reabrir e salvar uma versão antiga cria uma nova versão.
+                </p>
+              </>
+            ) : (
+              <p>Salve para iniciar o histórico.</p>
+            )}
+          </section>
+          <section>
+            <h3>Dados</h3>
+            <label className="field">
+              <span>Oferta no preview</span>
+              <select
+                aria-label="Oferta no preview"
+                className="input"
+                value={offerId}
+                onChange={(e) => {
+                  setOfferId(e.target.value);
+                  setBindingData(null);
+                }}
+              >
+                <option value="">Dados de exemplo</option>
+                {offers.items.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.name} · {o.data.offer.price}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="visual-buttons">
+              <button
+                className="btn"
+                disabled={!offerPage}
+                onClick={() => setOfferPage((p) => p - 1)}
+              >
+                Ofertas anteriores
+              </button>
+              <button
+                className="btn"
+                disabled={!offers.hasMore}
+                onClick={() => setOfferPage((p) => p + 1)}
+              >
+                Mais ofertas
+              </button>
+            </div>
+            <details>
+              <summary>Dados personalizados (JSON)</summary>
+              <textarea
+                aria-label="Dados personalizados"
+                className="input"
+                value={customData}
+                onChange={(e) => setCustomData(e.target.value)}
+                rows={5}
+              />
+              <button
+                className="btn"
+                onClick={() =>
+                  operate(() => {
+                    const parsed = JSON.parse(customData);
+                    if (
+                      !parsed ||
+                      typeof parsed !== "object" ||
+                      Array.isArray(parsed)
+                    )
+                      throw new Error("Use um objeto JSON.");
+                    setBindingData(parsed);
+                    setMessage("Dados personalizados aplicados ao preview.");
+                  })
+                }
+              >
+                Aplicar dados
+              </button>
+            </details>
+          </section>
+        </div>
+      </details>
+      <div className="visual-workspace">
+        <aside className="card visual-layers">
+          <h3>Elementos</h3>
+          <div className="visual-buttons">
+            {(["text", "image", "shape", "barcode"] as const).map((type) => (
+              <button
+                className="btn"
+                key={type}
+                disabled={locked}
+                onClick={() => add(type)}
+              >
+                + {names[type]}
+              </button>
+            ))}
+            <button className="btn" disabled={locked} onClick={priceComponent}>
+              + Preço segmentado
+            </button>
+          </div>
+          {scope && (
+            <button
+              className="btn"
+              onClick={() => {
+                setScope(parentOf(page, scope)?.id ?? null);
+                setSelected([]);
+              }}
+            >
+              ← Sair do grupo
+            </button>
+          )}
+          <p className="muted">
+            Shift+clique seleciona vários. Duplo clique abre grupos.
+          </p>
+          <div className="visual-layer-list">
+            {visible.map((e) => (
+              <button
+                className="btn"
+                key={e.id}
+                aria-pressed={selected.includes(e.id)}
+                onClick={(event) =>
+                  setSelected((ids) =>
+                    event.shiftKey
+                      ? ids.includes(e.id)
+                        ? ids.filter((i) => i !== e.id)
+                        : [...ids, e.id]
+                      : [e.id],
+                  )
+                }
+                onDoubleClick={() => {
+                  if (e.type === "group") {
+                    setScope(e.id);
+                    setSelected([]);
+                  }
+                }}
+              >
+                {e.locked ? "🔒 " : ""}
+                {!e.visible ? "◌ " : ""}
+                {e.name}
+                {e.type === "group" ? " ▸" : ""}
+              </button>
+            ))}
+          </div>
+          <div className="visual-buttons">
+            <button
+              className="btn"
+              disabled={locked || !selected.length}
+              onClick={duplicate}
+            >
+              Duplicar
+            </button>
+            <button
+              className="btn"
+              disabled={locked || !selected.length}
+              onClick={remove}
+            >
+              Excluir
+            </button>
+            <button
+              className="btn"
+              disabled={locked || selected.length < 2}
+              onClick={group}
+            >
+              Agrupar
+            </button>
+            <button
+              className="btn"
+              disabled={locked || current?.type !== "group"}
+              onClick={ungroup}
+            >
+              Desagrupar
+            </button>
+            {(
+              [
+                ["forward", "Avançar"],
+                ["backward", "Recuar"],
+                ["front", "Trazer à frente"],
+                ["back", "Enviar ao fundo"],
+              ] as const
+            ).map(([direction, label]) => (
+              <button
+                className="btn"
+                key={direction}
+                disabled={locked || !selected.length}
+                onClick={() =>
+                  updatePage(reorderElements(page, selected, direction))
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <h3>Alinhar {selected.length > 1 ? "seleção" : "à prancheta"}</h3>
+          <label>
+            <input
+              type="checkbox"
+              checked={alignToPage}
+              onChange={(e) => setAlignToPage(e.target.checked)}
+            />{" "}
+            Usar limites da prancheta/grupo
+          </label>
+          <div className="visual-buttons">
+            {(
+              [
+                ["left", "Esquerda"],
+                ["centerX", "Centro X"],
+                ["right", "Direita"],
+                ["top", "Topo"],
+                ["centerY", "Centro Y"],
+                ["bottom", "Base"],
+              ] as const
+            ).map(([axis, label]) => (
+              <button
+                className="btn"
+                key={axis}
+                disabled={locked || !selected.length}
+                onClick={() =>
+                  operate(() =>
+                    updatePage(
+                      alignElements(page, selected, axis, alignToPage),
+                    ),
+                  )
+                }
+              >
+                {label}
+              </button>
+            ))}
+            <button
+              className="btn"
+              disabled={locked || selected.length < 3}
+              onClick={() =>
+                operate(() =>
+                  updatePage(distributeElements(page, selected, "x")),
+                )
+              }
+            >
+              Distribuir X
+            </button>
+            <button
+              className="btn"
+              disabled={locked || selected.length < 3}
+              onClick={() =>
+                operate(() =>
+                  updatePage(distributeElements(page, selected, "y")),
+                )
+              }
+            >
+              Distribuir Y
+            </button>
+          </div>
+        </aside>
+        <main className="visual-main">
+          <div className="visual-toolbar">
+            <button
+              className="btn"
+              disabled={locked || !history.length}
+              onClick={undo}
+            >
+              Desfazer
+            </button>
+            <button
+              className="btn"
+              disabled={locked || !future.length}
+              onClick={redo}
+            >
+              Refazer
+            </button>
+            <button
+              className="btn"
+              aria-pressed={preview}
+              onClick={() => setPreview(!preview)}
+            >
+              Preview limpo
+            </button>
+            <button className="btn" onClick={fit}>
+              Ajustar à tela
+            </button>
+            <NumberField
+              label="Zoom (%)"
+              value={zoom}
+              min={1}
+              onChange={setZoom}
+            />
+            <label>
+              <input
+                type="checkbox"
+                checked={snap}
+                onChange={(e) => setSnap(e.target.checked)}
+              />{" "}
+              Encaixe e guias
+            </label>
+            <NumberField
+              label={`Grade (${page.unit})`}
+              value={grid}
+              min={0}
+              onChange={setGrid}
+            />
+          </div>
+          <div
+            className="visual-viewport"
+            ref={viewport}
+            onPointerDown={(event) => {
+              if (space.current || event.button === 1) pan(event);
+            }}
+          >
+            <div
+              className="visual-canvas-shell"
+              style={{ width: page.width * scale, height: page.height * scale }}
+            >
+              <VisualRenderer
+                ref={svgRef}
+                page={page}
+                data={data}
+                className="visual-canvas"
+                width={page.width * scale}
+                height={page.height * scale}
+                aria-label="Prancheta visual"
+                onPointerDown={(event) => {
+                  if (space.current || event.button === 1) {
+                    pan(event);
+                    return;
+                  }
+                  if (!preview) setSelected([]);
+                }}
+              >
+                {!preview && (
+                  <g data-editor-overlay="true">
+                    {snap && grid > 0 && (
+                      <defs>
+                        <pattern
+                          id="visual-grid"
+                          width={grid}
+                          height={grid}
+                          patternUnits="userSpaceOnUse"
+                        >
+                          <path
+                            d={`M ${grid} 0 L 0 0 0 ${grid}`}
+                            fill="none"
+                            stroke="#94a3b8"
+                            strokeWidth={0.3 / scale}
+                          />
+                        </pattern>
+                      </defs>
+                    )}
+                    {snap && grid > 0 && (
+                      <rect
+                        width={page.width}
+                        height={page.height}
+                        fill="url(#visual-grid)"
+                        pointerEvents="none"
+                      />
+                    )}
+                    {visible
+                      .filter((e) => e.visible)
+                      .reverse()
+                      .map((e) => (
+                        <g
+                          key={e.id}
+                          transform={`matrix(${worldMatrix(page, e).join(" ")})`}
+                        >
+                          <rect
+                            data-hit-id={e.id}
+                            width={e.transform.width}
+                            height={e.transform.height}
+                            fill="transparent"
+                            stroke={
+                              selected.includes(e.id)
+                                ? "#2563eb"
+                                : "transparent"
+                            }
+                            strokeWidth={1.5 / scale}
+                            style={{
+                              cursor: isLocked(page, e.id) ? "default" : "move",
+                              touchAction: "none",
+                            }}
+                            onPointerDown={(event) => drag(event, e.id)}
+                            onDoubleClick={() => {
+                              if (e.type === "group") {
+                                setScope(e.id);
+                                setSelected([]);
+                              }
+                            }}
+                          />
+                          {selected.length === 1 &&
+                            selected[0] === e.id &&
+                            !isLocked(page, e.id) &&
+                            !locked && (
+                              <>
+                                {handles.map(([hx, hy]) => (
+                                  <rect
+                                    key={`${hx},${hy}`}
+                                    role="button"
+                                    aria-label={`Redimensionar ${hx},${hy}`}
+                                    x={
+                                      ((hx + 1) * e.transform.width) / 2 -
+                                      5 / scale
+                                    }
+                                    y={
+                                      ((hy + 1) * e.transform.height) / 2 -
+                                      5 / scale
+                                    }
+                                    width={10 / scale}
+                                    height={10 / scale}
+                                    fill="white"
+                                    stroke="#2563eb"
+                                    strokeWidth={1 / scale}
+                                    style={{
+                                      cursor: !hx
+                                        ? "ns-resize"
+                                        : !hy
+                                          ? "ew-resize"
+                                          : hx === hy
+                                            ? "nwse-resize"
+                                            : "nesw-resize",
+                                      touchAction: "none",
+                                    }}
+                                    onPointerDown={(event) =>
+                                      resize(event, e, hx, hy)
+                                    }
+                                  />
+                                ))}
+                                <line
+                                  x1={e.transform.width / 2}
+                                  x2={e.transform.width / 2}
+                                  y1={0}
+                                  y2={-24 / scale}
+                                  stroke="#2563eb"
+                                  strokeWidth={1 / scale}
+                                />
+                                <circle
+                                  role="button"
+                                  aria-label="Rotacionar"
+                                  cx={e.transform.width / 2}
+                                  cy={-24 / scale}
+                                  r={6 / scale}
+                                  fill="#2563eb"
+                                  style={{
+                                    cursor: "grab",
+                                    touchAction: "none",
+                                  }}
+                                  onPointerDown={(event) => rotate(event, e)}
+                                />
+                              </>
+                            )}
+                        </g>
+                      ))}
+                    <g
+                      transform={
+                        current
+                          ? `matrix(${parentMatrix(page, current.id).join(" ")})`
+                          : undefined
+                      }
+                      pointerEvents="none"
+                    >
+                      {guides.x !== undefined && (
+                        <line
+                          x1={guides.x}
+                          x2={guides.x}
+                          y1={-page.height * 5}
+                          y2={page.height * 5}
+                          stroke="#e11d48"
+                          strokeWidth={1 / scale}
+                        />
+                      )}
+                      {guides.y !== undefined && (
+                        <line
+                          y1={guides.y}
+                          y2={guides.y}
+                          x1={-page.width * 5}
+                          x2={page.width * 5}
+                          stroke="#e11d48"
+                          strokeWidth={1 / scale}
+                        />
+                      )}
+                    </g>
+                  </g>
+                )}
+              </VisualRenderer>
+            </div>
+          </div>
+          <p className="muted">
+            Espaço+arraste para navegar · Alt desativa encaixe durante o arraste
+            · Shift mantém proporção/ângulo · setas movem · Ctrl/Cmd+Z desfaz.
+          </p>
+          <div className="visual-buttons">
+            {[getPage(doc, 0), ...(doc.pages ?? [])].map((p, i) => (
+              <button
+                className="btn"
+                key={i}
+                aria-pressed={pageIndex === i}
+                onClick={() => selectPage(i)}
+              >
+                {i + 1}. {p.name}
+              </button>
+            ))}
+            <button className="btn" disabled={locked} onClick={() => addPage()}>
+              + Prancheta
+            </button>
+            <button
+              className="btn"
+              disabled={locked}
+              onClick={() => addPage(true)}
+            >
+              Duplicar prancheta
+            </button>
+            <button
+              className="btn"
+              disabled={locked || !doc.pages?.length}
+              onClick={deletePage}
+            >
+              Excluir prancheta
+            </button>
+          </div>
+          <section className="card visual-toolbar">
+            <button
+              className="btn"
+              disabled={busy}
+              onClick={() => exportFile("png")}
+            >
+              Exportar PNG
+            </button>
+            <button
+              className="btn"
+              disabled={busy}
+              onClick={() => exportFile("svg")}
+            >
+              Exportar SVG
+            </button>
+            <NumberField
+              label="Escala de exportação"
+              min={0.1}
+              value={exportScale}
+              onChange={setExportScale}
+            />
+            <button className="btn" disabled={busy} onClick={print}>
+              Imprimir / PDF (todas)
+            </button>
+            <button
+              className="btn"
+              disabled={busy}
+              onClick={() => exportFile("json")}
+            >
+              Exportar documento
+            </button>
+            <label className="field">
+              <span>Importar documento</span>
+              <input
+                type="file"
+                disabled={locked}
+                accept="application/json,.json"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void importFile(file);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+          </section>
+        </main>
+        <aside className="card visual-properties">
+          <h3>
+            {current
+              ? `${selected.length > 1 ? `${selected.length} selecionados · ` : ""}${current.name}`
+              : "Prancheta"}
+          </h3>
+          {current ? (
+            <>
+              <button className="btn" onClick={() => setSelected([])}>
+                Propriedades da prancheta
+              </button>
+              <ElementProperties
+                element={current}
+                patch={patch}
+                disabled={
+                  locked ||
+                  (!!parentOf(page, current.id) &&
+                    isLocked(page, parentOf(page, current.id)!.id))
+                }
+                upload={upload}
+                fonts={brand.fonts}
+              />
+            </>
+          ) : (
+            <PageProperties
+              page={page}
+              patch={(values) => updatePage({ ...page, ...values })}
+              upload={upload}
+              disabled={locked}
+            />
+          )}
+        </aside>
+      </div>
+      <div className="visual-print-source" aria-hidden="true">
+        {[getPage(doc, 0), ...(doc.pages ?? [])].map((p, i) => (
+          <VisualRenderer
+            key={i}
+            ref={(el) => {
+              printRefs.current[i] = el;
+            }}
+            page={p}
+            data={data}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}

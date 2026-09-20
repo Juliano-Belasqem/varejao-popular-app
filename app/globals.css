@@ -4,3 +4,5 @@
 
 @page{size:A4;margin:0}.validity-sheet{background:white;padding:4%;gap:0}.configured-ticket{print-color-adjust:exact;-webkit-print-color-adjust:exact}@media print{.validity-sheet{padding:11mm 8mm;break-inside:avoid}.meta-token-alert{display:none!important}}
 @media screen and (max-width:900px){.sidebar{display:block;padding:12px}.sidebar .brand{margin:0 0 10px}.sidebar .nav{display:flex;overflow-x:auto;gap:5px}.sidebar .nav a{white-space:nowrap;padding:9px}.sidebar-user{display:none}}
+
+.sidebar{min-width:0}
