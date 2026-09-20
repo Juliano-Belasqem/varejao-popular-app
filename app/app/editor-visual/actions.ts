@@ -56,6 +56,26 @@ export async function listVisualTemplates(page = 0) {
     hasMore: (data?.length ?? 0) > 30,
   };
 }
+export async function renameVisualTemplate(templateId: string, name: string) {
+  const profile = await requireProfile();
+  if (!canEdit(profile.role)) throw new Error("Sem permissão para editar templates.");
+  const clean = name.trim();
+  if (!clean) throw new Error("Nome do template é obrigatório.");
+  const db = await createClient();
+  const { error } = await db.from("visual_templates").update({ name: clean }).eq("id", templateId).eq("active", true);
+  if (error) throw new Error("Não foi possível renomear o template.");
+  revalidatePath("/app/editor-visual");
+}
+
+export async function archiveVisualTemplate(templateId: string) {
+  const profile = await requireProfile();
+  if (!canEdit(profile.role)) throw new Error("Sem permissão para editar templates.");
+  const db = await createClient();
+  const { error } = await db.from("visual_templates").update({ active: false }).eq("id", templateId).eq("active", true);
+  if (error) throw new Error("Não foi possível arquivar o template.");
+  revalidatePath("/app/editor-visual");
+}
+
 export async function listVisualVersions(templateId: string, page = 0) {
   await requireProfile();
   const db = await createClient(),
