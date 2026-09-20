@@ -875,6 +875,11 @@ export function VisualEngineEditor({
         setCenterGuides((value) => !value);
         return;
       }
+      if (mod && (event.code === "Backslash" || key === "\\")) {
+        event.preventDefault();
+        setSidebarOpen((open) => !open);
+        return;
+      }
       if (locked || preview) return;
       if (mod && key === "z") {
         event.preventDefault();
@@ -2012,7 +2017,7 @@ export function VisualEngineEditor({
             </button>
           </div>
           </>}
-          <button className="btn visual-sidebar-toggle" aria-label={sidebarOpen ? "Recolher menu lateral" : "Expandir menu lateral"} aria-expanded={sidebarOpen} onClick={() => setSidebarOpen((open) => !open)}>{sidebarOpen ? "‹ Recolher" : "›"}</button>
+          <button className="btn visual-sidebar-toggle" aria-label={sidebarOpen ? "Recolher menu lateral" : "Expandir menu lateral"} title="Alternar menu lateral (Ctrl/Cmd+\\)" aria-expanded={sidebarOpen} onClick={() => setSidebarOpen((open) => !open)}>{sidebarOpen ? "‹ Recolher" : "›"}</button>
         </aside>
         <main className="visual-main">
           <div className="visual-toolbar">
