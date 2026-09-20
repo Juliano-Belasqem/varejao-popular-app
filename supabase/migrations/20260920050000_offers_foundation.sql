@@ -124,6 +124,55 @@ revoke all on function public.upsert_campaign_offer(uuid,uuid,numeric,numeric,te
 grant execute on function public.upsert_campaign_offer(uuid,uuid,numeric,numeric,text,text,text,text,text,uuid) to authenticated, service_role;
 
 
+create or replace function public.update_campaign_offer_item(
+  p_item_id uuid, p_campaign_id uuid, p_normal_price numeric, p_offer_price numeric,
+  p_highlighted_price text, p_sort_order integer, p_user_id uuid
+) returns void
+language plpgsql security invoker set search_path = public
+as $fn$
+declare v_offer_id uuid;
+begin
+  if not public.can_edit() then raise exception 'Sem permissão.'; end if;
+  update public.campaign_items
+  set normal_price=p_normal_price, offer_price=p_offer_price,
+      highlighted_price=p_highlighted_price, sort_order=p_sort_order
+  where id=p_item_id and campaign_id=p_campaign_id
+  returning offer_id into v_offer_id;
+  if not found then raise exception 'Item de campanha não encontrado.'; end if;
+  if v_offer_id is not null then
+    update public.offers set normal_price=p_normal_price,
+      offer_price=coalesce(p_offer_price,p_normal_price,0),
+      updated_by=p_user_id,updated_at=now()
+    where id=v_offer_id;
+  end if;
+end;
+$fn$;
+
+create or replace function public.remove_campaign_offer_item(
+  p_item_id uuid, p_campaign_id uuid, p_user_id uuid
+) returns void
+language plpgsql security invoker set search_path = public
+as $fn$
+declare v_offer_id uuid;
+begin
+  if not public.can_edit() then raise exception 'Sem permissão.'; end if;
+  delete from public.campaign_items
+  where id=p_item_id and campaign_id=p_campaign_id
+  returning offer_id into v_offer_id;
+  if not found then raise exception 'Item de campanha não encontrado.'; end if;
+  if v_offer_id is not null then
+    update public.offers set active=false,campaign_id=null,updated_by=p_user_id,updated_at=now()
+    where id=v_offer_id;
+  end if;
+end;
+$fn$;
+
+revoke all on function public.update_campaign_offer_item(uuid,uuid,numeric,numeric,text,integer,uuid) from public, anon;
+grant execute on function public.update_campaign_offer_item(uuid,uuid,numeric,numeric,text,integer,uuid) to authenticated, service_role;
+revoke all on function public.remove_campaign_offer_item(uuid,uuid,uuid) from public, anon;
+grant execute on function public.remove_campaign_offer_item(uuid,uuid,uuid) to authenticated, service_role;
+
+
 create table public.visual_templates (
   id uuid primary key default gen_random_uuid(),
   slug text unique,
