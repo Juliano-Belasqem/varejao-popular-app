@@ -36,3 +36,8 @@
 .visual-brand-swatch{width:34px;height:34px;flex:0 0 34px;border-radius:8px;border:1px solid #ffffff2b}
 .visual-tool-rail button[aria-pressed=true]{background:#26395c!important;border-color:#5d82ff!important;color:#fff!important}
 @media(max-width:700px){.visual-tool-grid{grid-template-columns:1fr}}
+
+.visual-collapse{width:100%;margin-top:9px;justify-content:center}
+.visual-selection-summary{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:12px 0 8px;padding:9px 10px;border:1px solid #315078;border-radius:8px;background:#14243a}
+.visual-selection-summary strong{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.visual-selection-summary span{font-size:10px;color:#8fa8c8;white-space:nowrap}
