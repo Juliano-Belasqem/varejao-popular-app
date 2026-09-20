@@ -185,7 +185,8 @@ export function VisualEngineEditor({
     [activeTool, setActiveTool] = useState<
       "layers" | "elements" | "text" | "images" | "products" | "offers" | "templates" | "brand" | "uploads"
     >("layers"),
-    [layersOpen, setLayersOpen] = useState(true);
+    [layersOpen, setLayersOpen] = useState(true),
+    [sidebarOpen, setSidebarOpen] = useState(true);
   const [templates, setTemplates] = useState<
       Awaited<ReturnType<typeof listVisualTemplates>>
     >({ items: [], hasMore: false }),
@@ -1623,8 +1624,8 @@ export function VisualEngineEditor({
           </section>
         </div>
       </details>
-      <div className="visual-workspace">
-        <aside className="card visual-layers">
+      <div className={`visual-workspace${sidebarOpen ? "" : " visual-workspace-sidebar-collapsed"}`}>
+        <aside className={`card visual-layers${sidebarOpen ? "" : " visual-layers-collapsed"}`}>
           <nav className="visual-tool-rail" aria-label="Ferramentas do editor">
             {([
               ["layers", "☷", "Camadas"],
@@ -1640,14 +1641,20 @@ export function VisualEngineEditor({
               <button
                 key={tool}
                 title={label}
-                aria-pressed={activeTool === tool}
-                onClick={() => setActiveTool(tool)}
+                aria-pressed={activeTool === tool && sidebarOpen}
+                onClick={() => {
+                  if (activeTool === tool && sidebarOpen) setSidebarOpen(false);
+                  else {
+                    setActiveTool(tool);
+                    setSidebarOpen(true);
+                  }
+                }}
               >
                 <b>{icon}</b><span>{label}</span>
               </button>
             ))}
           </nav>
-          <div className="visual-context-panel">
+          {sidebarOpen && <div className="visual-context-panel">
             <div className="visual-context-head">
               <h3>{({
                 layers: "Camadas",
@@ -1785,8 +1792,7 @@ export function VisualEngineEditor({
                 <button className="btn" disabled={locked} onClick={() => { add("image"); setActiveTool("images"); }}>+ Nova imagem</button>
               </div>
             )}
-          </div>
-          {activeTool === "layers" && layersOpen && <>
+          </div>}          {activeTool === "layers" && layersOpen && <>
           {scope && (
             <button
               className="btn"
@@ -1956,6 +1962,7 @@ export function VisualEngineEditor({
               Distribuir Y
             </button>
           </div>
+          <button className="btn visual-sidebar-toggle" aria-label={sidebarOpen ? "Recolher menu lateral" : "Expandir menu lateral"} aria-expanded={sidebarOpen} onClick={() => setSidebarOpen((open) => !open)}>{sidebarOpen ? "‹ Recolher" : "›"}</button>
         </aside>
         <main className="visual-main">
           <div className="visual-toolbar">
