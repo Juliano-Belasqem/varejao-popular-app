@@ -15,13 +15,15 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: campaign, error }, { data: items }, { data: products }] = await Promise.all([
+  const [{ data: campaign, error }, { data: items }, { data: products }, { data: productImages }] = await Promise.all([
     supabase.from("campaigns").select("id,name,start_date,end_date,theme,format,status").eq("id", id).single(),
     supabase.from("campaign_items").select("id,campaign_id,product_id,normal_price,offer_price,highlighted_price,sort_order,ean_snapshot,name_snapshot,brand_snapshot,specification_snapshot").eq("campaign_id", id).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
     supabase.from("products").select("id,ean,name,brand,sale_price,active").eq("active", true).order("name").limit(1000),
+    supabase.from("product_images").select("product_id").eq("approved", true),
   ]);
 
   if (error || !campaign) notFound();
+  const productsWithImage = new Set((productImages ?? []).map((image) => image.product_id));
 
   return (
     <>
@@ -86,19 +88,19 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
         ) : (
           <div style={{ overflowX: "auto" }}>
             <table className="table">
-              <thead><tr><th>Ordem</th><th>EAN</th><th>Produto</th><th>Preço normal</th><th>Preço oferta</th><th>Destaque</th>{editable && <th>Ações</th>}</tr></thead>
+              <thead><tr><th>Ordem</th><th>EAN</th><th>Produto</th><th>Imagem</th><th>Preço normal</th><th>Preço oferta</th><th>Destaque</th>{editable && <th>Ações</th>}</tr></thead>
               <tbody>
                 {items.map((item, index) => (
                   <tr key={item.id}>
                     {editable ? (
                       <>
-                        <td colSpan={7} style={{ padding: 0 }}>
-                          <form action={updateCampaignItem} style={{ display: "grid", gridTemplateColumns: "85px 150px minmax(260px,1fr) 150px 150px 140px auto", alignItems: "center" }}>
+                        <td colSpan={8} style={{ padding: 0 }}>
+                          <form action={updateCampaignItem} style={{ display: "grid", gridTemplateColumns: "85px 150px minmax(240px,1fr) 145px 150px 150px 140px auto", alignItems: "center" }}>
                             <input type="hidden" name="id" value={item.id} />
                             <input type="hidden" name="campaign_id" value={campaign.id} />
                             <div style={{ padding: 10 }}><input className="input" style={{ padding: 8 }} type="number" name="sort_order" defaultValue={item.sort_order ?? index} /></div>
                             <div style={{ padding: 10 }}>{item.ean_snapshot || "—"}</div>
-                            <div style={{ padding: 10 }}><strong>{item.name_snapshot || "Produto"}</strong>{item.brand_snapshot && <div className="muted">{item.brand_snapshot}{item.specification_snapshot ? ` · ${item.specification_snapshot}` : ""}</div>}</div>
+                            <div style={{ padding: 10 }}><strong>{item.name_snapshot || "Produto"}</strong>{item.brand_snapshot && <div className="muted">{item.brand_snapshot}{item.specification_snapshot ? ` · ${item.specification_snapshot}` : ""}</div>}</div>\n                            <div style={{ padding: 10 }}>{item.product_id ? <><span className="pill">{productsWithImage.has(item.product_id) ? "Com imagem" : "Sem imagem"}</span><div style={{marginTop:6}}><Link className="btn" style={{display:"inline-flex",padding:"7px 9px",whiteSpace:"nowrap"}} href={`/app/produtos/${item.product_id}#imagens-do-produto`}>{productsWithImage.has(item.product_id) ? "Trocar imagem" : "Adicionar imagem"}</Link></div></> : <span className="muted">Produto sem vínculo</span>}</div>
                             <div style={{ padding: 10 }}><input className="input" style={{ padding: 8 }} name="normal_price" inputMode="decimal" defaultValue={item.normal_price ?? ""} /></div>
                             <div style={{ padding: 10 }}><input className="input" style={{ padding: 8 }} name="offer_price" inputMode="decimal" defaultValue={item.offer_price ?? ""} /></div>
                             <div style={{ padding: 10 }}><select className="input" style={{ padding: 8 }} name="highlighted_price" defaultValue={item.highlighted_price}><option value="offer">Oferta</option><option value="normal">Normal</option></select></div>
@@ -107,7 +109,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
                         </td>
                       </>
                     ) : (
-                      <><td>{item.sort_order ?? index}</td><td>{item.ean_snapshot || "—"}</td><td><strong>{item.name_snapshot || "Produto"}</strong>{item.brand_snapshot && <div className="muted">{item.brand_snapshot}</div>}</td><td>{money(item.normal_price)}</td><td>{money(item.offer_price)}</td><td>{item.highlighted_price === "normal" ? "Normal" : "Oferta"}</td></>
+                      <><td>{item.sort_order ?? index}</td><td>{item.ean_snapshot || "—"}</td><td><strong>{item.name_snapshot || "Produto"}</strong>{item.brand_snapshot && <div className="muted">{item.brand_snapshot}</div>}</td><td>{item.product_id ? <span className="pill">{productsWithImage.has(item.product_id) ? "Com imagem" : "Sem imagem"}</span> : "—"}</td><td>{money(item.normal_price)}</td><td>{money(item.offer_price)}</td><td>{item.highlighted_price === "normal" ? "Normal" : "Oferta"}</td></>
                     )}
                   </tr>
                 ))}

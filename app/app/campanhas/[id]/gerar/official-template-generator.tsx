@@ -89,8 +89,8 @@ function splitProductName(value: string) {
 
 function footerText(campaign: Campaign) {
   return campaign.end_date
-    ? `Ofertas válidas até ${dateLabel(campaign.end_date)} ou enquanto durarem os estoques`
-    : "Ofertas válidas enquanto durarem os estoques";
+    ? `OFERTA VÁLIDA ATÉ ${dateLabel(campaign.end_date)}`
+    : "OFERTA VÁLIDA ENQUANTO DURAREM OS ESTOQUES";
 }
 
 export default function OfficialTemplateGenerator({ campaign, items }: { campaign: Campaign; items: Item[] }) {
