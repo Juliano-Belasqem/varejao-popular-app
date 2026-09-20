@@ -57,6 +57,13 @@ try {
     .filter({ hasText: "Produto de exemplo" })
     .waitFor();
   await label("Nome do template").fill("Teste universal");
+  assert.equal(await page.locator(".visual-static-guide").count(), 2);
+  await label("Mostrar grade").uncheck();
+  assert.equal(await page.locator("#visual-grid").count(), 0);
+  await label("Mostrar grade").check();
+  await label("Guias centrais").uncheck();
+  assert.equal(await page.locator(".visual-static-guide").count(), 0);
+  await label("Guias centrais").check();
   await label("Encaixe e guias").uncheck();
   const hit = page.locator('[data-hit-id="product"]');
   await hit.scrollIntoViewIfNeeded();
