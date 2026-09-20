@@ -62,7 +62,10 @@ export async function updateCampaign(formData: FormData) {
   }).eq("id", id);
 
   if (error) throw new Error(error.message);
+  const { error: syncError } = await supabase.rpc("sync_campaign_offer_dates", { p_campaign_id: id, p_user_id: profile.id });
+  if (syncError) throw new Error(syncError.message);
   revalidatePath("/app/campanhas");
+  revalidatePath("/app/ofertas");
   revalidatePath(`/app/campanhas/${id}`);
   revalidatePath("/app");
 }
