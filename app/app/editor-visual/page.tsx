@@ -24,7 +24,7 @@ export default async function VisualEditorPage({
     <>
       <header className="page-head">
         <div>
-          <h1>Motor Visual</h1>
+          <h1>Editor Visual</h1>
           <div className="muted">
             Templates universais, pranchetas e componentes com histórico de
             versões.
