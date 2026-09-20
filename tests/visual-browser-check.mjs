@@ -265,7 +265,7 @@ try {
   await page.locator(".visual-tool-rail button[title=\"Camadas\"]").click();
   await page
     .locator(".visual-layer-list")
-    .getByRole("button", { name: /Preço segmentado/ })
+    .getByRole("button", { name: "Preço segmentado ▸", exact: true })
     .dblclick();
   await page
     .locator(".visual-layer-list")
