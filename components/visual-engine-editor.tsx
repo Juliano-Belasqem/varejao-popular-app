@@ -1674,7 +1674,7 @@ export function VisualEngineEditor({
             {activeTool === "offers" && (
               <div className="visual-tool-stack">
                 <label className="field"><span>Dados da oferta</span>
-                  <select className="input" value={offerId} onChange={(e) => { setOfferId(e.target.value); setBindingData(null); }}>
+                  <select aria-label="Dados da oferta" className="input" value={offerId} onChange={(e) => { setOfferId(e.target.value); setBindingData(null); }}>
                     <option value="">Dados de exemplo</option>
                     {offers.items.map((o) => <option key={o.id} value={o.id}>{o.name} · {o.data.offer.price}</option>)}
                   </select>
