@@ -214,12 +214,44 @@ export function VisualEngineEditor({
       .sort((a, b) => b.transform.layer - a.transform.layer);
   const dirty = JSON.stringify(doc) !== saved || category !== savedCategory,
     locked = busy || !editable;
-  const data = {
-    ...(bindingData ??
-      offers.items.find((o) => o.id === offerId)?.data ??
-      demo),
-    brand: { logo: brand.logoUrl ?? "" },
-  };
+  const selectedProduct = products.find((item) => item.id === productId),
+    selectedOfferData = offers.items.find((o) => o.id === offerId)?.data,
+    productPreview = selectedProduct
+      ? {
+          name: selectedProduct.name,
+          brand: selectedProduct.brand ?? "",
+          specification: selectedProduct.specification ?? "",
+          ean: selectedProduct.ean,
+          unit: selectedProduct.unit ?? "",
+          salePrice:
+            selectedProduct.sale_price == null
+              ? ""
+              : Number(selectedProduct.sale_price).toFixed(2).replace(".", ","),
+          image: selectedProduct.image,
+        }
+      : undefined,
+    data = {
+      ...demo,
+      ...(bindingData ?? {}),
+      ...(selectedOfferData ?? {}),
+      product: {
+        ...demo.product,
+        ...(productPreview ?? {}),
+        ...((bindingData?.product as Record<string, unknown> | undefined) ?? {}),
+        ...((selectedOfferData?.product as Record<string, unknown> | undefined) ?? {}),
+      },
+      offer: {
+        ...demo.offer,
+        ...((bindingData?.offer as Record<string, unknown> | undefined) ?? {}),
+        ...((selectedOfferData?.offer as Record<string, unknown> | undefined) ?? {}),
+      },
+      campaign: {
+        ...demo.campaign,
+        ...((bindingData?.campaign as Record<string, unknown> | undefined) ?? {}),
+        ...((selectedOfferData?.campaign as Record<string, unknown> | undefined) ?? {}),
+      },
+      brand: { logo: brand.logoUrl ?? "" },
+    };
   const svgRef = useRef<SVGSVGElement | null>(null),
     viewport = useRef<HTMLDivElement>(null),
     printRefs = useRef<(SVGSVGElement | null)[]>([]),
@@ -1133,17 +1165,6 @@ export function VisualEngineEditor({
     if (!productId) return;
     const product = products.find((item) => item.id === productId);
     if (!product) return;
-    setBindingData({
-      product: {
-        name: product.name,
-        brand: product.brand ?? "",
-        specification: product.specification ?? "",
-        ean: product.ean,
-        unit: product.unit ?? "",
-        salePrice: product.sale_price == null ? "" : Number(product.sale_price).toFixed(2).replace(".", ","),
-        image: product.image,
-      },
-    });
     const unit = page.unit === "mm" ? 0.2 : 1;
     const id = crypto.randomUUID();
     const elements: VisualElement[] = [
