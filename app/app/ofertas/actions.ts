@@ -42,7 +42,8 @@ export async function setOfferActive(formData:FormData){
   const id=String(formData.get("id")??"");
   const active=String(formData.get("active"))==="true";
   const supabase=await createClient();
-  const {error}=await supabase.from("offers").update({active,updated_by:profile.id,updated_at:new Date().toISOString()}).eq("id",id);
+  const {error}=await supabase.rpc("set_offer_active",{p_offer_id:id,p_active:active,p_user_id:profile.id});
   if(error)throw new Error(error.message);
   revalidatePath("/app/ofertas");
+  revalidatePath("/app/campanhas");
 }
