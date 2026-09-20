@@ -773,6 +773,21 @@ export function VisualEngineEditor({
         if (!locked) void save();
         return;
       }
+      if (mod && (key === "+" || key === "=")) {
+        event.preventDefault();
+        setZoom((value) => Math.min(400, value + 10));
+        return;
+      }
+      if (mod && key === "-") {
+        event.preventDefault();
+        setZoom((value) => Math.max(10, value - 10));
+        return;
+      }
+      if (mod && key === "0") {
+        event.preventDefault();
+        fit();
+        return;
+      }
       if (locked || preview) return;
       if (mod && key === "z") {
         event.preventDefault();
@@ -1699,15 +1714,11 @@ export function VisualEngineEditor({
             >
               Preview limpo
             </button>
-            <button className="btn" onClick={fit}>
-              Ajustar à tela
-            </button>
-            <NumberField
-              label="Zoom (%)"
-              value={zoom}
-              min={1}
-              onChange={setZoom}
-            />
+            <div className="visual-zoom-controls" aria-label="Controles de zoom">
+              <button className="btn" title="Reduzir zoom (Ctrl/Cmd+-)" onClick={() => setZoom((value) => Math.max(10, value - 10))}>−</button>
+              <button className="btn visual-zoom-value" title="Ajustar à tela (Ctrl/Cmd+0)" onClick={fit}>{Math.round(zoom)}%</button>
+              <button className="btn" title="Aumentar zoom (Ctrl/Cmd++)" onClick={() => setZoom((value) => Math.min(400, value + 10))}>+</button>
+            </div>
             <label>
               <input
                 type="checkbox"
@@ -1726,6 +1737,11 @@ export function VisualEngineEditor({
           <div
             className="visual-viewport"
             ref={viewport}
+            onWheel={(event) => {
+              if (!(event.ctrlKey || event.metaKey)) return;
+              event.preventDefault();
+              setZoom((value) => Math.max(10, Math.min(400, value + (event.deltaY < 0 ? 10 : -10))));
+            }}
             onPointerDown={(event) => {
               if (space.current || event.button === 1) pan(event);
             }}
@@ -1906,7 +1922,7 @@ export function VisualEngineEditor({
             </div>
           </div>
           <p className="muted">
-            Espaço+arraste para navegar · Alt desativa encaixe · Shift mantém proporção/ângulo · setas movem · Ctrl/Cmd+Z desfaz.
+            Espaço+arraste navega · Ctrl/Cmd+roda ou +/- controla zoom · Ctrl/Cmd+0 ajusta à tela · Alt desativa encaixe · Shift mantém proporção/ângulo · setas movem.
           </p>
           <div className="visual-buttons">
             {[getPage(doc, 0), ...(doc.pages ?? [])].map((p, i) => (
