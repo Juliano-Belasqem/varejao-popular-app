@@ -1732,7 +1732,7 @@ export function VisualEngineEditor({
                 <label className="field"><span>Buscar produto</span>
                   <input className="input" value={productQuery} onChange={(e) => setProductQuery(e.target.value)} placeholder="Nome, marca ou EAN" />
                 </label>
-                <select className="input" aria-label="Produto para inserir" value={productId} onChange={(e) => setProductId(e.target.value)}>
+                <select className="input" aria-label="Produto para inserir" value={productId} onChange={(e) => { setProductId(e.target.value); if (e.target.value) { setOfferId(""); setBindingData(null); } }}>
                   <option value="">Selecione um produto</option>
                   {products.map((product) => (
                     <option key={product.id} value={product.id}>
@@ -1747,7 +1747,7 @@ export function VisualEngineEditor({
             {activeTool === "offers" && (
               <div className="visual-tool-stack">
                 <label className="field"><span>Dados da oferta</span>
-                  <select aria-label="Dados da oferta" className="input" value={offerId} onChange={(e) => { setOfferId(e.target.value); setBindingData(null); }}>
+                  <select aria-label="Dados da oferta" className="input" value={offerId} onChange={(e) => { setOfferId(e.target.value); if (e.target.value) setProductId(""); setBindingData(null); }}>
                     <option value="">Dados de exemplo</option>
                     {offers.items.map((o) => <option key={o.id} value={o.id}>{o.name} · {o.data.offer.price}</option>)}
                   </select>
