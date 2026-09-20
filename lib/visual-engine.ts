@@ -2,7 +2,7 @@ export type VisualElementType = "text" | "image" | "shape" | "barcode" | "group"
 
 export type VisualTransform = {
   x:number; y:number; width:number; height:number;
-  rotation:number; opacity:number; layer:number;
+  rotation:number; opacity:number; layer:number; skewX?:number; skewY?:number;
 };
 
 export type VisualTextStyle = {
@@ -61,10 +61,20 @@ export function validateVisualDocument(value:unknown):VisualDocument{
     if(!el?.id||ids.has(el.id)||!["text","image","shape","barcode","group"].includes(el.type))throw new Error("Elemento visual inválido.");
     ids.add(el.id);
     const t=el.transform;
-    if(!t||![t.x,t.y,t.width,t.height,t.rotation,t.opacity,t.layer].every(finite)||t.width<=0||t.height<=0||t.opacity<0||t.opacity>1)throw new Error(`Transformação inválida: ${el.name||el.id}.`);
+    if(!t||![t.x,t.y,t.width,t.height,t.rotation,t.opacity,t.layer,t.skewX??0,t.skewY??0].every(finite)||t.width<=0||t.height<=0||t.opacity<0||t.opacity>1||!Number.isInteger(t.layer))throw new Error(`Transformação inválida: ${el.name||el.id}.`);
     if(typeof el.visible!=="boolean"||typeof el.locked!=="boolean")throw new Error(`Estado inválido: ${el.name||el.id}.`);
   }
-  for(const el of doc.elements)for(const child of el.children??[])if(!ids.has(child))throw new Error(`Grupo com referência inválida: ${el.name}.`);
+  const groups=new Map(doc.elements.filter(el=>el.type==="group").map(el=>[el.id,el.children??[]]));
+  for(const el of doc.elements)for(const child of el.children??[])if(!ids.has(child)||child===el.id)throw new Error(`Grupo com referência inválida: ${el.name}.`);
+  const visiting=new Set<string>(),visited=new Set<string>();
+  function visit(id:string){
+    if(visiting.has(id))throw new Error("Grupos com referência circular.");
+    if(visited.has(id))return;
+    visiting.add(id);
+    for(const child of groups.get(id)??[])if(groups.has(child))visit(child);
+    visiting.delete(id);visited.add(id);
+  }
+  for(const id of groups.keys())visit(id);
   return doc;
 }
 
