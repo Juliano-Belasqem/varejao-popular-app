@@ -143,6 +143,35 @@ try {
   state = await document();
   assert.ok(state.elements[0].transform.scaleX > 0);
   assert.equal(state.elements.length, 2);
+  await page.locator(".visual-tool-rail button[title=\"Produtos\"]").click();
+  await label("Buscar produto").fill("LEITE");
+  await label("Produto para inserir").selectOption(
+    "00000000-0000-4000-8000-000000000010",
+  );
+  await button("+ Inserir produto vinculado").click();
+  await page
+    .getByRole("status")
+    .filter({ hasText: "LEITE inserido e vinculado" })
+    .waitFor();
+  state = await document();
+  const productGroup = state.elements.find(
+    (element) => element.type === "group" && element.name === "LEITE",
+  );
+  assert.ok(productGroup, "smart product block is inserted");
+  const productChildren = state.elements.filter((element) =>
+    productGroup.children.includes(element.id),
+  );
+  assert.deepEqual(
+    new Set(productChildren.map((element) => element.binding)),
+    new Set([
+      "product.image",
+      "product.name",
+      "product.specification",
+      "product.ean",
+    ]),
+    "smart product block keeps editable data bindings",
+  );
+  await button("Excluir seleção").click();
   await page.locator(".visual-tool-rail button[title=\"Imagens\"]").click();
   await button("+ Quadro de imagem").click();
   await label("Enviar imagem").setInputFiles(
