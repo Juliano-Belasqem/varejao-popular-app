@@ -263,7 +263,7 @@ try {
     .filter({ hasText: "Inserida cópia" })
     .waitFor();
   await page.setViewportSize({ width: 390, height: 844 });
-  await button("Ajustar à tela").click();
+  await page.locator(".visual-zoom-controls button[title^=\"Ajustar à tela\"]").click();
   assert.ok(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth + 1,
