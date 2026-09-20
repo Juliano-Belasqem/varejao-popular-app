@@ -1,0 +1,2 @@
+import {requireProfile} from "@/lib/auth";import {VisualEngineEditor} from "@/components/visual-engine-editor";
+export default async function VisualEditorPage(){await requireProfile();return <><header className="page-head"><div><h1>Motor Visual</h1><div className="muted">Editor universal em construção. Esta base já usa o novo documento visual versionado.</div></div></header><VisualEngineEditor/></>}
