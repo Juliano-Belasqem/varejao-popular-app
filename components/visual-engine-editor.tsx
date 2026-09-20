@@ -179,6 +179,7 @@ export function VisualEngineEditor({
     [preview, setPreview] = useState(false),
     [alignToPage, setAlignToPage] = useState(false),
     [guides, setGuides] = useState<{ x?: number; y?: number }>({}),
+    [centerGuides, setCenterGuides] = useState(true),
     [exportScale, setExportScale] = useState(1),
     [activeTool, setActiveTool] = useState<
       "layers" | "elements" | "text" | "images" | "products" | "offers" | "templates" | "brand" | "uploads"
@@ -1975,6 +1976,15 @@ export function VisualEngineEditor({
               min={0}
               onChange={setGrid}
             />
+            <label>
+              <input
+                aria-label="Guias centrais"
+                type="checkbox"
+                checked={centerGuides}
+                onChange={(e) => setCenterGuides(e.target.checked)}
+              />{" "}
+              Guias centrais
+            </label>
           </div>
           <div
             className="visual-viewport"
@@ -2034,6 +2044,28 @@ export function VisualEngineEditor({
                         fill="url(#visual-grid)"
                         pointerEvents="none"
                       />
+                    )}
+                    {centerGuides && (
+                      <>
+                        <line
+                          x1={page.width / 2}
+                          y1={0}
+                          x2={page.width / 2}
+                          y2={page.height}
+                          className="visual-static-guide"
+                          strokeWidth={0.7 / scale}
+                          pointerEvents="none"
+                        />
+                        <line
+                          x1={0}
+                          y1={page.height / 2}
+                          x2={page.width}
+                          y2={page.height / 2}
+                          className="visual-static-guide"
+                          strokeWidth={0.7 / scale}
+                          pointerEvents="none"
+                        />
+                      </>
                     )}
                     {visible
                       .filter((e) => e.visible)
