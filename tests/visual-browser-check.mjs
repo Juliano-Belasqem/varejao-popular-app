@@ -61,6 +61,10 @@ try {
   assert.equal(await page.locator(".visual-workspace-sidebar-collapsed").count(), 1);
   await page.getByRole("button", { name: "Expandir menu lateral" }).click();
   assert.equal(await page.locator(".visual-workspace-sidebar-collapsed").count(), 0);
+  await page.keyboard.press("Control+\\");
+  assert.equal(await page.locator(".visual-workspace-sidebar-collapsed").count(), 1, "sidebar shortcut collapses the contextual panel");
+  await page.keyboard.press("Control+\\");
+  assert.equal(await page.locator(".visual-workspace-sidebar-collapsed").count(), 0, "sidebar shortcut expands the contextual panel");
   assert.equal(await page.locator(".visual-static-guide").count(), 2);
   await label("Mostrar grade").uncheck();
   assert.equal(await page.locator("#visual-grid").count(), 0);
