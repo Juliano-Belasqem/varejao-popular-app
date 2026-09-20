@@ -1632,6 +1632,18 @@ export function VisualEngineEditor({
               <span>{selected.length === 1 ? names[current?.type ?? "text"] : "Seleção múltipla"}</span>
             </div>
           )}
+          {selected.length > 0 && (
+            <div className="visual-selection-actions" aria-label="Ações da seleção">
+              <button className="btn" disabled={locked} title="Duplicar (Ctrl/Cmd+D)" onClick={duplicate}>Duplicar</button>
+              <button className="btn" disabled={locked} title="Excluir (Delete)" onClick={remove}>Excluir</button>
+              {selected.length > 1 && (
+                <button className="btn" disabled={locked} title="Agrupar (Ctrl/Cmd+G)" onClick={group}>Agrupar</button>
+              )}
+              {selected.length === 1 && current?.type === "group" && (
+                <button className="btn" disabled={locked} title="Desagrupar (Ctrl/Cmd+Shift+G)" onClick={ungroup}>Desagrupar</button>
+              )}
+            </div>
+          )}
           <h3>Alinhar {selected.length > 1 ? "seleção" : "à prancheta"}</h3>
           <label>
             <input
