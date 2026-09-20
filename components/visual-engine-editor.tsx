@@ -644,13 +644,22 @@ export function VisualEngineEditor({
       .filter((e) => !moveIds.includes(e.id) && e.visible)
       .map((e) => bounds(e));
     const parent = parentOf(page, id);
+    const parentWidth =
+        parent?.groupSize?.width ?? parent?.transform.width ?? page.width,
+      parentHeight =
+        parent?.groupSize?.height ?? parent?.transform.height ?? page.height;
     targets.push({
       x: 0,
       y: 0,
-      width: parent?.groupSize?.width ?? parent?.transform.width ?? page.width,
-      height:
-        parent?.groupSize?.height ?? parent?.transform.height ?? page.height,
+      width: parentWidth,
+      height: parentHeight,
     });
+    if (centerGuides) {
+      targets.push(
+        { x: parentWidth / 2, y: 0, width: 0, height: parentHeight },
+        { x: 0, y: parentHeight / 2, width: parentWidth, height: 0 },
+      );
+    }
     startGesture(event, (e) => {
       const cp = canvasPoint(e.clientX, e.clientY),
         p = point(inv, cp.x, cp.y);
@@ -2171,21 +2180,23 @@ export function VisualEngineEditor({
                     >
                       {guides.x !== undefined && (
                         <line
+                          data-snap-guide="x"
                           x1={guides.x}
                           x2={guides.x}
                           y1={-page.height * 5}
                           y2={page.height * 5}
-                          stroke="#e11d48"
+                          className="visual-snap-guide"
                           strokeWidth={1 / scale}
                         />
                       )}
                       {guides.y !== undefined && (
                         <line
+                          data-snap-guide="y"
                           y1={guides.y}
                           y2={guides.y}
                           x1={-page.width * 5}
                           x2={page.width * 5}
-                          stroke="#e11d48"
+                          className="visual-snap-guide"
                           strokeWidth={1 / scale}
                         />
                       )}
