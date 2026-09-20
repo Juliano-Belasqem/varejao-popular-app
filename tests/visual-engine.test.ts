@@ -16,3 +16,17 @@ test("visual engine rejects duplicate element ids",()=>{
   doc.elements=[element,{...element}];
   assert.throws(()=>validateVisualDocument(doc),/Elemento visual inválido/);
 });
+
+import {parseMoney} from "../lib/money";
+
+test("money parser accepts Brazilian and decimal formats",()=>{
+  assert.equal(parseMoney("9,99"),9.99);
+  assert.equal(parseMoney("1.234,56"),1234.56);
+  assert.equal(parseMoney("9.99"),9.99);
+});
+
+test("money parser rejects invalid or negative values",()=>{
+  assert.equal(parseMoney("-1,00"),null);
+  assert.equal(parseMoney("12,345"),null);
+  assert.equal(parseMoney("abc"),null);
+});
