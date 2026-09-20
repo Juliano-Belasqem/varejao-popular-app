@@ -183,10 +183,12 @@ export function VisualEngineEditor({
     [safeArea, setSafeArea] = useState(false),
     [exportScale, setExportScale] = useState(1),
     [activeTool, setActiveTool] = useState<
-      "layers" | "elements" | "text" | "images" | "products" | "offers" | "templates" | "brand" | "uploads"
+      "layers" | "elements" | "text" | "images" | "products" | "offers" | "templates" | "components" | "brand" | "uploads"
     >("layers"),
     [layersOpen, setLayersOpen] = useState(true),
-    [sidebarOpen, setSidebarOpen] = useState(true);
+    [sidebarOpen, setSidebarOpen] = useState(true),
+    [savedComponents, setSavedComponents] = useState<{ id: string; name: string; elements: VisualElement[]; roots: string[] }[]>([]),
+    [componentName, setComponentName] = useState("");
   const [templates, setTemplates] = useState<
       Awaited<ReturnType<typeof listVisualTemplates>>
     >({ items: [], hasMore: false }),
@@ -525,6 +527,21 @@ export function VisualEngineEditor({
   }
   function duplicate() {
     const result = cloneElements(page, selected);
+    siblingsInsert(result.elements, result.ids);
+  }
+  function saveComponent() {
+    const roots = rootSelection(page, selected);
+    if (!roots.length) return;
+    const ids = descendants(page, roots);
+    const elements = page.elements.filter((e) => ids.includes(e.id)).map((e) => structuredClone(e));
+    const name = componentName.trim() || (roots.length === 1 ? page.elements.find((e) => e.id === roots[0])?.name : "") || `Componente ${savedComponents.length + 1}`;
+    setSavedComponents((items) => [...items, { id: crypto.randomUUID(), name, elements, roots }]);
+    setComponentName("");
+    setMessage(`Componente “${name}” salvo nesta sessão.`);
+  }
+  function insertComponent(component: { elements: VisualElement[]; roots: string[] }) {
+    const source: VisualPage = { ...page, elements: component.elements };
+    const result = cloneElements(source, component.roots);
     siblingsInsert(result.elements, result.ids);
   }
   function group() {
@@ -1635,6 +1652,7 @@ export function VisualEngineEditor({
               ["products", "▦", "Produtos"],
               ["offers", "R$", "Ofertas"],
               ["templates", "◇", "Templates"],
+              ["components", "◫", "Componentes"],
               ["brand", "◆", "Marca"],
               ["uploads", "↑", "Uploads"],
             ] as const).map(([tool, icon, label]) => (
@@ -1664,6 +1682,7 @@ export function VisualEngineEditor({
                 products: "Produtos",
                 offers: "Ofertas",
                 templates: "Templates",
+                components: "Componentes",
                 brand: "Marca",
                 uploads: "Uploads",
               } as const)[activeTool]}</h3>
@@ -1778,6 +1797,24 @@ export function VisualEngineEditor({
                   {templates.items.map((t) => <option key={t.id} value={t.id}>{t.name} · v{t.current_version}</option>)}
                 </select>
                 <button className="btn" disabled={!libraryId || locked} onClick={insertTemplate}>Inserir no design</button>
+              </div>
+            )}
+            {activeTool === "components" && (
+              <div className="visual-tool-stack">
+                <label className="field"><span>Nome do componente</span>
+                  <input className="input" aria-label="Nome do componente" value={componentName} onChange={(e) => setComponentName(e.target.value)} placeholder="Ex.: Card de oferta" />
+                </label>
+                <button className="btn" disabled={locked || !selected.length} onClick={saveComponent}>+ Salvar seleção como componente</button>
+                {savedComponents.length ? (
+                  <div className="visual-component-list">
+                    {savedComponents.map((component) => (
+                      <div key={component.id} className="visual-component-item">
+                        <strong>{component.name}</strong>
+                        <button className="btn" disabled={locked} onClick={() => insertComponent(component)}>Inserir</button>
+                      </div>
+                    ))}
+                  </div>
+                ) : <p className="muted">Selecione um ou mais elementos para criar um bloco reutilizável durante esta edição.</p>}
               </div>
             )}
             {activeTool === "brand" && (
