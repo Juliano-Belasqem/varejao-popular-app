@@ -48,3 +48,6 @@
 
 .visual-selection-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:0 0 12px}
 .visual-selection-actions .btn{min-width:0;padding-inline:7px}
+
+/* Editor Visual V2 · Phase 3 canvas precision */
+.visual-static-guide{stroke:#4f8cff;stroke-dasharray:7 5;opacity:.55;vector-effect:non-scaling-stroke}
