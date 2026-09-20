@@ -42,6 +42,7 @@ import {
 import { useBrandKit } from "@/lib/brand-kit/client";
 import {
   listVisualOffers,
+  listVisualProducts,
   listVisualTemplates,
   listVisualVersions,
   loadVisualTemplate,
@@ -179,7 +180,7 @@ export function VisualEngineEditor({
     [guides, setGuides] = useState<{ x?: number; y?: number }>({}),
     [exportScale, setExportScale] = useState(1),
     [activeTool, setActiveTool] = useState<
-      "layers" | "elements" | "text" | "images" | "offers" | "templates" | "brand" | "uploads"
+      "layers" | "elements" | "text" | "images" | "products" | "offers" | "templates" | "brand" | "uploads"
     >("layers"),
     [layersOpen, setLayersOpen] = useState(true);
   const [templates, setTemplates] = useState<
@@ -191,6 +192,11 @@ export function VisualEngineEditor({
       Awaited<ReturnType<typeof listVisualVersions>>
     >({ items: [], hasMore: false }),
     [versionPage, setVersionPage] = useState(0);
+  const [products, setProducts] = useState<
+      Awaited<ReturnType<typeof listVisualProducts>>
+    >([]),
+    [productQuery, setProductQuery] = useState(""),
+    [productId, setProductId] = useState("");
   const [offers, setOffers] = useState<
       Awaited<ReturnType<typeof listVisualOffers>>
     >({ items: [], hasMore: false }),
@@ -240,6 +246,15 @@ export function VisualEngineEditor({
       active = false;
     };
   }, [templatePage]);
+  useEffect(() => {
+    if (activeTool !== "products") return;
+    const timer = window.setTimeout(() => {
+      listVisualProducts(productQuery)
+        .then(setProducts)
+        .catch(fail);
+    }, 180);
+    return () => window.clearTimeout(timer);
+  }, [activeTool, productQuery]);
   useEffect(() => {
     let active = true;
     listVisualOffers(offerPage)
@@ -1114,6 +1129,58 @@ export function VisualEngineEditor({
     commit({ ...pages[0], version: 1, pages: pages.slice(1) });
     selectPage(0);
   }
+  function productComponent() {
+    if (!productId) return;
+    const product = products.find((item) => item.id === productId);
+    if (!product) return;
+    setBindingData({
+      product: {
+        name: product.name,
+        brand: product.brand ?? "",
+        specification: product.specification ?? "",
+        ean: product.ean,
+        unit: product.unit ?? "",
+        salePrice: product.sale_price == null ? "" : Number(product.sale_price).toFixed(2).replace(".", ","),
+        image: product.image,
+      },
+    });
+    const unit = page.unit === "mm" ? 0.2 : 1;
+    const id = crypto.randomUUID();
+    const elements: VisualElement[] = [
+      {
+        id: crypto.randomUUID(), type: "image", name: "Imagem do produto", visible: true, locked: false,
+        binding: "product.image",
+        transform: { x: 0, y: 0, width: 260 * unit, height: 220 * unit, rotation: 0, opacity: 1, layer: 0 },
+      },
+      {
+        id: crypto.randomUUID(), type: "text", name: "Nome do produto", visible: true, locked: false,
+        binding: "product.name",
+        transform: { x: 280 * unit, y: 10 * unit, width: 360 * unit, height: 90 * unit, rotation: 0, opacity: 1, layer: 1 },
+        textStyle: { fontFamily: brand.fieldFonts.body, fontSize: 42 * unit, fontWeight: 800, color: "#111111" },
+      },
+      {
+        id: crypto.randomUUID(), type: "text", name: "Especificação", visible: true, locked: false,
+        binding: "product.specification",
+        transform: { x: 280 * unit, y: 105 * unit, width: 360 * unit, height: 55 * unit, rotation: 0, opacity: 1, layer: 2 },
+        textStyle: { fontFamily: brand.fieldFonts.body, fontSize: 25 * unit, color: "#444444" },
+      },
+      {
+        id: crypto.randomUUID(), type: "barcode", name: "Código de barras", visible: true, locked: false,
+        binding: "product.ean",
+        transform: { x: 280 * unit, y: 165 * unit, width: 240 * unit, height: 70 * unit, rotation: 0, opacity: 1, layer: 3 },
+      },
+    ];
+    siblingsInsert([
+      ...elements,
+      {
+        id, type: "group", name: product.name, visible: true, locked: false,
+        children: elements.map((element) => element.id),
+        groupSize: { width: 650 * unit, height: 240 * unit },
+        transform: { x: 50 * unit, y: 50 * unit, width: 650 * unit, height: 240 * unit, rotation: 0, opacity: 1, layer: 0 },
+      },
+    ], [id]);
+    setMessage(`${product.name} inserido e vinculado aos dados do produto.`);
+  }
   function priceComponent() {
     const unit = page.unit === "mm" ? 0.2 : 1,
       id = crypto.randomUUID(),
@@ -1442,6 +1509,7 @@ export function VisualEngineEditor({
               ["elements", "○", "Elementos"],
               ["text", "T", "Texto"],
               ["images", "▧", "Imagens"],
+              ["products", "▦", "Produtos"],
               ["offers", "R$", "Ofertas"],
               ["templates", "◇", "Templates"],
               ["brand", "◆", "Marca"],
@@ -1464,6 +1532,7 @@ export function VisualEngineEditor({
                 elements: "Elementos",
                 text: "Texto",
                 images: "Imagens",
+                products: "Produtos",
                 offers: "Ofertas",
                 templates: "Templates",
                 brand: "Marca",
@@ -1496,6 +1565,23 @@ export function VisualEngineEditor({
               <div className="visual-tool-grid">
                 <button className="btn" disabled={locked} onClick={() => add("image")}>+ Quadro de imagem</button>
                 <p className="muted">Selecione a imagem para substituir, ajustar ou vincular a fonte nas propriedades.</p>
+              </div>
+            )}
+            {activeTool === "products" && (
+              <div className="visual-tool-stack">
+                <label className="field"><span>Buscar produto</span>
+                  <input className="input" value={productQuery} onChange={(e) => setProductQuery(e.target.value)} placeholder="Nome, marca ou EAN" />
+                </label>
+                <select className="input" aria-label="Produto para inserir" value={productId} onChange={(e) => setProductId(e.target.value)}>
+                  <option value="">Selecione um produto</option>
+                  {products.map((product) => (
+                    <option key={product.id} value={product.id}>
+                      {product.name}{product.brand ? ` · ${product.brand}` : ""}{product.specification ? ` · ${product.specification}` : ""}
+                    </option>
+                  ))}
+                </select>
+                <button className="btn" disabled={!productId || locked} onClick={productComponent}>+ Inserir produto vinculado</button>
+                <p className="muted">Insere imagem, nome, especificação e código de barras como um bloco editável e vinculado.</p>
               </div>
             )}
             {activeTool === "offers" && (
