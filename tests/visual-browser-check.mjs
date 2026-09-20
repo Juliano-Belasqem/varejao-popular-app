@@ -61,9 +61,17 @@ try {
   await label("Mostrar grade").uncheck();
   assert.equal(await page.locator("#visual-grid").count(), 0);
   await label("Mostrar grade").check();
+  await page.keyboard.press("Control+'");
+  assert.equal(await page.locator("#visual-grid").count(), 0);
+  await page.keyboard.press("Control+'");
+  assert.equal(await page.locator("#visual-grid").count(), 1);
   await label("Guias centrais").uncheck();
   assert.equal(await page.locator(".visual-static-guide").count(), 0);
   await label("Guias centrais").check();
+  await page.keyboard.press("Control+;");
+  assert.equal(await page.locator(".visual-static-guide").count(), 0);
+  await page.keyboard.press("Control+;");
+  assert.equal(await page.locator(".visual-static-guide").count(), 2);
   await label("Margem segura").check();
   assert.equal(await page.locator('[data-safe-area="true"]').count(), 1);
   await label("Margem segura").uncheck();
