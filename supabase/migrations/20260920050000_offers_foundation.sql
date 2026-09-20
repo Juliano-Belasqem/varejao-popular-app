@@ -39,21 +39,33 @@ create policy "offers delete editors" on public.offers for delete to authenticat
 alter table public.campaign_items add column offer_id uuid references public.offers(id) on delete set null;
 create unique index campaign_items_offer_id_uidx on public.campaign_items(offer_id) where offer_id is not null;
 
-with inserted as (
-  insert into public.offers(product_id,campaign_id,normal_price,offer_price,unit,starts_on,ends_on,created_by,updated_by)
-  select ci.product_id,ci.campaign_id,ci.normal_price,coalesce(ci.offer_price,ci.normal_price,0),p.unit,c.start_date,c.end_date,c.created_by,c.updated_by
+with source as (
+  select
+    ci.id as campaign_item_id,
+    gen_random_uuid() as offer_id,
+    ci.product_id,
+    ci.campaign_id,
+    ci.normal_price,
+    coalesce(ci.offer_price,ci.normal_price,0) as offer_price,
+    p.unit,
+    c.start_date,
+    c.end_date,
+    c.created_by,
+    c.updated_by
   from public.campaign_items ci
   join public.campaigns c on c.id=ci.campaign_id
   join public.products p on p.id=ci.product_id
-  returning id,product_id,campaign_id,normal_price,offer_price
+),
+inserted as (
+  insert into public.offers(id,product_id,campaign_id,normal_price,offer_price,unit,starts_on,ends_on,created_by,updated_by)
+  select offer_id,product_id,campaign_id,normal_price,offer_price,unit,start_date,end_date,created_by,updated_by
+  from source
+  returning id
 )
 update public.campaign_items ci
-set offer_id=i.id
-from inserted i
-where ci.product_id=i.product_id
-  and ci.campaign_id=i.campaign_id
-  and ci.offer_id is null
-  and ci.normal_price is not distinct from i.normal_price
-  and coalesce(ci.offer_price,ci.normal_price,0)=i.offer_price;
+set offer_id=s.offer_id
+from source s
+join inserted i on i.id=s.offer_id
+where ci.id=s.campaign_item_id;
 
 commit;
