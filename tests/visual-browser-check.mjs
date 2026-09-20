@@ -143,7 +143,8 @@ try {
   state = await document();
   assert.ok(state.elements[0].transform.scaleX > 0);
   assert.equal(state.elements.length, 2);
-  await button("+ Imagem").click();
+  await button("Imagens").click();
+  await button("+ Quadro de imagem").click();
   await label("Enviar imagem").setInputFiles(
     "public/media-templates/validity-background.png",
   );
@@ -153,11 +154,13 @@ try {
     .waitFor();
   await label("Enquadramento").selectOption("cover");
   await label("Recorte horizontal (%)").fill("25");
-  await button("+ Forma").click();
+  await button("Elementos").click();
+  await button("▭ Forma").click();
   await label("Forma").selectOption("ellipse");
-  await button("+ Código de barras").click();
+  await button("▥ Código").click();
   await page.locator('.visual-canvas [aria-label^="EAN-13"]').waitFor();
-  await button("+ Preço segmentado").click();
+  await button("Texto").click();
+  await button("R$ Preço segmentado").click();
   await page
     .locator(".visual-layer-list")
     .getByRole("button", { name: /Preço segmentado/ })
