@@ -1213,6 +1213,11 @@ export function VisualEngineEditor({
             )}
           </select>
         </label>
+        <span className="visual-top-spacer" />
+        <button className="btn" title="Desfazer (Ctrl/Cmd+Z)" disabled={locked || !history.length} onClick={undo}>↶</button>
+        <button className="btn" title="Refazer (Ctrl/Cmd+Y)" disabled={locked || !future.length} onClick={redo}>↷</button>
+        <button className="btn" title="Alternar preview limpo" aria-pressed={preview} onClick={() => setPreview(!preview)}>◉ Preview</button>
+        <button className="btn" title="Exportar PNG" disabled={busy} onClick={() => exportFile("png")}>⇩ Exportar</button>
         <button
           className="btn primary"
           disabled={locked}
@@ -1412,7 +1417,13 @@ export function VisualEngineEditor({
       </details>
       <div className="visual-workspace">
         <aside className="card visual-layers">
-          <h3>Elementos</h3>
+          <div className="visual-tool-rail" aria-label="Ferramentas rápidas">
+            <button title="Adicionar texto" disabled={locked} onClick={() => add("text")}><b>T</b><span>Texto</span></button>
+            <button title="Adicionar imagem" disabled={locked} onClick={() => add("image")}><b>▧</b><span>Imagem</span></button>
+            <button title="Adicionar elemento" disabled={locked} onClick={() => add("shape")}><b>○</b><span>Elemento</span></button>
+            <button title="Adicionar preço segmentado" disabled={locked} onClick={priceComponent}><b>R$</b><span>Preço</span></button>
+          </div>
+          <h3>Camadas</h3>
           <div className="visual-buttons">
             {(["text", "image", "shape", "barcode"] as const).map((type) => (
               <button
@@ -1809,8 +1820,7 @@ export function VisualEngineEditor({
             </div>
           </div>
           <p className="muted">
-            Espaço+arraste para navegar · Alt desativa encaixe durante o arraste
-            · Shift mantém proporção/ângulo · setas movem · Ctrl/Cmd+Z desfaz.
+            Espaço+arraste para navegar · Alt desativa encaixe · Shift mantém proporção/ângulo · setas movem · Ctrl/Cmd+Z desfaz.
           </p>
           <div className="visual-buttons">
             {[getPage(doc, 0), ...(doc.pages ?? [])].map((p, i) => (
