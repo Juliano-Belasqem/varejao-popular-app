@@ -2106,10 +2106,12 @@ export function VisualEngineEditor({
             </button>
             <button
               className="btn"
+              aria-label={preview ? "Sair do preview limpo" : "Preview limpo"}
+              title={preview ? "Sair do preview limpo (Esc)" : "Alternar preview limpo"}
               aria-pressed={preview}
               onClick={() => setPreview(!preview)}
             >
-              Preview limpo
+              {preview ? "Sair do preview" : "Preview limpo"}
             </button>
             <div className="visual-zoom-controls" aria-label="Controles de zoom">
               <button className="btn" title="Reduzir zoom (Ctrl/Cmd+-)" onClick={() => setZoom((value) => Math.max(10, value - 10))}>−</button>
