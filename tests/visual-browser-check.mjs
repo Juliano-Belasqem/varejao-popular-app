@@ -271,7 +271,7 @@ try {
   await button("R$ Preço segmentado").click();
   await page.locator(".visual-tool-rail button[title=\"Componentes\"]").click();
   await label("Nome do componente").fill("Preço reutilizável");
-  await button("+ Salvar seleção como componente").click();
+  await button("+ Salvar nesta sessão").click();
   await page.getByText("Preço reutilizável", { exact: true }).waitFor();
   const beforeComponentInsert = await document();
   await page.locator(".visual-component-item").filter({ hasText: "Preço reutilizável" }).getByRole("button", { name: "Inserir" }).click();
