@@ -219,6 +219,12 @@ try {
   assert.equal(offsetBrandTitle.textStyle.offsetStrokeWidth, 2, "offset stroke preset keeps its own width");
   assert.equal(offsetBrandTitle.textStyle.offsetStrokeX, 5, "offset stroke preset keeps horizontal displacement");
   assert.equal(offsetBrandTitle.textStyle.offsetStrokeY, 5, "offset stroke preset keeps vertical displacement");
+  await button("Remover efeito").click();
+  state = await document();
+  const clearOffsetBrandTitle = state.elements.find((element) => element.id === brandTitle.id);
+  assert.equal(clearOffsetBrandTitle.textStyle.offsetStrokeWidth, 0, "remove offset stroke clears its width");
+  assert.equal(clearOffsetBrandTitle.textStyle.offsetStrokeColor, "transparent", "remove offset stroke clears its color");
+  await button("Aplicar efeito deslocado").click();
   await page.locator("summary").filter({ hasText: /^Fundo, borda e sombra$/ }).click();
   await button("Sombra suave").click();
   state = await document();
