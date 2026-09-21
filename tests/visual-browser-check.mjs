@@ -52,6 +52,17 @@ async function document() {
 try {
   await page.goto(`${base}/app/editor-visual`);
   await button("Salvar template").waitFor();
+  const mainNav = page.getByRole("navigation", { name: "Módulos principais" });
+  assert.equal(await mainNav.getByRole("link", { name: "Motor Visual", exact: true }).getAttribute("aria-current"), "page", "main navigation marks the current module");
+  await button("Recolher menu principal").click();
+  assert.equal(await page.locator(".sidebar-collapsed").count(), 1, "main navigation can collapse");
+  assert.equal(await page.locator(".sidebar-collapsed").getByText("Motor Visual", { exact: true }).count(), 1, "collapsed navigation preserves accessible module labels");
+  await page.reload();
+  await button("Salvar template").waitFor();
+  await page.waitForFunction(() => document.querySelector(".sidebar")?.classList.contains("sidebar-collapsed"));
+  assert.equal(await page.locator(".sidebar-collapsed").count(), 1, "main navigation collapse persists after reload");
+  await button("Expandir menu principal").click();
+  assert.equal(await page.locator(".sidebar-collapsed").count(), 0, "main navigation expands again");
   await button("◉ Preview").click();
   assert.equal(await button("◉ Sair do preview").getAttribute("aria-pressed"), "true", "preview button exposes active state");
   await page.keyboard.press("Escape");
