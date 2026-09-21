@@ -134,6 +134,7 @@ try {
     .locator(".visual-layer-list")
     .getByRole("button", { name: "Produto", exact: true })
     .click();
+  await page.getByText("Dados vinculados", { exact: true }).click();
   await label("Vínculo de dados").fill("");
   await label("Texto livre / alternativa").fill("Oferta especial");
   await label("Rotação").fill("25");
