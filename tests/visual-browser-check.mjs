@@ -113,7 +113,7 @@ try {
     ) < 0.01,
     "free drag converts pixels to document units",
   );
-  await button("Desfazer").click();
+  await page.locator(".visual-editor > .visual-toolbar").getByRole("button", { name: "Desfazer", exact: true }).click();
   await hit.click();
   await label("Bloqueado").check();
   await page.keyboard.press("ArrowRight");
@@ -139,7 +139,7 @@ try {
   await page.mouse.up();
   dragged = await document();
   assert.ok(dragged.elements[0].transform.width > 750);
-  await button("Desfazer").click();
+  await page.locator(".visual-editor > .visual-toolbar").getByRole("button", { name: "Desfazer", exact: true }).click();
   await page
     .locator(".visual-layer-list")
     .getByRole("button", { name: "Produto", exact: true })
@@ -155,14 +155,14 @@ try {
   await label("Rotação").fill("25");
   await label("Espaço entre letras").fill("2");
   await label("Posição X").fill("82");
-  await button("Desfazer").click();
+  await page.locator(".visual-editor > .visual-toolbar").getByRole("button", { name: "Desfazer", exact: true }).click();
   let state = await document();
   assert.equal(
     state.elements[0].transform.x,
     70,
     "undo restores previous coordinates",
   );
-  await button("Refazer").click();
+  await page.locator(".visual-editor > .visual-toolbar").getByRole("button", { name: "Refazer", exact: true }).click();
   state = await document();
   assert.equal(state.elements[0].transform.x, 82);
   await page
