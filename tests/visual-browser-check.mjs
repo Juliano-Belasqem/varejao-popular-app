@@ -383,6 +383,9 @@ try {
   await button("2. Cartaz A4").click();
   assert.equal(await label("Largura da prancheta").inputValue(), "210");
   await button("1. Teste universal").click();
+  const exportText = page.locator('[data-hit-id]').filter({ hasText: "Oferta especial" }).first();
+  await exportText.click();
+  await button("Aplicar efeito deslocado").click();
   await download("Exportar SVG", "visual-export.svg");
   const svg = await readFile("test-results/visual-export.svg", "utf8");
   assert.ok(svg.includes("data:image/png;base64,"));
