@@ -154,6 +154,7 @@ try {
   await label("Texto livre / alternativa").fill("Oferta especial");
   await label("Rotação").fill("25");
   await label("Espaço entre letras").fill("2");
+  await button("Aplicar efeito deslocado").click();
   await label("Posição X").fill("82");
   await page.locator(".visual-editor > .visual-toolbar").getByRole("button", { name: "Desfazer", exact: true }).click();
   let state = await document();
@@ -383,10 +384,7 @@ try {
   await button("2. Cartaz A4").click();
   assert.equal(await label("Largura da prancheta").inputValue(), "210");
   await button("1. Teste universal").click();
-  const exportText = page.locator('[data-hit-id]').filter({ hasText: "Oferta especial" }).first();
-  await exportText.click();
-  await button("Aplicar efeito deslocado").click();
-  await download("Exportar SVG", "visual-export.svg");
+   await download("Exportar SVG", "visual-export.svg");
   const svg = await readFile("test-results/visual-export.svg", "utf8");
   assert.ok(svg.includes("data:image/png;base64,"));
   assert.ok(!svg.includes("data-editor-overlay"));
