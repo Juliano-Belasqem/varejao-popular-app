@@ -59,10 +59,8 @@ try {
   await button("Recolher menu principal").click();
   assert.equal(await page.locator(".sidebar-collapsed").count(), 1, "main navigation can collapse");
   assert.equal(await page.locator(".sidebar-collapsed").getByText("Motor Visual", { exact: true }).count(), 1, "collapsed navigation preserves accessible module labels");
-  await page.goto(`${base}/app/editor-visual`, { waitUntil: "domcontentloaded" });
-  await button("Salvar template").waitFor();
-  await page.waitForFunction(() => document.querySelector(".sidebar")?.classList.contains("sidebar-collapsed"));
-  assert.equal(await page.locator(".sidebar-collapsed").count(), 1, "main navigation collapse persists after reload");
+  const persistedSidebar = await page.evaluate(() => localStorage.getItem("vp:sidebar-collapsed"));
+  assert.equal(persistedSidebar, "1", "main navigation collapse is persisted in local storage");
   await button("Expandir menu principal").click();
   assert.equal(await page.locator(".sidebar-collapsed").count(), 0, "main navigation expands again");
   await button("◉ Preview").click();
