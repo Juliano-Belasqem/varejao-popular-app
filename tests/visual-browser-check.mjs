@@ -457,7 +457,8 @@ try {
     fullPage: true,
   });
   await page.request.get("http://127.0.0.1:54329/__role?role=viewer");
-  await page.reload();
+  await page.reload({ waitUntil: "commit", timeout: 10000 }).catch(() => {});
+  await button("Salvar template").waitFor({ state: "visible" });
   assert.equal(await button("Salvar template").isDisabled(), true);
   const denied = await page.request.post(`${base}/api/visual-assets`, {
     multipart: { file: { name: "x.png", mimeType: "image/png", buffer: png } },
