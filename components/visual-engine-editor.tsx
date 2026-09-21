@@ -1497,8 +1497,9 @@ export function VisualEngineEditor({
         <button className="btn" disabled={locked} onClick={() => save(true)}>
           Salvar como cópia
         </button>
-        <span role="status">
-          {message ||
+        <span role="status" className={`visual-save-status ${busy ? "is-busy" : dirty ? "is-dirty" : "is-saved"}`}>
+          <span className="visual-save-dot" aria-hidden="true" />
+          {busy ? "Processando…" : message ||
             `${dirty ? "Alterações não salvas" : "Salvo"}${version ? ` · v${version}` : ""}`}
         </span>
         {!editable && <span className="pill">Somente leitura</span>}
