@@ -205,6 +205,17 @@ try {
   state = await document();
   const coloredBrandTitle = state.elements.find((element) => element.id === brandTitle.id);
   assert.equal(coloredBrandTitle.textStyle.color, "#2F42A6", "Brand Kit applies the primary color");
+  await button("Aplicar estilo de preço").click();
+  state = await document();
+  const pricedBrandTitle = state.elements.find((element) => element.id === brandTitle.id);
+  assert.equal(pricedBrandTitle.textStyle.fontWeight, 900, "Brand Kit applies the price weight");
+  assert.equal(pricedBrandTitle.textStyle.color, "#2F42A6", "Brand Kit price preset uses the primary color");
+  await button("Excluir seleção").click();
+  await button("+ Preço da marca").click();
+  state = await document();
+  const brandPrice = state.elements.find((element) => element.name === "Preço");
+  assert.ok(brandPrice, "Brand Kit inserts an editable price text");
+  assert.equal(brandPrice.textStyle.fontWeight, 900, "Brand price starts with a strong price style");
   await button("Excluir seleção").click();
   await page.locator(".visual-tool-rail button[title=\"Ofertas\"]").click();
   await label("Dados da oferta").selectOption(
