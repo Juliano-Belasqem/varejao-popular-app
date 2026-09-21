@@ -650,6 +650,10 @@ export function ElementProperties({
                 }
               />
             ))}
+            <div className="visual-tool-grid">
+              <button type="button" className="btn" onClick={() => patch({ decoration: { ...d, shadowColor: "#00000066", shadowBlur: 8, shadowX: 4, shadowY: 4 } })}>Sombra suave</button>
+              <button type="button" className="btn" onClick={() => patch({ decoration: { ...d, shadowColor: "transparent", shadowBlur: 0, shadowX: 0, shadowY: 0 } })}>Remover sombra</button>
+            </div>
           </div>
         </details>
       </fieldset>
