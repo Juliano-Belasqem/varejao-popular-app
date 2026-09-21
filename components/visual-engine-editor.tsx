@@ -1483,9 +1483,9 @@ export function VisualEngineEditor({
           </select>
         </label>
         <span className="visual-top-spacer" />
-        <button className="btn" title="Desfazer (Ctrl/Cmd+Z)" disabled={locked || !history.length} onClick={undo}>↶</button>
-        <button className="btn" title="Refazer (Ctrl/Cmd+Y)" disabled={locked || !future.length} onClick={redo}>↷</button>
-        <button className="btn" title="Alternar preview limpo" aria-pressed={preview} onClick={() => setPreview(!preview)}>◉ Preview</button>
+        <button className="btn visual-icon-btn" aria-label="Desfazer" title="Desfazer (Ctrl/Cmd+Z)" disabled={locked || !history.length} onClick={undo}>↶</button>
+        <button className="btn visual-icon-btn" aria-label="Refazer" title="Refazer (Ctrl/Cmd+Y)" disabled={locked || !future.length} onClick={redo}>↷</button>
+        <button className="btn" title="Alternar preview limpo" aria-pressed={preview} onClick={() => setPreview(!preview)}>{preview ? "◉ Sair do preview" : "◉ Preview"}</button>
         <button className="btn" title="Exportar PNG" disabled={busy} onClick={() => exportFile("png")}>⇩ Exportar</button>
         <button
           className="btn primary"
