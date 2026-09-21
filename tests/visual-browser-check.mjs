@@ -211,7 +211,6 @@ try {
   const pricedBrandTitle = state.elements.find((element) => element.id === brandTitle.id);
   assert.equal(pricedBrandTitle.textStyle.fontWeight, 900, "Brand Kit applies the price weight");
   assert.equal(pricedBrandTitle.textStyle.color, "#2F42A6", "Brand Kit price preset uses the primary color");
-  await page.locator("summary").filter({ hasText: /^Contorno deslocado$/ }).click();
   await button("Aplicar efeito deslocado").click();
   state = await document();
   const offsetBrandTitle = state.elements.find((element) => element.id === brandTitle.id);
