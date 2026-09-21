@@ -470,11 +470,18 @@ try {
     "PASS: editor, undo/redo, affine groups, image persistence, real offer preview, multi-page versions, component reuse, SVG/PNG, mobile and viewer authorization",
   );
 } catch (error) {
-  await page.screenshot({
-    path: "test-results/visual-failure.png",
-    fullPage: true,
-  });
-  console.log(await page.locator(".visual-editor").innerText());
+  try {
+    await page.screenshot({
+      path: "test-results/visual-failure.png",
+      fullPage: true,
+      timeout: 5000,
+    });
+  } catch (screenshotError) {
+    console.warn("Failure screenshot unavailable:", screenshotError.message);
+  }
+  try {
+    console.log(await page.locator(".visual-editor").innerText({ timeout: 5000 }));
+  } catch {}
   throw error;
 } finally {
   await page.request.get("http://127.0.0.1:54329/__role?role=editor");
