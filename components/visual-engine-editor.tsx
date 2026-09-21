@@ -1876,8 +1876,14 @@ export function VisualEngineEditor({
                   <button className="btn visual-brand-color" disabled={locked || !current || (current.type !== "text" && current.type !== "shape")} onClick={() => current?.type === "shape" ? patch({ shape: { ...current.shape!, fill: brand.accentColor } }) : current?.type === "text" ? patch({ textStyle: { ...current.textStyle, color: brand.accentColor } }) : undefined}><span style={{ background: brand.accentColor }} />Destaque</button>
                 </div>
                 <div className="visual-tool-grid"><button className="btn" disabled={locked} onClick={() => addBoundText(undefined, "Título", brand.fieldFonts.title)}>+ Título da marca</button><button className="btn" disabled={locked} onClick={() => addBoundText(undefined, "Texto", brand.fieldFonts.body)}>+ Texto da marca</button></div>
+                <div className="visual-tool-grid">
+                  <button className="btn" disabled={locked} onClick={() => addBoundText(undefined, "Preço", brand.fieldFonts.price)}>+ Preço da marca</button>
+                  <button className="btn" disabled={locked || !current || current.type !== "text"} onClick={() => current?.type === "text" && patch({ textStyle: { ...current.textStyle, fontFamily: brand.fieldFonts.title, fontWeight: 800 } })}>Aplicar estilo de título</button>
+                  <button className="btn" disabled={locked || !current || current.type !== "text"} onClick={() => current?.type === "text" && patch({ textStyle: { ...current.textStyle, fontFamily: brand.fieldFonts.body, fontWeight: 400 } })}>Aplicar estilo de texto</button>
+                  <button className="btn" disabled={locked || !current || current.type !== "text"} onClick={() => current?.type === "text" && patch({ textStyle: { ...current.textStyle, fontFamily: brand.fieldFonts.price, fontWeight: 900, color: brand.primaryColor } })}>Aplicar estilo de preço</button>
+                </div>
                 {brand.logoUrl && <button className="btn" disabled={locked} onClick={() => addBrandLogo(brand.logoUrl!)}>+ Logo da marca</button>}
-                <div className="visual-brand-fonts"><span className="muted">Fontes configuradas</span><strong style={{ fontFamily: brand.fieldFonts.title }}>Título</strong><span style={{ fontFamily: brand.fieldFonts.body }}>Texto principal</span></div>
+                <div className="visual-brand-fonts"><span className="muted">Fontes configuradas</span><strong style={{ fontFamily: brand.fieldFonts.title }}>Título</strong><span style={{ fontFamily: brand.fieldFonts.body }}>Texto principal</span><strong style={{ fontFamily: brand.fieldFonts.price, color: brand.primaryColor }}>Preço · R$ 9,99</strong></div>
               </div>
             )}
             {activeTool === "uploads" && (
