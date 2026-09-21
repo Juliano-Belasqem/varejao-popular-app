@@ -59,7 +59,7 @@ try {
   await button("Recolher menu principal").click();
   assert.equal(await page.locator(".sidebar-collapsed").count(), 1, "main navigation can collapse");
   assert.equal(await page.locator(".sidebar-collapsed").getByText("Motor Visual", { exact: true }).count(), 1, "collapsed navigation preserves accessible module labels");
-  await page.reload();
+  await page.goto(`${base}/app/editor-visual`, { waitUntil: "domcontentloaded" });
   await button("Salvar template").waitFor();
   await page.waitForFunction(() => document.querySelector(".sidebar")?.classList.contains("sidebar-collapsed"));
   assert.equal(await page.locator(".sidebar-collapsed").count(), 1, "main navigation collapse persists after reload");
