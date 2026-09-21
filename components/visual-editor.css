@@ -80,3 +80,5 @@
 .visual-component-actions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}.visual-component-actions .btn{padding:6px 8px;font-size:10px}
 
 .visual-save-status{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-size:11px;color:#aab8c9}.visual-save-dot{width:7px;height:7px;border-radius:50%;background:#6f8196}.visual-save-status.is-saved .visual-save-dot{background:#56c596}.visual-save-status.is-dirty .visual-save-dot{background:#ffb454}.visual-save-status.is-busy .visual-save-dot{background:#77a7ff;animation:visual-status-pulse .9s ease-in-out infinite}@keyframes visual-status-pulse{50%{opacity:.3;transform:scale(.8)}}
+
+.visual-icon-btn{min-width:34px;padding-inline:8px;font-size:16px}.visual-toolbar .btn[aria-pressed=true]{border-color:#5d86c8;background:#182a43;color:#dceaff}
