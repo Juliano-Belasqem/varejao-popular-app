@@ -52,6 +52,10 @@ async function document() {
 try {
   await page.goto(`${base}/app/editor-visual`);
   await button("Salvar template").waitFor();
+  await button("◉ Preview").click();
+  assert.equal(await button("◉ Sair do preview").getAttribute("aria-pressed"), "true", "preview button exposes active state");
+  await page.keyboard.press("Escape");
+  await button("◉ Preview").waitFor();
   await page
     .locator(".visual-canvas text")
     .filter({ hasText: "Produto de exemplo" })
