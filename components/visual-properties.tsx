@@ -464,6 +464,27 @@ export function ElementProperties({
                 patch({ textStyle: { ...s, strokeWidth } })
               }
             />
+            <details className="visual-property-section">
+              <summary>Contorno deslocado</summary>
+              <div className="visual-fields">
+                <ColorField
+                  label="Cor do contorno deslocado"
+                  value={s.offsetStrokeColor ?? "transparent"}
+                  onChange={(offsetStrokeColor) => patch({ textStyle: { ...s, offsetStrokeColor } })}
+                />
+                <NumberField
+                  label="Espessura do contorno deslocado"
+                  min={0}
+                  value={s.offsetStrokeWidth ?? 0}
+                  onChange={(offsetStrokeWidth) => patch({ textStyle: { ...s, offsetStrokeWidth } })}
+                />
+                <div className="visual-pair">
+                  <NumberField label="Deslocamento X" value={s.offsetStrokeX ?? 0} onChange={(offsetStrokeX) => patch({ textStyle: { ...s, offsetStrokeX } })} />
+                  <NumberField label="Deslocamento Y" value={s.offsetStrokeY ?? 0} onChange={(offsetStrokeY) => patch({ textStyle: { ...s, offsetStrokeY } })} />
+                </div>
+                <button type="button" className="btn" onClick={() => patch({ textStyle: { ...s, offsetStrokeColor: "#667085", offsetStrokeWidth: Math.max(2, s.strokeWidth ?? 2), offsetStrokeX: 5, offsetStrokeY: 5 } })}>Aplicar efeito deslocado</button>
+              </div>
+            </details>
           </details>
         )}
         {e.type === "image" && (
