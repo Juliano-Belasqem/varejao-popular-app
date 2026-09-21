@@ -464,7 +464,7 @@ export function ElementProperties({
                 patch({ textStyle: { ...s, strokeWidth } })
               }
             />
-            <details className="visual-property-section">
+            <details className="visual-property-section" open>
               <summary>Contorno deslocado</summary>
               <div className="visual-fields">
                 <ColorField
