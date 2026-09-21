@@ -330,6 +330,18 @@ try {
   await page.locator(".visual-component-item").filter({ hasText: "Preço reutilizável" }).getByRole("button", { name: "Inserir" }).click();
   const afterComponentInsert = await document();
   assert.ok(afterComponentInsert.elements.length > beforeComponentInsert.elements.length, "saved component inserts a cloned editable block");
+  page.once("dialog", async (dialog) => {
+    assert.equal(dialog.type(), "prompt");
+    await dialog.accept("Preço promocional");
+  });
+  await page.getByRole("button", { name: "Renomear componente rápido Preço reutilizável" }).click();
+  await page.getByText("Preço promocional", { exact: true }).waitFor();
+  page.once("dialog", async (dialog) => {
+    assert.equal(dialog.type(), "confirm");
+    await dialog.accept();
+  });
+  await page.getByRole("button", { name: "Remover componente rápido Preço promocional" }).click();
+  assert.equal(await page.getByText("Preço promocional", { exact: true }).count(), 0, "quick component can be removed from the session");
   await page.locator(".visual-tool-rail button[title=\"Camadas\"]").click();
   await page
     .locator(".visual-layer-list")
