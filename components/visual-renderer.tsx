@@ -260,6 +260,29 @@ function ElementContent({
           <rect width={t.width} height={t.height} />
         </clipPath>
       </defs>
+      {(style.offsetStrokeWidth ?? 0) > 0 && style.offsetStrokeColor !== "transparent" && (
+        <text
+          clipPath={`url(#${prefix}-text)`}
+          x={x + (style.offsetStrokeX ?? 0)}
+          fontFamily={style.fontFamily ?? "Arial"}
+          fontSize={fontSize}
+          fontWeight={style.fontWeight ?? 400}
+          fontStyle={style.fontStyle ?? "normal"}
+          textAnchor={style.textAlign === "center" ? "middle" : style.textAlign === "right" ? "end" : "start"}
+          fill="transparent"
+          letterSpacing={spacing}
+          stroke={style.offsetStrokeColor ?? "#667085"}
+          strokeWidth={style.offsetStrokeWidth ?? 0}
+          paintOrder="stroke"
+          xmlSpace="preserve"
+        >
+          {lines.map((line, i) => (
+            <tspan key={i} x={x + (style.offsetStrokeX ?? 0)} y={fontSize * 0.85 + i * fontSize * (style.lineHeight ?? 1.15) + (style.offsetStrokeY ?? 0)}>
+              {line || " "}
+            </tspan>
+          ))}
+        </text>
+      )}
       <text
         clipPath={`url(#${prefix}-text)`}
         x={x}
