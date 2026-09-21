@@ -387,6 +387,8 @@ try {
   const svg = await readFile("test-results/visual-export.svg", "utf8");
   assert.ok(svg.includes("data:image/png;base64,"));
   assert.ok(!svg.includes("data-editor-overlay"));
+  assert.ok(svg.includes('stroke="#667085"'), "SVG export preserves linked offset text stroke");
+  assert.ok(svg.includes('transform="translate(5 5)"') || svg.includes('x="'), "SVG export preserves offset text positioning");
   await download("Exportar PNG", "visual-export.png");
   const png = await readFile("test-results/visual-export.png");
   assert.equal(png.readUInt32BE(16), 1080);
