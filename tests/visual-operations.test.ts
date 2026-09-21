@@ -197,3 +197,20 @@ test("EAN13 produces guard bars, 95 modules and validates checksum", () => {
   assert.equal(ean13("4006381333932"), null);
   assert.equal(ean13("12"), null);
 });
+
+test("validates linked offset text stroke", () => {
+  const doc = createVisualDocument("Offset stroke");
+  doc.elements.push({
+    id: "text-offset",
+    type: "text",
+    name: "Título",
+    visible: true,
+    locked: false,
+    text: "TORDILHO",
+    transform: { x: 10, y: 10, width: 400, height: 100, rotation: 0, opacity: 1, layer: 0 },
+    textStyle: { color: "#ffffff", strokeColor: "#ff8a1f", strokeWidth: 2, offsetStrokeColor: "#667085", offsetStrokeWidth: 3, offsetStrokeX: 5, offsetStrokeY: 5 },
+  });
+  assert.equal(validateVisualDocument(doc).elements[0].textStyle?.offsetStrokeX, 5);
+  doc.elements[0].textStyle!.offsetStrokeColor = "not-a-color";
+  assert.throws(() => validateVisualDocument(doc), /Cor inválida/);
+});
