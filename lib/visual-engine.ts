@@ -26,6 +26,10 @@ export type VisualTextStyle = {
   lineHeight?: number;
   strokeColor?: string;
   strokeWidth?: number;
+  offsetStrokeColor?: string;
+  offsetStrokeWidth?: number;
+  offsetStrokeX?: number;
+  offsetStrokeY?: number;
   shadowColor?: string;
   shadowBlur?: number;
   shadowX?: number;
@@ -256,6 +260,9 @@ export function validateVisualDocument(value: unknown): VisualDocument {
         "letterSpacing",
         "lineHeight",
         "strokeWidth",
+        "offsetStrokeWidth",
+        "offsetStrokeX",
+        "offsetStrokeY",
         "shadowBlur",
         "shadowX",
         "shadowY",
@@ -301,7 +308,7 @@ export function validateVisualDocument(value: unknown): VisualDocument {
       if (style)
         for (const [key, value] of Object.entries(style))
           if (
-            ["color", "fill", "stroke", "strokeColor", "shadowColor"].includes(
+            ["color", "fill", "stroke", "strokeColor", "offsetStrokeColor", "shadowColor"].includes(
               key,
             ) &&
             !validColor(value)
