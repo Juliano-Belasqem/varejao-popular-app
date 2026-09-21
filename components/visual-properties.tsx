@@ -255,7 +255,9 @@ export function ElementProperties({
           value={e.name}
           onChange={(name) => patch({ name })}
         />
-        <div className="visual-pair">
+        <details className="visual-property-section" open>
+          <summary>Transformação</summary>
+          <div className="visual-pair">
           {(
             [
               ["x", "Posição X"],
@@ -290,8 +292,11 @@ export function ElementProperties({
               onChange={(value) => patch({ transform: { ...t, [key]: value } })}
             />
           ))}
-        </div>
+          </div>
+        </details>
         {e.type !== "group" && e.type !== "shape" && (
+          <details className="visual-property-section">
+            <summary>Dados vinculados</summary>
           <label className="field">
             <span>Vínculo de dados</span>
             <input
@@ -308,8 +313,11 @@ export function ElementProperties({
               ))}
             </datalist>
           </label>
+          </details>
         )}
         {(e.type === "text" || e.type === "barcode") && (
+          <details className="visual-property-section" open>
+            <summary>{e.type === "barcode" ? "Código de barras" : "Texto"}</summary>
           <label className="field">
             <span>
               {e.type === "barcode"
@@ -328,9 +336,11 @@ export function ElementProperties({
               onChange={(event) => patch({ text: event.target.value })}
             />
           </label>
+          </details>
         )}
         {e.type === "text" && (
-          <>
+          <details className="visual-property-section" open>
+            <summary>Tipografia</summary>
             <TextField
               label="Família da fonte"
               value={s.fontFamily ?? "Arial"}
@@ -454,10 +464,11 @@ export function ElementProperties({
                 patch({ textStyle: { ...s, strokeWidth } })
               }
             />
-          </>
+          </details>
         )}
         {e.type === "image" && (
-          <>
+          <details className="visual-property-section" open>
+            <summary>Imagem</summary>
             <label className="field">
               <span>Enviar imagem</span>
               <input
@@ -512,10 +523,11 @@ export function ElementProperties({
                 })
               }
             />
-          </>
+          </details>
         )}
         {e.type === "shape" && (
-          <>
+          <details className="visual-property-section" open>
+            <summary>Forma</summary>
             <label className="field">
               <span>Forma</span>
               <select
@@ -562,9 +574,9 @@ export function ElementProperties({
                 patch({ shape: { ...shape, borderRadius } })
               }
             />
-          </>
+          </details>
         )}
-        <details>
+        <details className="visual-property-section">
           <summary>Fundo, borda e sombra</summary>
           <div className="visual-fields">
             <ColorField
