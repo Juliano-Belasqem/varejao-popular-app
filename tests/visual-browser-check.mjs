@@ -210,6 +210,14 @@ try {
   const pricedBrandTitle = state.elements.find((element) => element.id === brandTitle.id);
   assert.equal(pricedBrandTitle.textStyle.fontWeight, 900, "Brand Kit applies the price weight");
   assert.equal(pricedBrandTitle.textStyle.color, "#2F42A6", "Brand Kit price preset uses the primary color");
+  await page.getByText("Contorno deslocado", { exact: true }).click();
+  await button("Aplicar efeito deslocado").click();
+  state = await document();
+  const offsetBrandTitle = state.elements.find((element) => element.id === brandTitle.id);
+  assert.equal(offsetBrandTitle.textStyle.offsetStrokeColor, "#667085", "offset stroke preset keeps its own color");
+  assert.equal(offsetBrandTitle.textStyle.offsetStrokeWidth, 2, "offset stroke preset keeps its own width");
+  assert.equal(offsetBrandTitle.textStyle.offsetStrokeX, 5, "offset stroke preset keeps horizontal displacement");
+  assert.equal(offsetBrandTitle.textStyle.offsetStrokeY, 5, "offset stroke preset keeps vertical displacement");
   await button("Excluir seleção").click();
   await button("+ Preço da marca").click();
   state = await document();
