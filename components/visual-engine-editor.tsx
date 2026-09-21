@@ -854,7 +854,12 @@ export function VisualEngineEditor({
       }
       if (event.key === "Escape") {
         gesture.current?.();
-        setSelected([]);
+        if (preview) {
+          setPreview(false);
+          setMessage("Preview encerrado.");
+        } else {
+          setSelected([]);
+        }
         return;
       }
       const mod = event.ctrlKey || event.metaKey,
@@ -1485,7 +1490,7 @@ export function VisualEngineEditor({
         <span className="visual-top-spacer" />
         <button className="btn visual-icon-btn" aria-label="Desfazer" title="Desfazer (Ctrl/Cmd+Z)" disabled={locked || !history.length} onClick={undo}>↶</button>
         <button className="btn visual-icon-btn" aria-label="Refazer" title="Refazer (Ctrl/Cmd+Y)" disabled={locked || !future.length} onClick={redo}>↷</button>
-        <button className="btn" title="Alternar preview limpo" aria-pressed={preview} onClick={() => setPreview(!preview)}>{preview ? "◉ Sair do preview" : "◉ Preview"}</button>
+        <button className="btn" title={preview ? "Sair do preview (Esc)" : "Alternar preview limpo"} aria-pressed={preview} onClick={() => setPreview(!preview)}>{preview ? "◉ Sair do preview" : "◉ Preview"}</button>
         <button className="btn" title="Exportar PNG" disabled={busy} onClick={() => exportFile("png")}>⇩ Exportar</button>
         <button
           className="btn primary"
