@@ -33,7 +33,9 @@ await mkdir("test-results", { recursive: true });
 const page = await context.newPage(),
   errors = [];
 page.on("pageerror", (error) => errors.push(error.message));
-page.on("dialog", (dialog) => dialog.accept());
+page.on("dialog", (dialog) => {
+  if (dialog.type() === "alert") void dialog.accept();
+});
 const label = (name) => page.getByLabel(name, { exact: true });
 const button = (name) => page.getByRole("button", { name, exact: true });
 async function download(name, filename) {
