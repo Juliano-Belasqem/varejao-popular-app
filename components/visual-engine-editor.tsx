@@ -547,6 +547,17 @@ export function VisualEngineEditor({
     const result = cloneElements(source, component.roots);
     siblingsInsert(result.elements, result.ids);
   }
+  function renameQuickComponent(id: string, currentName: string) {
+    const next = window.prompt("Novo nome do componente rápido", currentName)?.trim();
+    if (!next || next === currentName) return;
+    setSavedComponents((items) => items.map((item) => item.id === id ? { ...item, name: next } : item));
+    setMessage(`Componente rápido renomeado para “${next}”.`);
+  }
+  function removeQuickComponent(id: string, name: string) {
+    if (!window.confirm(`Remover o componente rápido “${name}” desta sessão?`)) return;
+    setSavedComponents((items) => items.filter((item) => item.id !== id));
+    setMessage(`Componente rápido “${name}” removido.`);
+  }
   function group() {
     operate(() => {
       const id = crypto.randomUUID(),
@@ -1844,8 +1855,12 @@ export function VisualEngineEditor({
                   <div className="visual-component-list">
                     {savedComponents.map((component) => (
                       <div key={component.id} className="visual-component-item">
-                        <strong>{component.name}</strong>
-                        <button className="btn" disabled={locked} onClick={() => insertComponent(component)}>Inserir</button>
+                        <div><strong>{component.name}</strong><span className="muted">sessão</span></div>
+                        <div className="visual-component-actions">
+                          <button className="btn" disabled={locked} onClick={() => insertComponent(component)}>Inserir</button>
+                          <button className="btn" aria-label={`Renomear componente rápido ${component.name}`} onClick={() => renameQuickComponent(component.id, component.name)}>Renomear</button>
+                          <button className="btn" aria-label={`Remover componente rápido ${component.name}`} onClick={() => removeQuickComponent(component.id, component.name)}>Remover</button>
+                        </div>
                       </div>
                     ))}
                   </div>
