@@ -28,3 +28,5 @@
 @media screen and (max-width:900px){.sidebar,.sidebar.sidebar-collapsed{width:auto;padding:12px}.sidebar-head{display:flex}.sidebar .sidebar-head .brand{margin:0 0 10px}.sidebar .brand-full{display:inline}.sidebar .brand-compact,.sidebar .sidebar-toggle{display:none}.sidebar .nav a{justify-content:flex-start}.sidebar .nav-label{display:inline}.sidebar .nav-icon{display:none}}
 
 @media screen and (max-width:900px){.shell{min-width:0;overflow-x:hidden}.sidebar{min-width:0;max-width:100vw}.sidebar .nav{min-width:0;max-width:100%;scrollbar-width:thin}.main{width:100%;max-width:100vw;overflow-x:hidden}}
+
+.sidebar .nav a.active{background:var(--panel-2);color:#fff;box-shadow:inset 3px 0 0 var(--orange)}.sidebar .nav a.active .nav-icon{color:var(--orange)}.sidebar-collapsed .nav a.active{box-shadow:inset 0 -3px 0 var(--orange)}
