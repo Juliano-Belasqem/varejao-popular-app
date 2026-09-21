@@ -482,7 +482,10 @@ export function ElementProperties({
                   <NumberField label="Deslocamento X" value={s.offsetStrokeX ?? 0} onChange={(offsetStrokeX) => patch({ textStyle: { ...s, offsetStrokeX } })} />
                   <NumberField label="Deslocamento Y" value={s.offsetStrokeY ?? 0} onChange={(offsetStrokeY) => patch({ textStyle: { ...s, offsetStrokeY } })} />
                 </div>
-                <button type="button" className="btn" onClick={() => patch({ textStyle: { ...s, offsetStrokeColor: "#667085", offsetStrokeWidth: Math.max(2, s.strokeWidth ?? 2), offsetStrokeX: 5, offsetStrokeY: 5 } })}>Aplicar efeito deslocado</button>
+                <div className="visual-tool-grid">
+                  <button type="button" className="btn" onClick={() => patch({ textStyle: { ...s, offsetStrokeColor: "#667085", offsetStrokeWidth: Math.max(2, s.strokeWidth ?? 2), offsetStrokeX: 5, offsetStrokeY: 5 } })}>Aplicar efeito deslocado</button>
+                  <button type="button" className="btn" onClick={() => patch({ textStyle: { ...s, offsetStrokeColor: "transparent", offsetStrokeWidth: 0, offsetStrokeX: 0, offsetStrokeY: 0 } })}>Remover efeito</button>
+                </div>
               </div>
             </details>
           </details>
