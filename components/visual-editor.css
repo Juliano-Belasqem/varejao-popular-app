@@ -74,3 +74,5 @@
 /* Editor Visual V2 · Phase 5 component library */
 .visual-component-item>div{min-width:0;display:grid;gap:2px}.visual-component-item>div .muted{font-size:10px}
 .visual-component-actions{display:flex;gap:5px;flex-wrap:wrap}.visual-component-actions .btn{padding:5px 7px;font-size:11px}
+
+.visual-property-section{border:1px solid #29364b;border-radius:9px;background:#111824;overflow:hidden}.visual-property-section>summary{cursor:pointer;padding:9px 10px;font-size:11px;font-weight:800;color:#c8d5e5;user-select:none}.visual-property-section[open]>summary{border-bottom:1px solid #29364b}.visual-property-section>.visual-pair,.visual-property-section>.field,.visual-property-section>.visual-fields,.visual-property-section>label:not(.field),.visual-property-section>.visual-color{margin:9px 10px}.visual-property-section>.visual-pair{width:auto}
