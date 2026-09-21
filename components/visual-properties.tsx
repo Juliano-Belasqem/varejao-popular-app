@@ -255,7 +255,9 @@ export function ElementProperties({
           value={e.name}
           onChange={(name) => patch({ name })}
         />
-        <div className="visual-pair">
+        <details className="visual-property-section" open>
+          <summary>Transformação</summary>
+          <div className="visual-pair">
           {(
             [
               ["x", "Posição X"],
@@ -290,8 +292,11 @@ export function ElementProperties({
               onChange={(value) => patch({ transform: { ...t, [key]: value } })}
             />
           ))}
-        </div>
+          </div>
+        </details>
         {e.type !== "group" && e.type !== "shape" && (
+          <details className="visual-property-section">
+            <summary>Dados vinculados</summary>
           <label className="field">
             <span>Vínculo de dados</span>
             <input
@@ -308,8 +313,11 @@ export function ElementProperties({
               ))}
             </datalist>
           </label>
+          </details>
         )}
         {(e.type === "text" || e.type === "barcode") && (
+          <details className="visual-property-section" open>
+            <summary>{e.type === "barcode" ? "Código de barras" : "Texto"}</summary>
           <label className="field">
             <span>
               {e.type === "barcode"
@@ -328,9 +336,11 @@ export function ElementProperties({
               onChange={(event) => patch({ text: event.target.value })}
             />
           </label>
+          </details>
         )}
         {e.type === "text" && (
-          <>
+          <details className="visual-property-section" open>
+            <summary>Tipografia</summary>
             <TextField
               label="Família da fonte"
               value={s.fontFamily ?? "Arial"}
@@ -454,10 +464,35 @@ export function ElementProperties({
                 patch({ textStyle: { ...s, strokeWidth } })
               }
             />
-          </>
+            <details className="visual-property-section" open>
+              <summary>Contorno deslocado</summary>
+              <div className="visual-fields">
+                <ColorField
+                  label="Cor do contorno deslocado"
+                  value={s.offsetStrokeColor ?? "transparent"}
+                  onChange={(offsetStrokeColor) => patch({ textStyle: { ...s, offsetStrokeColor } })}
+                />
+                <NumberField
+                  label="Espessura do contorno deslocado"
+                  min={0}
+                  value={s.offsetStrokeWidth ?? 0}
+                  onChange={(offsetStrokeWidth) => patch({ textStyle: { ...s, offsetStrokeWidth } })}
+                />
+                <div className="visual-pair">
+                  <NumberField label="Deslocamento X" value={s.offsetStrokeX ?? 0} onChange={(offsetStrokeX) => patch({ textStyle: { ...s, offsetStrokeX } })} />
+                  <NumberField label="Deslocamento Y" value={s.offsetStrokeY ?? 0} onChange={(offsetStrokeY) => patch({ textStyle: { ...s, offsetStrokeY } })} />
+                </div>
+                <div className="visual-tool-grid">
+                  <button type="button" className="btn" onClick={() => patch({ textStyle: { ...s, offsetStrokeColor: "#667085", offsetStrokeWidth: Math.max(2, s.strokeWidth ?? 2), offsetStrokeX: 5, offsetStrokeY: 5 } })}>Aplicar efeito deslocado</button>
+                  <button type="button" className="btn" onClick={() => patch({ textStyle: { ...s, offsetStrokeColor: "transparent", offsetStrokeWidth: 0, offsetStrokeX: 0, offsetStrokeY: 0 } })}>Remover efeito</button>
+                </div>
+              </div>
+            </details>
+          </details>
         )}
         {e.type === "image" && (
-          <>
+          <details className="visual-property-section" open>
+            <summary>Imagem</summary>
             <label className="field">
               <span>Enviar imagem</span>
               <input
@@ -512,10 +547,11 @@ export function ElementProperties({
                 })
               }
             />
-          </>
+          </details>
         )}
         {e.type === "shape" && (
-          <>
+          <details className="visual-property-section" open>
+            <summary>Forma</summary>
             <label className="field">
               <span>Forma</span>
               <select
@@ -562,9 +598,9 @@ export function ElementProperties({
                 patch({ shape: { ...shape, borderRadius } })
               }
             />
-          </>
+          </details>
         )}
-        <details>
+        <details className="visual-property-section">
           <summary>Fundo, borda e sombra</summary>
           <div className="visual-fields">
             <ColorField
@@ -617,6 +653,10 @@ export function ElementProperties({
                 }
               />
             ))}
+            <div className="visual-tool-grid">
+              <button type="button" className="btn" onClick={() => patch({ decoration: { ...d, shadowColor: "#00000066", shadowBlur: 8, shadowX: 4, shadowY: 4 } })}>Sombra suave</button>
+              <button type="button" className="btn" onClick={() => patch({ decoration: { ...d, shadowColor: "transparent", shadowBlur: 0, shadowX: 0, shadowY: 0 } })}>Remover sombra</button>
+            </div>
           </div>
         </details>
       </fieldset>

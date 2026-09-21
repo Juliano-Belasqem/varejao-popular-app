@@ -43,6 +43,8 @@ import { useBrandKit } from "@/lib/brand-kit/client";
 import {
   listVisualOffers,
   listVisualProducts,
+  renameVisualTemplate,
+  archiveVisualTemplate,
   listVisualTemplates,
   listVisualVersions,
   loadVisualTemplate,
@@ -188,7 +190,8 @@ export function VisualEngineEditor({
     [layersOpen, setLayersOpen] = useState(true),
     [sidebarOpen, setSidebarOpen] = useState(true),
     [savedComponents, setSavedComponents] = useState<{ id: string; name: string; elements: VisualElement[]; roots: string[] }[]>([]),
-    [componentName, setComponentName] = useState("");
+    [componentName, setComponentName] = useState(""),
+    [componentQuery, setComponentQuery] = useState("");
   const [templates, setTemplates] = useState<
       Awaited<ReturnType<typeof listVisualTemplates>>
     >({ items: [], hasMore: false }),
@@ -544,6 +547,17 @@ export function VisualEngineEditor({
     const result = cloneElements(source, component.roots);
     siblingsInsert(result.elements, result.ids);
   }
+  function renameQuickComponent(id: string, currentName: string) {
+    const next = window.prompt("Novo nome do componente rápido", currentName)?.trim();
+    if (!next || next === currentName) return;
+    setSavedComponents((items) => items.map((item) => item.id === id ? { ...item, name: next } : item));
+    setMessage(`Componente rápido renomeado para “${next}”.`);
+  }
+  function removeQuickComponent(id: string, name: string) {
+    if (!window.confirm(`Remover o componente rápido “${name}” desta sessão?`)) return;
+    setSavedComponents((items) => items.filter((item) => item.id !== id));
+    setMessage(`Componente rápido “${name}” removido.`);
+  }
   function group() {
     operate(() => {
       const id = crypto.randomUUID(),
@@ -840,7 +854,12 @@ export function VisualEngineEditor({
       }
       if (event.key === "Escape") {
         gesture.current?.();
-        setSelected([]);
+        if (preview) {
+          setPreview(false);
+          setMessage("Preview encerrado.");
+        } else {
+          setSelected([]);
+        }
         return;
       }
       const mod = event.ctrlKey || event.metaKey,
@@ -1029,11 +1048,31 @@ export function VisualEngineEditor({
       setBusy(false);
     }
   }
-  async function insertTemplate() {
-    if (!libraryId || locked) return;
+  async function renameLibraryComponent(id: string, currentName: string) {
+    const name = window.prompt("Novo nome do componente", currentName)?.trim();
+    if (!name || name === currentName) return;
     setBusy(true);
     try {
-      const result = await loadVisualTemplate(libraryId),
+      await renameVisualTemplate(id, name);
+      setTemplates(await listVisualTemplates(templatePage));
+      setMessage(`Componente renomeado para “${name}”.`);
+    } catch (e) { fail(e); } finally { setBusy(false); }
+  }
+  async function archiveLibraryComponent(id: string, name: string) {
+    if (!window.confirm(`Remover “${name}” da biblioteca? O histórico salvo será preservado.`)) return;
+    setBusy(true);
+    try {
+      await archiveVisualTemplate(id);
+      if (libraryId === id) setLibraryId("");
+      setTemplates(await listVisualTemplates(templatePage));
+      setMessage(`Componente “${name}” removido da biblioteca.`);
+    } catch (e) { fail(e); } finally { setBusy(false); }
+  }
+  async function insertTemplate(templateToInsert = libraryId) {
+    if (!templateToInsert || locked) return;
+    setBusy(true);
+    try {
+      const result = await loadVisualTemplate(templateToInsert),
         p = getPage(result.document, 0),
         roots = p.elements.filter((e) => !parentOf(p, e.id)).map((e) => e.id),
         copy = cloneElements(p, roots);
@@ -1449,9 +1488,9 @@ export function VisualEngineEditor({
           </select>
         </label>
         <span className="visual-top-spacer" />
-        <button className="btn" title="Desfazer (Ctrl/Cmd+Z)" disabled={locked || !history.length} onClick={undo}>↶</button>
-        <button className="btn" title="Refazer (Ctrl/Cmd+Y)" disabled={locked || !future.length} onClick={redo}>↷</button>
-        <button className="btn" title="Alternar preview limpo" aria-pressed={preview} onClick={() => setPreview(!preview)}>◉ Preview</button>
+        <button className="btn visual-icon-btn" aria-label="Desfazer" title="Desfazer (Ctrl/Cmd+Z)" disabled={locked || !history.length} onClick={undo}>↶</button>
+        <button className="btn visual-icon-btn" aria-label="Refazer" title="Refazer (Ctrl/Cmd+Y)" disabled={locked || !future.length} onClick={redo}>↷</button>
+        <button className="btn" title={preview ? "Sair do preview (Esc)" : "Alternar preview limpo"} aria-pressed={preview} onClick={() => setPreview(!preview)}>{preview ? "◉ Sair do preview" : "◉ Preview"}</button>
         <button className="btn" title="Exportar PNG" disabled={busy} onClick={() => exportFile("png")}>⇩ Exportar</button>
         <button
           className="btn primary"
@@ -1463,8 +1502,9 @@ export function VisualEngineEditor({
         <button className="btn" disabled={locked} onClick={() => save(true)}>
           Salvar como cópia
         </button>
-        <span role="status">
-          {message ||
+        <span role="status" className={`visual-save-status ${busy ? "is-busy" : dirty ? "is-dirty" : "is-saved"}`}>
+          <span className="visual-save-dot" aria-hidden="true" />
+          {busy ? "Processando…" : message ||
             `${dirty ? "Alterações não salvas" : "Salvo"}${version ? ` · v${version}` : ""}`}
         </span>
         {!editable && <span className="pill">Somente leitura</span>}
@@ -1505,7 +1545,7 @@ export function VisualEngineEditor({
               <button
                 className="btn"
                 disabled={!libraryId || locked}
-                onClick={insertTemplate}
+                onClick={() => void insertTemplate()}
               >
                 Inserir como componente
               </button>
@@ -1805,25 +1845,48 @@ export function VisualEngineEditor({
                   <option value="">Selecione um template</option>
                   {templates.items.map((t) => <option key={t.id} value={t.id}>{t.name} · v{t.current_version}</option>)}
                 </select>
-                <button className="btn" disabled={!libraryId || locked} onClick={insertTemplate}>Inserir no design</button>
+                <button className="btn" disabled={!libraryId || locked} onClick={() => void insertTemplate()}>Inserir no design</button>
               </div>
             )}
             {activeTool === "components" && (
               <div className="visual-tool-stack">
-                <label className="field"><span>Nome do componente</span>
+                <label className="field"><span>Nome do componente rápido</span>
                   <input className="input" aria-label="Nome do componente" value={componentName} onChange={(e) => setComponentName(e.target.value)} placeholder="Ex.: Card de oferta" />
                 </label>
-                <button className="btn" disabled={locked || !selected.length} onClick={saveComponent}>+ Salvar seleção como componente</button>
+                <div className="visual-tool-grid">
+                  <button className="btn" disabled={locked || !selected.length} onClick={saveComponent}>+ Salvar nesta sessão</button>
+                  <button className="btn" disabled={locked || !selected.length || busy} onClick={() => save(false, true)}>Salvar na biblioteca</button>
+                </div>
                 {savedComponents.length ? (
                   <div className="visual-component-list">
                     {savedComponents.map((component) => (
                       <div key={component.id} className="visual-component-item">
-                        <strong>{component.name}</strong>
-                        <button className="btn" disabled={locked} onClick={() => insertComponent(component)}>Inserir</button>
+                        <div><strong>{component.name}</strong><span className="muted">sessão</span></div>
+                        <div className="visual-component-actions">
+                          <button className="btn" disabled={locked} onClick={() => insertComponent(component)}>Inserir</button>
+                          <button className="btn" aria-label={`Renomear componente rápido ${component.name}`} onClick={() => renameQuickComponent(component.id, component.name)}>Renomear</button>
+                          <button className="btn" aria-label={`Remover componente rápido ${component.name}`} onClick={() => removeQuickComponent(component.id, component.name)}>Remover</button>
+                        </div>
                       </div>
                     ))}
                   </div>
-                ) : <p className="muted">Selecione um ou mais elementos para criar um bloco reutilizável durante esta edição.</p>}
+                ) : <p className="muted">Componentes rápidos ficam disponíveis enquanto esta edição estiver aberta.</p>}
+                <label className="field"><span>Biblioteca persistente</span>
+                  <input className="input" aria-label="Buscar componente da biblioteca" value={componentQuery} onChange={(e) => setComponentQuery(e.target.value)} placeholder="Buscar componente salvo" />
+                </label>
+                <div className="visual-component-list">
+                  {templates.items.filter((template) => template.category === "component" && template.name.toLowerCase().includes(componentQuery.trim().toLowerCase())).map((template) => (
+                    <div key={template.id} className="visual-component-item">
+                      <div><strong>{template.name}</strong><span className="muted">v{template.current_version}</span></div>
+                      <div className="visual-component-actions">
+                        <button className="btn" disabled={locked || busy} onClick={() => void insertTemplate(template.id)}>Inserir</button>
+                        <button className="btn" disabled={busy} aria-label={`Renomear ${template.name}`} onClick={() => void renameLibraryComponent(template.id, template.name)}>Renomear</button>
+                        <button className="btn" disabled={busy} aria-label={`Remover ${template.name}`} onClick={() => void archiveLibraryComponent(template.id, template.name)}>Remover</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {!templates.items.some((template) => template.category === "component") && <p className="muted">Ainda não há componentes persistentes nesta página da biblioteca.</p>}
               </div>
             )}
             {activeTool === "brand" && (
@@ -1834,8 +1897,14 @@ export function VisualEngineEditor({
                   <button className="btn visual-brand-color" disabled={locked || !current || (current.type !== "text" && current.type !== "shape")} onClick={() => current?.type === "shape" ? patch({ shape: { ...current.shape!, fill: brand.accentColor } }) : current?.type === "text" ? patch({ textStyle: { ...current.textStyle, color: brand.accentColor } }) : undefined}><span style={{ background: brand.accentColor }} />Destaque</button>
                 </div>
                 <div className="visual-tool-grid"><button className="btn" disabled={locked} onClick={() => addBoundText(undefined, "Título", brand.fieldFonts.title)}>+ Título da marca</button><button className="btn" disabled={locked} onClick={() => addBoundText(undefined, "Texto", brand.fieldFonts.body)}>+ Texto da marca</button></div>
+                <div className="visual-tool-grid">
+                  <button className="btn" disabled={locked} onClick={() => addBoundText(undefined, "Preço", brand.fieldFonts.price)}>+ Preço da marca</button>
+                  <button className="btn" disabled={locked || !current || current.type !== "text"} onClick={() => current?.type === "text" && patch({ textStyle: { ...current.textStyle, fontFamily: brand.fieldFonts.title, fontWeight: 800 } })}>Aplicar estilo de título</button>
+                  <button className="btn" disabled={locked || !current || current.type !== "text"} onClick={() => current?.type === "text" && patch({ textStyle: { ...current.textStyle, fontFamily: brand.fieldFonts.body, fontWeight: 400 } })}>Aplicar estilo de texto</button>
+                  <button className="btn" disabled={locked || !current || current.type !== "text"} onClick={() => current?.type === "text" && patch({ textStyle: { ...current.textStyle, fontFamily: brand.fieldFonts.price, fontWeight: 900, color: brand.primaryColor } })}>Aplicar estilo de preço</button>
+                </div>
                 {brand.logoUrl && <button className="btn" disabled={locked} onClick={() => addBrandLogo(brand.logoUrl!)}>+ Logo da marca</button>}
-                <div className="visual-brand-fonts"><span className="muted">Fontes configuradas</span><strong style={{ fontFamily: brand.fieldFonts.title }}>Título</strong><span style={{ fontFamily: brand.fieldFonts.body }}>Texto principal</span></div>
+                <div className="visual-brand-fonts"><span className="muted">Fontes configuradas</span><strong style={{ fontFamily: brand.fieldFonts.title }}>Título</strong><span style={{ fontFamily: brand.fieldFonts.body }}>Texto principal</span><strong style={{ fontFamily: brand.fieldFonts.price, color: brand.primaryColor }}>Preço · R$ 9,99</strong></div>
               </div>
             )}
             {activeTool === "uploads" && (
@@ -2037,10 +2106,12 @@ export function VisualEngineEditor({
             </button>
             <button
               className="btn"
+              aria-label={preview ? "Sair do preview limpo" : "Preview limpo"}
+              title={preview ? "Sair do preview limpo (Esc)" : "Alternar preview limpo"}
               aria-pressed={preview}
               onClick={() => setPreview(!preview)}
             >
-              Preview limpo
+              {preview ? "Sair do preview" : "Preview limpo"}
             </button>
             <div className="visual-zoom-controls" aria-label="Controles de zoom">
               <button className="btn" title="Reduzir zoom (Ctrl/Cmd+-)" onClick={() => setZoom((value) => Math.max(10, value - 10))}>−</button>

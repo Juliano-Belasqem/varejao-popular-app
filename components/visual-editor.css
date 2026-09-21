@@ -70,3 +70,13 @@
 .visual-component-list{display:grid;gap:7px;margin-top:4px}.visual-component-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px;border:1px solid #29364b;border-radius:8px;background:#111824}.visual-component-item strong{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.visual-component-item .btn{flex:0 0 auto}
 
 .visual-brand-colors{display:grid;grid-template-columns:1fr 1fr;gap:7px}.visual-brand-color{justify-content:flex-start}.visual-brand-color span{width:16px;height:16px;border-radius:4px;border:1px solid rgba(255,255,255,.2);flex:0 0 auto}.visual-brand-fonts{display:grid;gap:5px;padding:9px;border:1px solid #29364b;border-radius:8px;background:#111824}.visual-brand-fonts strong,.visual-brand-fonts>span:not(.muted){font-size:13px}
+
+/* Editor Visual V2 · Phase 5 component library */
+.visual-component-item>div{min-width:0;display:grid;gap:2px}.visual-component-item>div .muted{font-size:10px}
+.visual-property-section{border:1px solid #29364b;border-radius:9px;background:#111824;overflow:hidden}.visual-property-section>summary{cursor:pointer;padding:9px 10px;font-size:11px;font-weight:800;color:#c8d5e5;user-select:none}.visual-property-section[open]>summary{border-bottom:1px solid #29364b}.visual-property-section>.visual-pair,.visual-property-section>.field,.visual-property-section>.visual-fields,.visual-property-section>label:not(.field),.visual-property-section>.visual-color{margin:9px 10px}.visual-property-section>.visual-pair{width:auto}
+
+.visual-component-actions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}.visual-component-actions .btn{padding:6px 8px;font-size:10px}
+
+.visual-save-status{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-size:11px;color:#aab8c9}.visual-save-dot{width:7px;height:7px;border-radius:50%;background:#6f8196}.visual-save-status.is-saved .visual-save-dot{background:#56c596}.visual-save-status.is-dirty .visual-save-dot{background:#ffb454}.visual-save-status.is-busy .visual-save-dot{background:#77a7ff;animation:visual-status-pulse .9s ease-in-out infinite}@keyframes visual-status-pulse{50%{opacity:.3;transform:scale(.8)}}
+
+.visual-icon-btn{min-width:34px;padding-inline:8px;font-size:16px}.visual-toolbar .btn[aria-pressed=true]{border-color:#5d86c8;background:#182a43;color:#dceaff}

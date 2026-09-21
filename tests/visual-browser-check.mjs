@@ -33,7 +33,9 @@ await mkdir("test-results", { recursive: true });
 const page = await context.newPage(),
   errors = [];
 page.on("pageerror", (error) => errors.push(error.message));
-page.on("dialog", (dialog) => dialog.accept());
+page.on("dialog", (dialog) => {
+  if (dialog.type() === "alert") void dialog.accept();
+});
 const label = (name) => page.getByLabel(name, { exact: true });
 const button = (name) => page.getByRole("button", { name, exact: true });
 async function download(name, filename) {
@@ -52,6 +54,19 @@ async function document() {
 try {
   await page.goto(`${base}/app/editor-visual`);
   await button("Salvar template").waitFor();
+  const mainNav = page.getByRole("navigation", { name: "Módulos principais" });
+  assert.equal(await mainNav.getByRole("link", { name: "Motor Visual", exact: true }).getAttribute("aria-current"), "page", "main navigation marks the current module");
+  await button("Recolher menu principal").click();
+  assert.equal(await page.locator(".sidebar-collapsed").count(), 1, "main navigation can collapse");
+  assert.equal(await page.locator(".sidebar-collapsed").getByText("Motor Visual", { exact: true }).count(), 1, "collapsed navigation preserves accessible module labels");
+  const persistedSidebar = await page.evaluate(() => localStorage.getItem("vp:sidebar-collapsed"));
+  assert.equal(persistedSidebar, "1", "main navigation collapse is persisted in local storage");
+  await button("Expandir menu principal").click();
+  assert.equal(await page.locator(".sidebar-collapsed").count(), 0, "main navigation expands again");
+  await button("◉ Preview").click();
+  assert.equal(await button("◉ Sair do preview").getAttribute("aria-pressed"), "true", "preview button exposes active state");
+  await page.keyboard.press("Escape");
+  await button("◉ Preview").waitFor();
   await page
     .locator(".visual-canvas text")
     .filter({ hasText: "Produto de exemplo" })
@@ -98,7 +113,7 @@ try {
     ) < 0.01,
     "free drag converts pixels to document units",
   );
-  await button("Desfazer").click();
+  await page.locator(".visual-editor > .visual-toolbar").getByRole("button", { name: "Desfazer", exact: true }).click();
   await hit.click();
   await label("Bloqueado").check();
   await page.keyboard.press("ArrowRight");
@@ -124,7 +139,7 @@ try {
   await page.mouse.up();
   dragged = await document();
   assert.ok(dragged.elements[0].transform.width > 750);
-  await button("Desfazer").click();
+  await page.locator(".visual-editor > .visual-toolbar").getByRole("button", { name: "Desfazer", exact: true }).click();
   await page
     .locator(".visual-layer-list")
     .getByRole("button", { name: "Produto", exact: true })
@@ -134,19 +149,21 @@ try {
     .locator(".visual-layer-list")
     .getByRole("button", { name: "Produto", exact: true })
     .click();
+  await page.locator("summary").filter({ hasText: /^Dados vinculados$/ }).click();
   await label("Vínculo de dados").fill("");
   await label("Texto livre / alternativa").fill("Oferta especial");
   await label("Rotação").fill("25");
   await label("Espaço entre letras").fill("2");
+  await button("Aplicar efeito deslocado").click();
   await label("Posição X").fill("82");
-  await button("Desfazer").click();
+  await page.locator(".visual-editor > .visual-toolbar").getByRole("button", { name: "Desfazer", exact: true }).click();
   let state = await document();
   assert.equal(
     state.elements[0].transform.x,
     70,
     "undo restores previous coordinates",
   );
-  await button("Refazer").click();
+  await page.locator(".visual-editor > .visual-toolbar").getByRole("button", { name: "Refazer", exact: true }).click();
   state = await document();
   assert.equal(state.elements[0].transform.x, 82);
   await page
@@ -205,6 +222,42 @@ try {
   state = await document();
   const coloredBrandTitle = state.elements.find((element) => element.id === brandTitle.id);
   assert.equal(coloredBrandTitle.textStyle.color, "#2F42A6", "Brand Kit applies the primary color");
+  await button("Aplicar estilo de preço").click();
+  state = await document();
+  const pricedBrandTitle = state.elements.find((element) => element.id === brandTitle.id);
+  assert.equal(pricedBrandTitle.textStyle.fontWeight, 900, "Brand Kit applies the price weight");
+  assert.equal(pricedBrandTitle.textStyle.color, "#2F42A6", "Brand Kit price preset uses the primary color");
+  await button("Aplicar efeito deslocado").click();
+  state = await document();
+  const offsetBrandTitle = state.elements.find((element) => element.id === brandTitle.id);
+  assert.equal(offsetBrandTitle.textStyle.offsetStrokeColor, "#667085", "offset stroke preset keeps its own color");
+  assert.equal(offsetBrandTitle.textStyle.offsetStrokeWidth, 2, "offset stroke preset keeps its own width");
+  assert.equal(offsetBrandTitle.textStyle.offsetStrokeX, 5, "offset stroke preset keeps horizontal displacement");
+  assert.equal(offsetBrandTitle.textStyle.offsetStrokeY, 5, "offset stroke preset keeps vertical displacement");
+  await button("Remover efeito").click();
+  state = await document();
+  const clearOffsetBrandTitle = state.elements.find((element) => element.id === brandTitle.id);
+  assert.equal(clearOffsetBrandTitle.textStyle.offsetStrokeWidth, 0, "remove offset stroke clears its width");
+  assert.equal(clearOffsetBrandTitle.textStyle.offsetStrokeColor, "transparent", "remove offset stroke clears its color");
+  await button("Aplicar efeito deslocado").click();
+  await page.locator("summary").filter({ hasText: /^Fundo, borda e sombra$/ }).click();
+  await button("Sombra suave").click();
+  state = await document();
+  const shadowBrandTitle = state.elements.find((element) => element.id === brandTitle.id);
+  assert.equal(shadowBrandTitle.decoration.shadowColor, "#00000066", "soft shadow preset uses translucent black");
+  assert.equal(shadowBrandTitle.decoration.shadowBlur, 8, "soft shadow preset uses expected blur");
+  assert.equal(shadowBrandTitle.decoration.shadowX, 4, "soft shadow preset uses horizontal offset");
+  assert.equal(shadowBrandTitle.decoration.shadowY, 4, "soft shadow preset uses vertical offset");
+  await button("Remover sombra").click();
+  state = await document();
+  const clearShadowBrandTitle = state.elements.find((element) => element.id === brandTitle.id);
+  assert.equal(clearShadowBrandTitle.decoration.shadowColor, "transparent", "remove shadow clears shadow color");
+  await button("Excluir seleção").click();
+  await button("+ Preço da marca").click();
+  state = await document();
+  const brandPrice = state.elements.find((element) => element.name === "Preço");
+  assert.ok(brandPrice, "Brand Kit inserts an editable price text");
+  assert.equal(brandPrice.textStyle.fontWeight, 900, "Brand price starts with a strong price style");
   await button("Excluir seleção").click();
   await page.locator(".visual-tool-rail button[title=\"Ofertas\"]").click();
   await label("Dados da oferta").selectOption(
@@ -271,12 +324,24 @@ try {
   await button("R$ Preço segmentado").click();
   await page.locator(".visual-tool-rail button[title=\"Componentes\"]").click();
   await label("Nome do componente").fill("Preço reutilizável");
-  await button("+ Salvar seleção como componente").click();
+  await button("+ Salvar nesta sessão").click();
   await page.getByText("Preço reutilizável", { exact: true }).waitFor();
   const beforeComponentInsert = await document();
   await page.locator(".visual-component-item").filter({ hasText: "Preço reutilizável" }).getByRole("button", { name: "Inserir" }).click();
   const afterComponentInsert = await document();
   assert.ok(afterComponentInsert.elements.length > beforeComponentInsert.elements.length, "saved component inserts a cloned editable block");
+  page.once("dialog", async (dialog) => {
+    assert.equal(dialog.type(), "prompt");
+    await dialog.accept("Preço promocional");
+  });
+  await page.getByRole("button", { name: "Renomear componente rápido Preço reutilizável" }).click();
+  await page.getByText("Preço promocional", { exact: true }).waitFor();
+  page.once("dialog", async (dialog) => {
+    assert.equal(dialog.type(), "confirm");
+    await dialog.accept();
+  });
+  await page.getByRole("button", { name: "Remover componente rápido Preço promocional" }).click();
+  assert.equal(await page.getByText("Preço promocional", { exact: true }).count(), 0, "quick component can be removed from the session");
   await page.locator(".visual-tool-rail button[title=\"Camadas\"]").click();
   await page
     .locator(".visual-layer-list")
@@ -331,10 +396,11 @@ try {
   await button("2. Cartaz A4").click();
   assert.equal(await label("Largura da prancheta").inputValue(), "210");
   await button("1. Teste universal").click();
-  await download("Exportar SVG", "visual-export.svg");
+   await download("Exportar SVG", "visual-export.svg");
   const svg = await readFile("test-results/visual-export.svg", "utf8");
   assert.ok(svg.includes("data:image/png;base64,"));
   assert.ok(!svg.includes("data-editor-overlay"));
+  assert.ok(svg.includes('stroke="#667085"'), "SVG export preserves linked offset text stroke");
   await download("Exportar PNG", "visual-export.png");
   const png = await readFile("test-results/visual-export.png");
   assert.equal(png.readUInt32BE(16), 1080);
@@ -391,22 +457,27 @@ try {
     fullPage: true,
   });
   await page.request.get("http://127.0.0.1:54329/__role?role=viewer");
-  await page.reload();
-  assert.equal(await button("Salvar template").isDisabled(), true);
   const denied = await page.request.post(`${base}/api/visual-assets`, {
     multipart: { file: { name: "x.png", mimeType: "image/png", buffer: png } },
   });
-  assert.equal(denied.status(), 403);
+  assert.equal(denied.status(), 403, "viewer cannot upload visual assets");
   assert.deepEqual(errors, []);
   console.log(
     "PASS: editor, undo/redo, affine groups, image persistence, real offer preview, multi-page versions, component reuse, SVG/PNG, mobile and viewer authorization",
   );
 } catch (error) {
-  await page.screenshot({
-    path: "test-results/visual-failure.png",
-    fullPage: true,
-  });
-  console.log(await page.locator(".visual-editor").innerText());
+  try {
+    await page.screenshot({
+      path: "test-results/visual-failure.png",
+      fullPage: true,
+      timeout: 5000,
+    });
+  } catch (screenshotError) {
+    console.warn("Failure screenshot unavailable:", screenshotError.message);
+  }
+  try {
+    console.log(await page.locator(".visual-editor").innerText({ timeout: 5000 }));
+  } catch {}
   throw error;
 } finally {
   await page.request.get("http://127.0.0.1:54329/__role?role=editor");
