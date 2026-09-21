@@ -136,10 +136,8 @@ try {
     .click();
   await page.locator("summary").filter({ hasText: /^Dados vinculados$/ }).click();
   await label("Vínculo de dados").fill("");
-  await page.locator("summary").filter({ hasText: /^Texto$/ }).click();
   await label("Texto livre / alternativa").fill("Oferta especial");
   await label("Rotação").fill("25");
-  await page.locator("summary").filter({ hasText: /^Tipografia$/ }).click();
   await label("Espaço entre letras").fill("2");
   await label("Posição X").fill("82");
   await button("Desfazer").click();
