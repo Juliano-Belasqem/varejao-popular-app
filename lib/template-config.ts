@@ -20,6 +20,7 @@ export type LayoutField = {
   layer: number;
   strokeColor: string;
   strokeWidth: number;
+  strokeLayer?: "behind" | "above";
   shadowColor: string;
   shadowBlur: number;
   shadowX: number;
