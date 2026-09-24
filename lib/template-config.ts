@@ -1,5 +1,6 @@
 export const templateIds = [
   "validity",
+  "produce",
   "digital-feed",
   "digital-story",
 ] as const;
@@ -50,6 +51,11 @@ export const fieldLabels: Record<string, string> = {
   unit: "Unidade (UN)",
   priceReais: "Preço · reais",
   priceCents: "Preço · centavos",
+  produceName: "Nome do hortifrutti",
+  produceSpecification: "Especificação do hortifrutti",
+  produceUnit: "Unidade do hortifrutti",
+  produceCode: "Código do hortifrutti",
+  producePrice: "Preço do hortifrutti",
 };
 const field = (
   x: number,
