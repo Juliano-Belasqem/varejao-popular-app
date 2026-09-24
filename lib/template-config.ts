@@ -96,6 +96,19 @@ const field = (
   shadowBlur: 0,
   shadowX: 0,
   shadowY: 0,
+  letterSpacing: 0,
+  strokeOffsetX: 0,
+  strokeOffsetY: 0,
+  strokeShadowColor: "#000000",
+  strokeShadowBlur: 0,
+  strokeShadowX: 0,
+  strokeShadowY: 0,
+  strokeInnerGlowColor: "#ffffff",
+  strokeInnerGlowBlur: 0,
+  strokeInnerGlowWidth: 0,
+  lineHeight: 1.05,
+  fontStyle: "normal",
+  textTransform: "none",
 });
 // Coordinates are percentages; font sizes use a 1000-unit-wide design space.
 export function defaultTemplate(id: TemplateId): TemplateConfig {
