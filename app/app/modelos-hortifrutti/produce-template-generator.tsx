@@ -23,7 +23,7 @@ export function ProduceTemplateGenerator({products}:{products:Product[]}){
   const patch=(index:number,values:Partial<Slot>)=>setSlots(old=>old.map((slot,i)=>i===index?{...slot,...values}:slot));
   const ticket=(slot:Slot)=>{const product=products.find(p=>p.id===slot.productId);return <ConfiguredTicket config={template.config} fonts={fieldFonts} logoUrl={null} values={{
     produceName:product?.name||"PRODUTO",
-    produceSpecification:product?.specification||"ESPECIFICAÇÃO",
+    produceSpecification:product ? (product.specification || "") : "ESPECIFICAÇÃO",
     producePrice:<ProducePrice value={slot.price} manualScale={slot.priceScale}/>,
     produceUnit:product?.unit||"KG",
     produceCode:product?.code||"000",
