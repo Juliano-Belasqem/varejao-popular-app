@@ -92,7 +92,15 @@ export function defaultTemplate(id: TemplateId): TemplateConfig {
     revision: 0,
     backgroundUrl: null,
     layout:
-      id === "validity"
+      id === "produce"
+        ? {
+            produceName: field(8, 4, 84, 18, 150, "#ffffff"),
+            produceSpecification: { ...field(8, 24, 84, 12, 90, "#ffffff"), weight: 400 },
+            producePrice: field(8, 42, 68, 32, 420, "#111111"),
+            produceUnit: field(67, 72, 22, 10, 85, "#111111"),
+            produceCode: field(74, 84, 22, 12, 100, "#ffffff"),
+          }
+        : id === "validity"
         ? {
             title: { ...field(5, 2, 90, 9, 90), visible: false },
             product: field(7, 20, 86, 6, 85),
@@ -130,8 +138,8 @@ export function validateLayout(
   const input = value as Record<string, LayoutField>;
   const defaults = defaultTemplate(id).layout;
   const result: Record<string, LayoutField> = {};
-  const legacyDigital = id !== "validity" && !!input.product && !input.productLine1 && !input.productLine2 && !input.productLine3 && !input.currency && !input.unit;
-  const previousDigital = id !== "validity" && !!input.productLine1 && !!input.price && !input.priceReais && !input.priceCents;
+  const legacyDigital = id !== "validity" && id !== "produce" && !!input.product && !input.productLine1 && !input.productLine2 && !input.productLine3 && !input.currency && !input.unit;
+  const previousDigital = id !== "validity" && id !== "produce" && !!input.productLine1 && !!input.price && !input.priceReais && !input.priceCents;
   const legacyKeys = new Set(["product", "brand", "specification", "image", "price", "footer", "logo"]);
   const previousKeys = new Set(["productLine1","productLine2","productLine3","brand","specification","image","currency","price","unit","footer","logo"]);
   if (legacyDigital && !Object.keys(input).every((key) => legacyKeys.has(key)))
