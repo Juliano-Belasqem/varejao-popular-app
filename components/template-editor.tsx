@@ -245,6 +245,8 @@ export function TemplateEditor({
                 zIndex: item.layer ?? 1, color: item.color, fontWeight: item.weight,
                 fontSize: "clamp(10px, 2vw, 18px)", textAlign: item.align,
                 fontFamily: item.fontFamily, letterSpacing: `${item.letterSpacing ?? 0}px`,
+                lineHeight: item.lineHeight ?? 1.05, fontStyle: item.fontStyle ?? "normal",
+                textTransform: item.textTransform === "none" ? undefined : item.textTransform,
                 background: name === key ? "rgba(255,255,255,.14)" : "rgba(0,0,0,.06)",
                 userSelect: "none",
               }}
@@ -322,6 +324,9 @@ export function TemplateEditor({
             </select>
           </label>
           <label className="field">Kerning / espaçamento (px)<input className="input" type="number" min="-20" max="100" step="0.5" value={field.letterSpacing ?? 0} onChange={(e) => patch({ letterSpacing: Number(e.target.value) })} /></label>
+          <label className="field">Altura de linha<input className="input" type="number" min="0.5" max="3" step="0.05" value={field.lineHeight ?? 1.05} onChange={(e)=>patch({lineHeight:Number(e.target.value)})}/></label>
+          <label className="field">Estilo<select className="input" value={field.fontStyle ?? "normal"} onChange={(e)=>patch({fontStyle:e.target.value as LayoutField["fontStyle"]})}><option value="normal">Normal</option><option value="italic">Itálico</option></select></label>
+          <label className="field">Transformação<select className="input" value={field.textTransform ?? "none"} onChange={(e)=>patch({textTransform:e.target.value as LayoutField["textTransform"]})}><option value="none">Como digitado</option><option value="uppercase">MAIÚSCULAS</option><option value="lowercase">minúsculas</option></select></label>
           <label className="field">
             Alinhamento
             <select
@@ -394,6 +399,11 @@ export function TemplateEditor({
           >
             Salvar Template Mestre
           </button> : null}
+          <button className="btn" type="button" onClick={()=>patch({
+            letterSpacing:0,lineHeight:1.05,fontStyle:"normal",textTransform:"none",
+            strokeWidth:0,strokeOffsetX:0,strokeOffsetY:0,strokeShadowBlur:0,strokeShadowX:0,strokeShadowY:0,
+            strokeInnerGlowBlur:0,strokeInnerGlowWidth:0,shadowBlur:0,shadowX:0,shadowY:0
+          })}>Zerar efeitos do campo</button>
           <button
             className="btn"
             type="button"
