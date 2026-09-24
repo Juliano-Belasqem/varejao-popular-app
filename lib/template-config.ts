@@ -197,7 +197,7 @@ export function validateLayout(
       shadowBlur: f.shadowBlur ?? 0,
       shadowX: f.shadowX ?? 0,
       shadowY: f.shadowY ?? 0,
-      fontFamily: typeof f.fontFamily === "string" ? f.fontFamily.slice(0, 120) : undefined,
+      ...(typeof f.fontFamily === "string" && f.fontFamily.trim() ? { fontFamily: f.fontFamily.slice(0, 120) } : {}),
     };
   }
   return result;
