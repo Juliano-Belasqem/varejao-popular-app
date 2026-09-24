@@ -12,7 +12,7 @@ type Slot={productId:string;price:string;priceScale:number};
 const empty=():Slot=>({productId:"",price:"",priceScale:1});
 
 function splitPrice(value:string){const clean=value.replace(/[^0-9,]/g,"");const[a="0",b="00"]=clean.split(",");return{major:a||"0",minor:(b+"00").slice(0,2)}}
-function ProducePrice({value,manualScale=1}:{value:string;manualScale?:number}){const p=splitPrice(value);const scale=(p.major.length<=1?1.22:p.major.length===2?1:p.major.length===3?.82:.68)*manualScale;return <div className="produce-price" style={{transform:"scale("+scale+")",transformOrigin:"center"}}><small>R$</small><strong>{p.major}</strong><span>,{p.minor}</span></div>}
+function ProducePrice({value,manualScale=1}:{value:string;manualScale?:number}){const p=splitPrice(value);const scale=(p.major.length<=1?1.22:p.major.length===2?1:p.major.length===3?.82:.68)*manualScale;return <div className="produce-price" style={{transform:"scale("+scale+")",transformOrigin:"center",paddingTop:".12em",boxSizing:"border-box"}}><small>R$</small><strong>{p.major}</strong><span>,{p.minor}</span></div>}
 
 export function ProduceTemplateGenerator({products}:{products:Product[]}){
   const template=useTemplate("produce");
@@ -31,7 +31,7 @@ export function ProduceTemplateGenerator({products}:{products:Product[]}){
 
   return <>
     <section className="card no-print" style={{marginBottom:18}}>
-      <div className="section-title-row"><div><small className="eyebrow">DADOS DA FOLHA</small><h2>4 itens de hortifrutti</h2></div><button className="btn primary" type="button" disabled={!template.ready} onClick={()=>window.print()}>Imprimir / salvar PDF</button></div>
+      <div className="section-title-row"><div><small className="eyebrow">DADOS DA FOLHA</small><h2>4 itens de hortifrutti</h2></div><div className="preview-actions"><button className="btn" type="button" onClick={()=>document.getElementById("cadastro-hortifrutti")?.scrollIntoView({behavior:"smooth",block:"start"})}>+ Adicionar produto</button><button className="btn primary" type="button" disabled={!template.ready} onClick={()=>window.print()}>Imprimir / salvar PDF</button></div></div>
       <div className="validity-editor-grid" style={{marginTop:14}}>{slots.map((slot,index)=><div className="validity-editor" key={index}>
         <strong>Item {index+1}</strong>
         <label className="field"><span>Produto</span><select className="input" value={slot.productId} onChange={e=>patch(index,{productId:e.target.value})}><option value="">Selecione</option>{sorted.map(p=><option value={p.id} key={p.id}>{p.name}{p.specification?" · "+p.specification:""}</option>)}</select></label>
@@ -41,8 +41,8 @@ export function ProduceTemplateGenerator({products}:{products:Product[]}){
 
     <div className="validity-sheet-wrap"><div className="validity-sheet produce-sheet">{slots.map((slot,index)=><div key={index} className="produce-slot">{ticket(slot)}</div>)}</div></div>
 
-    <section className="card no-print" style={{marginTop:18}}>
-      <div className="section-title-row"><div><small className="eyebrow">BANCO PRÓPRIO</small><h2>Produtos do Hortifrutti</h2></div><span className="pill">{products.length} cadastrados</span></div>
+    <section id="cadastro-hortifrutti" className="card no-print" style={{marginTop:18}}>
+      <div className="section-title-row"><div><small className="eyebrow">BANCO PRÓPRIO</small><h2>{editing?"Editar produto":"Adicionar produto ao cadastro"}</h2><div className="muted" style={{marginTop:4}}>Cadastre aqui itens que ainda não aparecem na seleção da folha.</div></div><span className="pill">{products.length} cadastrados</span></div>
       <form action={saveProduceProduct} className="form-grid" style={{marginTop:14}}>
         <input type="hidden" name="id" value={editing?.id??""}/>
         <label className="field"><span>Nome</span><input className="input" name="name" required defaultValue={editing?.name??""} key={"name-"+(editing?.id??"new")}/></label>

@@ -28,6 +28,8 @@ type Item = {
   specification_snapshot: string | null;
 };
 
+type ProductImageInstance = { id:string; url:string; label:string; x:number; y:number; scale:number };
+
 type SavedMaterial = {
   name: string;
   path: string;
@@ -104,7 +106,7 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
   const [manualProductName, setManualProductName] = useState(false);
   const [productLines, setProductLines] = useState<[string,string,string]>(["","",""]);
   const [unitLabel, setUnitLabel] = useState("UN");
-  const [imageAdjustments, setImageAdjustments] = useState<Record<string,{x:number;y:number;scale:number}>>({});
+  const [imageCompositions, setImageCompositions] = useState<Record<string,ProductImageInstance[]>>({});
   const [materials, setMaterials] = useState<SavedMaterial[]>([]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageCacheRef = useRef(new Map<string, Promise<HTMLImageElement>>());
@@ -113,8 +115,12 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
 
   const item = useMemo(() => items.find((candidate) => candidate.id === itemId) ?? items[0] ?? null, [itemId, items]);
   const adjustmentKey=item?`${format}:${item.id}`:"";
-  const currentImageAdjustment=adjustmentKey?imageAdjustments[adjustmentKey]??{x:0,y:0,scale:1}:{x:0,y:0,scale:1};
-  const patchImageAdjustment=(patch:Partial<{x:number;y:number;scale:number}>)=>{if(!adjustmentKey)return;setImageAdjustments(old=>({...old,[adjustmentKey]:{...(old[adjustmentKey]??{x:0,y:0,scale:1}),...patch}}))};
+  const primaryImageUrl=item?.product_id?`/api/product-image/${encodeURIComponent(item.product_id)}`:"";
+  const imageInstances=adjustmentKey?(imageCompositions[adjustmentKey]??(primaryImageUrl?[{id:"primary",url:primaryImageUrl,label:"Imagem 1",x:0,y:0,scale:1}]:[])):[];
+  const setInstances=(next:ProductImageInstance[])=>{if(!adjustmentKey)return;setImageCompositions(old=>({...old,[adjustmentKey]:next}))};
+  const patchImageInstance=(id:string,patch:Partial<ProductImageInstance>)=>setInstances(imageInstances.map(instance=>instance.id===id?{...instance,...patch}:instance));
+  const duplicateImageInstance=(source:ProductImageInstance)=>setInstances([...imageInstances,{...source,id:crypto.randomUUID(),label:`Imagem ${imageInstances.length+1}`,x:source.x+24,y:source.y+24}]);
+  const addDifferentImage=(file:File|null)=>{if(!file||!file.type.startsWith("image/"))return;const reader=new FileReader();reader.onload=()=>{if(typeof reader.result!=="string")return;setInstances([...imageInstances,{id:crypto.randomUUID(),url:reader.result,label:file.name,x:0,y:0,scale:1}])};reader.readAsDataURL(file)};
   const variant = useMemo(() => findTemplateVariant(currentMediaTemplate, format, "individual", 1), [format]);
   useEffect(() => { if (!manualProductName && item) setProductLines(splitProductName(item.name_snapshot || "Produto") as [string,string,string]); }, [item, manualProductName]);
 
@@ -135,6 +141,31 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
     imageCacheRef.current.set(url, promise);
     return promise;
   }, []);
+
+  const loadSavedComposition = useCallback(async () => {
+    if(!item?.product_id||!adjustmentKey)return;
+    try{
+      const response=await fetch(`/api/product-art-composition?product_id=${encodeURIComponent(item.product_id)}&format=${format}`,{cache:"no-store"});
+      if(!response.ok)return;
+      const payload=await response.json();
+      if(Array.isArray(payload.composition?.images)&&payload.composition.images.length)setImageCompositions(old=>({...old,[adjustmentKey]:payload.composition.images}));
+    }catch{/* Composition is optional until its migration is applied. */}
+  },[adjustmentKey,format,item?.product_id]);
+
+  const saveComposition = async () => {
+    if(!item?.product_id)return;
+    setBusy(true);setStatus("Salvando composição do produto...");
+    try{
+      const response=await fetch("/api/product-art-composition",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({product_id:item.product_id,format,images:imageInstances})});
+      const payload=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(payload.error||"Falha ao salvar composição");
+      if(imageInstances.some(instance=>instance.url.startsWith("data:")))setStatus("Composição salva. Imagens adicionadas só nesta arte não entram no padrão até serem salvas no acervo.");
+      else setStatus("Composição salva como padrão deste produto.");
+    }catch(error){setStatus(error instanceof Error?error.message:"Falha ao salvar composição.");}
+    finally{setBusy(false)}
+  };
+
+  useEffect(()=>{void loadSavedComposition()},[loadSavedComposition]);
 
   const loadMaterials = useCallback(async () => {
     try {
@@ -160,8 +191,12 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
       if(!field.visible)continue;
       const rect={x:field.x*variant.width/100,y:field.y*variant.height/100,width:field.width*variant.width/100,height:field.height*variant.height/100};
       if(key==="image"||key==="logo"){
-        const url=key==="logo"?logoUrl:item.product_id?`/api/product-image/${encodeURIComponent(item.product_id)}`:null;
-        if(url){try{const adjustmentKey=`${format}:${item.id}`;const adjustment=key==="image"&&item?imageAdjustments[adjustmentKey]??{x:0,y:0,scale:1}:{x:0,y:0,scale:1};const adjusted={x:rect.x+adjustment.x-rect.width*(adjustment.scale-1)/2,y:rect.y+adjustment.y-rect.height*(adjustment.scale-1)/2,width:rect.width*adjustment.scale,height:rect.height*adjustment.scale};ctx.save();ctx.beginPath();ctx.rect(rect.x,rect.y,rect.width,rect.height);ctx.clip();drawImageContain(ctx,await loadImage(url),adjusted);ctx.restore()}catch{if(key==="image"){ctx.fillStyle="#555";ctx.font="24px Arial";ctx.fillText("Imagem indisponível",rect.x,rect.y+rect.height/2)}}}
+        if(key==="logo"&&logoUrl){try{drawImageContain(ctx,await loadImage(logoUrl),rect)}catch{};continue}
+        if(key==="image"){
+          ctx.save();ctx.beginPath();ctx.rect(rect.x,rect.y,rect.width,rect.height);ctx.clip();
+          for(const instance of imageInstances){try{const adjusted={x:rect.x+instance.x-rect.width*(instance.scale-1)/2,y:rect.y+instance.y-rect.height*(instance.scale-1)/2,width:rect.width*instance.scale,height:rect.height*instance.scale};drawImageContain(ctx,await loadImage(instance.url),adjusted)}catch{}}
+          ctx.restore();continue;
+        }
         continue;
       }
       const price=item.highlighted_price==="normal"?item.normal_price:item.offer_price??item.normal_price;
@@ -183,7 +218,7 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
       ctx.fillText(values[key]||"",x,rect.y,rect.width);ctx.restore();
     }
 
-  }, [campaign, fieldFonts, format, item, loadImage, logoUrl, variant, artConfig, accentColor, imageAdjustments]);
+  }, [campaign, fieldFonts, item, loadImage, logoUrl, variant, artConfig, accentColor, imageInstances]);
 
   useEffect(() => {
     void loadMaterials();
@@ -296,12 +331,17 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
             <label><input type="checkbox" checked={manualProductName} onChange={(e)=>setManualProductName(e.target.checked)} /> Dividir nome manualmente</label>
             {productLines.map((line,index)=><input key={index} className="input" value={line} disabled={!manualProductName} onChange={(e)=>setProductLines(old=>old.map((v,i)=>i===index?e.target.value:v) as [string,string,string])} placeholder={`Produto · linha ${index+1}`} />)}
             <label className="field"><span>Unidade</span><input className="input" value={unitLabel} onChange={(e)=>setUnitLabel(e.target.value.toUpperCase().slice(0,8))} /></label>
-            {item ? <div className="card" style={{padding:10,display:"grid",gap:8}}>
-              <strong>Posição da imagem deste produto</strong>
-              <label className="field"><span>Horizontal (px)</span><input className="input" type="range" min="-300" max="300" value={currentImageAdjustment.x} onChange={e=>patchImageAdjustment({x:Number(e.target.value)})}/></label>
-              <label className="field"><span>Vertical (px)</span><input className="input" type="range" min="-300" max="300" value={currentImageAdjustment.y} onChange={e=>patchImageAdjustment({y:Number(e.target.value)})}/></label>
-              <label className="field"><span>Escala</span><input className="input" type="range" min="0.5" max="2" step="0.05" value={currentImageAdjustment.scale} onChange={e=>patchImageAdjustment({scale:Number(e.target.value)})}/></label>
-              <button className="btn" type="button" onClick={()=>patchImageAdjustment({x:0,y:0,scale:1})}>Restaurar imagem</button>
+            {item ? <div className="card" style={{padding:10,display:"grid",gap:10}}>
+              <div><strong>Imagens do produto</strong><div className="muted" style={{fontSize:12}}>Duplique a embalagem ou adicione outra fragrância/variação. Cada imagem pode ser ajustada separadamente.</div></div>
+              {imageInstances.map((instance,index)=><div className="card" key={instance.id} style={{padding:10,display:"grid",gap:7}}>
+                <strong>{instance.label||`Imagem ${index+1}`}</strong>
+                <label className="field"><span>Horizontal (px)</span><input className="input" type="range" min="-300" max="300" value={instance.x} onChange={e=>patchImageInstance(instance.id,{x:Number(e.target.value)})}/></label>
+                <label className="field"><span>Vertical (px)</span><input className="input" type="range" min="-300" max="300" value={instance.y} onChange={e=>patchImageInstance(instance.id,{y:Number(e.target.value)})}/></label>
+                <label className="field"><span>Escala</span><input className="input" type="range" min="0.5" max="2" step="0.05" value={instance.scale} onChange={e=>patchImageInstance(instance.id,{scale:Number(e.target.value)})}/></label>
+                <div className="preview-actions"><button className="btn" type="button" onClick={()=>duplicateImageInstance(instance)}>Duplicar</button><button className="btn" type="button" onClick={()=>patchImageInstance(instance.id,{x:0,y:0,scale:1})}>Restaurar</button>{imageInstances.length>1&&<button className="btn danger" type="button" onClick={()=>setInstances(imageInstances.filter(candidate=>candidate.id!==instance.id))}>Remover</button>}</div>
+              </div>)}
+              <label className="btn" style={{textAlign:"center",cursor:"pointer"}}>+ Adicionar outra imagem<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={e=>{addDifferentImage(e.target.files?.[0]??null);e.currentTarget.value=""}}/></label>
+              <div className="preview-actions"><button className="btn primary" type="button" disabled={busy} onClick={()=>void saveComposition()}>Salvar como padrão deste produto</button><button className="btn" type="button" disabled={busy} onClick={()=>void loadSavedComposition()}>Restaurar composição salva</button></div>
             </div> : null}
           </div>
 
