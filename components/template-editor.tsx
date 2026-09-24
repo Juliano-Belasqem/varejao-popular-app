@@ -1,5 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
+import { useBrandKit } from "@/lib/brand-kit/client";
 import {
   defaultTemplate,
   fieldLabels,
@@ -89,6 +90,7 @@ export function TemplateEditor({
   persist?: boolean;
   title?: string;
 }) {
+  const {fonts:brandFonts}=useBrandKit();
   const [selected, setSelected] = useState(Object.keys(config.layout)[0]);
   const [file, setFile] = useState<File | null>(null);
   const [resetBackground, setResetBackground] = useState(false);
@@ -242,6 +244,9 @@ export function TemplateEditor({
                 opacity: item.opacity ?? 1, transform: `rotate(${item.rotation ?? 0}deg)`,
                 zIndex: item.layer ?? 1, color: item.color, fontWeight: item.weight,
                 fontSize: "clamp(10px, 2vw, 18px)", textAlign: item.align,
+                fontFamily: item.fontFamily, letterSpacing: `${item.letterSpacing ?? 0}px`,
+                lineHeight: item.lineHeight ?? 1.05, fontStyle: item.fontStyle ?? "normal",
+                textTransform: item.textTransform === "none" ? undefined : item.textTransform,
                 background: name === key ? "rgba(255,255,255,.14)" : "rgba(0,0,0,.06)",
                 userSelect: "none",
               }}
@@ -315,8 +320,13 @@ export function TemplateEditor({
               <option value="Trebuchet MS">Trebuchet MS</option>
               <option value="Georgia">Georgia</option>
               <option value="Impact">Impact</option>
+              {brandFonts.length ? <optgroup label="Biblioteca tipográfica">{brandFonts.map(font=><option key={font.id} value={font.family}>{font.name}</option>)}</optgroup> : null}
             </select>
           </label>
+          <label className="field">Kerning / espaçamento (px)<input className="input" type="number" min="-20" max="100" step="0.5" value={field.letterSpacing ?? 0} onChange={(e) => patch({ letterSpacing: Number(e.target.value) })} /></label>
+          <label className="field">Altura de linha<input className="input" type="number" min="0.5" max="3" step="0.05" value={field.lineHeight ?? 1.05} onChange={(e)=>patch({lineHeight:Number(e.target.value)})}/></label>
+          <label className="field">Estilo<select className="input" value={field.fontStyle ?? "normal"} onChange={(e)=>patch({fontStyle:e.target.value as LayoutField["fontStyle"]})}><option value="normal">Normal</option><option value="italic">Itálico</option></select></label>
+          <label className="field">Transformação<select className="input" value={field.textTransform ?? "none"} onChange={(e)=>patch({textTransform:e.target.value as LayoutField["textTransform"]})}><option value="none">Como digitado</option><option value="uppercase">MAIÚSCULAS</option><option value="lowercase">minúsculas</option></select></label>
           <label className="field">
             Alinhamento
             <select
@@ -357,6 +367,17 @@ export function TemplateEditor({
           </label>
           <label className="field">Contorno (px)<input className="input" type="number" min="0" max="30" step="0.5" value={field.strokeWidth ?? 0} onChange={(e) => patch({ strokeWidth: Number(e.target.value) })} /></label>
           <label className="field">Cor do contorno<input type="color" value={field.strokeColor ?? "#000000"} onChange={(e) => patch({ strokeColor: e.target.value })} /></label>
+          {(config.id==="digital-feed"||config.id==="digital-story") ? <>
+            <label className="field">Contorno · deslocamento X<input className="input" type="number" min="-100" max="100" step="1" value={field.strokeOffsetX ?? 0} onChange={(e)=>patch({strokeOffsetX:Number(e.target.value)})}/></label>
+            <label className="field">Contorno · deslocamento Y<input className="input" type="number" min="-100" max="100" step="1" value={field.strokeOffsetY ?? 0} onChange={(e)=>patch({strokeOffsetY:Number(e.target.value)})}/></label>
+            <label className="field">Sombra do contorno · desfoque<input className="input" type="number" min="0" max="100" step="1" value={field.strokeShadowBlur ?? 0} onChange={(e)=>patch({strokeShadowBlur:Number(e.target.value)})}/></label>
+            <label className="field">Sombra do contorno X<input className="input" type="number" min="-100" max="100" step="1" value={field.strokeShadowX ?? 0} onChange={(e)=>patch({strokeShadowX:Number(e.target.value)})}/></label>
+            <label className="field">Sombra do contorno Y<input className="input" type="number" min="-100" max="100" step="1" value={field.strokeShadowY ?? 0} onChange={(e)=>patch({strokeShadowY:Number(e.target.value)})}/></label>
+            <label className="field">Cor da sombra do contorno<input type="color" value={field.strokeShadowColor ?? "#000000"} onChange={(e)=>patch({strokeShadowColor:e.target.value})}/></label>
+            <label className="field">Brilho interno · intensidade<input className="input" type="number" min="0" max="100" step="1" value={field.strokeInnerGlowBlur ?? 0} onChange={(e)=>patch({strokeInnerGlowBlur:Number(e.target.value)})}/></label>
+            <label className="field">Brilho interno · largura<input className="input" type="number" min="0" max="30" step="0.5" value={field.strokeInnerGlowWidth ?? 0} onChange={(e)=>patch({strokeInnerGlowWidth:Number(e.target.value)})}/></label>
+            <label className="field">Cor do brilho interno<input type="color" value={field.strokeInnerGlowColor ?? "#ffffff"} onChange={(e)=>patch({strokeInnerGlowColor:e.target.value})}/></label>
+          </> : null}
           <label className="field">Sombra · desfoque<input className="input" type="number" min="0" max="100" step="1" value={field.shadowBlur ?? 0} onChange={(e) => patch({ shadowBlur: Number(e.target.value) })} /></label>
           <label className="field">Sombra X<input className="input" type="number" step="1" value={field.shadowX ?? 0} onChange={(e) => patch({ shadowX: Number(e.target.value) })} /></label>
           <label className="field">Sombra Y<input className="input" type="number" step="1" value={field.shadowY ?? 0} onChange={(e) => patch({ shadowY: Number(e.target.value) })} /></label>
@@ -378,6 +399,11 @@ export function TemplateEditor({
           >
             Salvar Template Mestre
           </button> : null}
+          <button className="btn" type="button" onClick={()=>patch({
+            letterSpacing:0,lineHeight:1.05,fontStyle:"normal",textTransform:"none",
+            strokeWidth:0,strokeOffsetX:0,strokeOffsetY:0,strokeShadowBlur:0,strokeShadowX:0,strokeShadowY:0,
+            strokeInnerGlowBlur:0,strokeInnerGlowWidth:0,shadowBlur:0,shadowX:0,shadowY:0
+          })}>Zerar efeitos do campo</button>
           <button
             className="btn"
             type="button"
