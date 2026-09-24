@@ -1,5 +1,9 @@
 begin;
 
+alter table public.art_templates drop constraint if exists art_templates_id_check;
+alter table public.art_templates add constraint art_templates_id_check check (id in ('validity','digital-feed','digital-story','produce'));
+insert into public.art_templates(id) values ('produce') on conflict (id) do nothing;
+
 create table public.produce_template_products (
   id uuid primary key default gen_random_uuid(),
   name text not null,
