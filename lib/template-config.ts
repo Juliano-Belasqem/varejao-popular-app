@@ -25,16 +25,16 @@ export type LayoutField = {
   shadowX: number;
   shadowY: number;
   fontFamily?: string;
-  letterSpacing: number;
-  strokeOffsetX: number;
-  strokeOffsetY: number;
-  strokeShadowColor: string;
-  strokeShadowBlur: number;
-  strokeShadowX: number;
-  strokeShadowY: number;
-  strokeInnerGlowColor: string;
-  strokeInnerGlowBlur: number;
-  strokeInnerGlowWidth: number;
+  letterSpacing?: number;
+  strokeOffsetX?: number;
+  strokeOffsetY?: number;
+  strokeShadowColor?: string;
+  strokeShadowBlur?: number;
+  strokeShadowX?: number;
+  strokeShadowY?: number;
+  strokeInnerGlowColor?: string;
+  strokeInnerGlowBlur?: number;
+  strokeInnerGlowWidth?: number;
 };
 export type TemplateConfig = {
   id: TemplateId;
