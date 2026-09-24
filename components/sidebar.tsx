@@ -13,6 +13,7 @@ const links = [
   ["✦", "Motor Visual", "/app/editor-visual"],
   ["▦", "Produtos", "/app/produtos"],
   ["!", "Validade Próxima", "/app/validade-proxima"],
+  ["*", "Modelos Hortifrutti", "/app/modelos-hortifrutti"],
   ["#", "Conteúdo para Redes", "/app/conteudo-redes"],
   ["◈", "Kit da Marca", "/app/marca"],
   ["↗", "Publicações", "/app/publicacoes"],
