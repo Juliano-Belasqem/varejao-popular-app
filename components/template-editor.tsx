@@ -220,8 +220,8 @@ export function TemplateEditor({
             }}
           />
         </label>
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(300px, 1fr) minmax(340px, 1fr)", gap: 18, alignItems: "start" }}>
-        <div style={{ position: "sticky", top: 12, alignSelf: "start", minWidth: 0 }}>
+        <div className="template-editor-workspace">
+        <div className="template-editor-preview">
           <div className="preview-actions" style={{ marginBottom: 8, justifyContent: "center" }}>
             <button className="btn" type="button" aria-label="Diminuir zoom" onClick={() => setPreviewZoom((value) => Math.max(0.5, Number((value - 0.1).toFixed(1))))}>−</button>
             <span className="pill" aria-live="polite">{Math.round(previewZoom * 100)}%</span>
@@ -275,7 +275,7 @@ export function TemplateEditor({
           </div>
           <p className="muted">Arraste os elementos diretamente na prévia. Ela permanece visível enquanto você ajusta os parâmetros.</p>
         </div>
-        <div>
+        <div className="template-editor-controls">
         <div className="form-grid compact" style={{ marginTop: 16 }}>
           <label className="field">
             Campo
