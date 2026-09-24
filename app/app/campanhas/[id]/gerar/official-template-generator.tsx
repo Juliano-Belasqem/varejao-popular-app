@@ -105,6 +105,9 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
   const [productLines, setProductLines] = useState<[string,string,string]>(["","",""]);
   const [unitLabel, setUnitLabel] = useState("UN");
   const [imageAdjustments, setImageAdjustments] = useState<Record<string,{x:number;y:number;scale:number}>>({});
+  const adjustmentKey=item?`${format}:${item.id}`:"";
+  const currentImageAdjustment=adjustmentKey?imageAdjustments[adjustmentKey]??{x:0,y:0,scale:1}:{x:0,y:0,scale:1};
+  const patchImageAdjustment=(patch:Partial<{x:number;y:number;scale:number}>)=>{if(!adjustmentKey)return;setImageAdjustments(old=>({...old,[adjustmentKey]:{...(old[adjustmentKey]??{x:0,y:0,scale:1}),...patch}}))};
   const [materials, setMaterials] = useState<SavedMaterial[]>([]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageCacheRef = useRef(new Map<string, Promise<HTMLImageElement>>());
@@ -158,7 +161,7 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
       const rect={x:field.x*variant.width/100,y:field.y*variant.height/100,width:field.width*variant.width/100,height:field.height*variant.height/100};
       if(key==="image"||key==="logo"){
         const url=key==="logo"?logoUrl:item.product_id?`/api/product-image/${encodeURIComponent(item.product_id)}`:null;
-        if(url){try{const adjustment=key==="image"&&item?imageAdjustments[item.id]??{x:0,y:0,scale:1}:{x:0,y:0,scale:1};const adjusted={x:rect.x+adjustment.x-rect.width*(adjustment.scale-1)/2,y:rect.y+adjustment.y-rect.height*(adjustment.scale-1)/2,width:rect.width*adjustment.scale,height:rect.height*adjustment.scale};drawImageContain(ctx,await loadImage(url),adjusted)}catch{if(key==="image"){ctx.fillStyle="#555";ctx.font="24px Arial";ctx.fillText("Imagem indisponível",rect.x,rect.y+rect.height/2)}}}
+        if(url){try{const adjustmentKey=`${format}:${item.id}`;const adjustment=key==="image"&&item?imageAdjustments[adjustmentKey]??{x:0,y:0,scale:1}:{x:0,y:0,scale:1};const adjusted={x:rect.x+adjustment.x-rect.width*(adjustment.scale-1)/2,y:rect.y+adjustment.y-rect.height*(adjustment.scale-1)/2,width:rect.width*adjustment.scale,height:rect.height*adjustment.scale};ctx.save();ctx.beginPath();ctx.rect(rect.x,rect.y,rect.width,rect.height);ctx.clip();drawImageContain(ctx,await loadImage(url),adjusted);ctx.restore()}catch{if(key==="image"){ctx.fillStyle="#555";ctx.font="24px Arial";ctx.fillText("Imagem indisponível",rect.x,rect.y+rect.height/2)}}}
         continue;
       }
       const price=item.highlighted_price==="normal"?item.normal_price:item.offer_price??item.normal_price;
@@ -295,10 +298,10 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
             <label className="field"><span>Unidade</span><input className="input" value={unitLabel} onChange={(e)=>setUnitLabel(e.target.value.toUpperCase().slice(0,8))} /></label>
             {item ? <div className="card" style={{padding:10,display:"grid",gap:8}}>
               <strong>Posição da imagem deste produto</strong>
-              <label className="field"><span>Horizontal (px)</span><input className="input" type="range" min="-300" max="300" value={imageAdjustments[item.id]?.x??0} onChange={e=>setImageAdjustments(old=>({...old,[item.id]:{x:Number(e.target.value),y:old[item.id]?.y??0,scale:old[item.id]?.scale??1}}))}/></label>
-              <label className="field"><span>Vertical (px)</span><input className="input" type="range" min="-300" max="300" value={imageAdjustments[item.id]?.y??0} onChange={e=>setImageAdjustments(old=>({...old,[item.id]:{x:old[item.id]?.x??0,y:Number(e.target.value),scale:old[item.id]?.scale??1}}))}/></label>
-              <label className="field"><span>Escala</span><input className="input" type="range" min="0.5" max="2" step="0.05" value={imageAdjustments[item.id]?.scale??1} onChange={e=>setImageAdjustments(old=>({...old,[item.id]:{x:old[item.id]?.x??0,y:old[item.id]?.y??0,scale:Number(e.target.value)}}))}/></label>
-              <button className="btn" type="button" onClick={()=>setImageAdjustments(old=>({...old,[item.id]:{x:0,y:0,scale:1}}))}>Restaurar imagem</button>
+              <label className="field"><span>Horizontal (px)</span><input className="input" type="range" min="-300" max="300" value={currentImageAdjustment.x} onChange={e=>patchImageAdjustment({x:Number(e.target.value)})}/></label>
+              <label className="field"><span>Vertical (px)</span><input className="input" type="range" min="-300" max="300" value={currentImageAdjustment.y} onChange={e=>patchImageAdjustment({y:Number(e.target.value)})}/></label>
+              <label className="field"><span>Escala</span><input className="input" type="range" min="0.5" max="2" step="0.05" value={currentImageAdjustment.scale} onChange={e=>patchImageAdjustment({scale:Number(e.target.value)})}/></label>
+              <button className="btn" type="button" onClick={()=>patchImageAdjustment({x:0,y:0,scale:1})}>Restaurar imagem</button>
             </div> : null}
           </div>
 
