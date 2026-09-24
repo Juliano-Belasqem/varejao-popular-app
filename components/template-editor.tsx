@@ -233,9 +233,9 @@ export function TemplateEditor({
           ref={visualRef}
           aria-label="Editor visual do template mestre"
           style={{
-            position: "relative", width: `${previewZoom * 100}%`, maxWidth: previewZoom <= 1 ? 720 : "none", margin: "18px auto",
+            position: "relative", width: previewZoom <= 1 ? "100%" : `${previewZoom * 100}%`, maxWidth: 720, margin: "18px auto",
             aspectRatio: config.id === "digital-story" ? "9 / 16" : config.id === "produce" || config.id === "validity" ? "1 / 1.414" : "1 / 1",
-            overflow: "hidden", borderRadius: 12, border: "1px solid var(--line)",
+            overflow: "visible", borderRadius: 12, border: "1px solid var(--line)",
             background: config.backgroundUrl ? `url("${config.backgroundUrl}") center/cover no-repeat` : "rgba(255,255,255,.04)",
             touchAction: "none",
           }}
@@ -258,6 +258,7 @@ export function TemplateEditor({
                 lineHeight: item.lineHeight ?? 1.05, fontStyle: item.fontStyle ?? "normal",
                 textTransform: item.textTransform === "none" ? undefined : item.textTransform,
                 background: name === key ? "rgba(255,255,255,.14)" : "rgba(0,0,0,.06)",
+                boxSizing: "border-box",
                 userSelect: "none",
               }}
             >
