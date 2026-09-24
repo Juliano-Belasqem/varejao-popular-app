@@ -12,7 +12,7 @@ type Slot={productId:string;price:string;priceScale:number};
 const empty=():Slot=>({productId:"",price:"",priceScale:1});
 
 function splitPrice(value:string){const clean=value.replace(/[^0-9,]/g,"");const[a="0",b="00"]=clean.split(",");return{major:a||"0",minor:(b+"00").slice(0,2)}}
-function ProducePrice({value,manualScale=1}:{value:string;manualScale?:number}){const p=splitPrice(value);const scale=(p.major.length<=1?1.22:p.major.length===2?1:p.major.length===3?.82:.68)*manualScale;return <div className="produce-price" style={{transform:"scale("+scale+")",transformOrigin:"center"}}><small>R$</small><strong>{p.major}</strong><span>,{p.minor}</span></div>}
+function ProducePrice({value,manualScale=1}:{value:string;manualScale?:number}){const p=splitPrice(value);const scale=(p.major.length<=1?1.22:p.major.length===2?1:p.major.length===3?.82:.68)*manualScale;return <div className="produce-price" style={{transform:"scale("+scale+")",transformOrigin:"center",paddingTop:".12em",boxSizing:"border-box"}}><small>R$</small><strong>{p.major}</strong><span>,{p.minor}</span></div>}
 
 export function ProduceTemplateGenerator({products}:{products:Product[]}){
   const template=useTemplate("produce");
