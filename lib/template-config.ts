@@ -25,6 +25,16 @@ export type LayoutField = {
   shadowX: number;
   shadowY: number;
   fontFamily?: string;
+  letterSpacing: number;
+  strokeOffsetX: number;
+  strokeOffsetY: number;
+  strokeShadowColor: string;
+  strokeShadowBlur: number;
+  strokeShadowX: number;
+  strokeShadowY: number;
+  strokeInnerGlowColor: string;
+  strokeInnerGlowBlur: number;
+  strokeInnerGlowWidth: number;
 };
 export type TemplateConfig = {
   id: TemplateId;
@@ -175,7 +185,11 @@ export function validateLayout(
       (f.rotation != null && (f.rotation < -180 || f.rotation > 180)) ||
       (f.layer != null && (f.layer < 0 || f.layer > 100)) ||
       (f.strokeWidth != null && (f.strokeWidth < 0 || f.strokeWidth > 30)) ||
-      (f.shadowBlur != null && (f.shadowBlur < 0 || f.shadowBlur > 100))
+      (f.shadowBlur != null && (f.shadowBlur < 0 || f.shadowBlur > 100)) ||
+      (f.letterSpacing != null && (f.letterSpacing < -20 || f.letterSpacing > 100)) ||
+      (f.strokeShadowBlur != null && (f.strokeShadowBlur < 0 || f.strokeShadowBlur > 100)) ||
+      (f.strokeInnerGlowBlur != null && (f.strokeInnerGlowBlur < 0 || f.strokeInnerGlowBlur > 100)) ||
+      (f.strokeInnerGlowWidth != null && (f.strokeInnerGlowWidth < 0 || f.strokeInnerGlowWidth > 30))
     )
       throw new Error(`Ajuste os limites do campo ${fieldLabels[key]}.`);
     result[key] = {
@@ -197,6 +211,16 @@ export function validateLayout(
       shadowBlur: f.shadowBlur ?? 0,
       shadowX: f.shadowX ?? 0,
       shadowY: f.shadowY ?? 0,
+      letterSpacing: f.letterSpacing ?? 0,
+      strokeOffsetX: f.strokeOffsetX ?? 0,
+      strokeOffsetY: f.strokeOffsetY ?? 0,
+      strokeShadowColor: f.strokeShadowColor ?? "#000000",
+      strokeShadowBlur: f.strokeShadowBlur ?? 0,
+      strokeShadowX: f.strokeShadowX ?? 0,
+      strokeShadowY: f.strokeShadowY ?? 0,
+      strokeInnerGlowColor: f.strokeInnerGlowColor ?? "#ffffff",
+      strokeInnerGlowBlur: f.strokeInnerGlowBlur ?? 0,
+      strokeInnerGlowWidth: f.strokeInnerGlowWidth ?? 0,
       ...(typeof f.fontFamily === "string" && f.fontFamily.trim() ? { fontFamily: f.fontFamily.slice(0, 120) } : {}),
     };
   }
