@@ -30,11 +30,11 @@ export default async function Page({
 
   let catalogQuery = supabase
     .from("products")
-    .select("id,ean,name,brand,specification,category,unit,sale_price,stock,active")
+    .select("id,ean,name,display_name,brand,specification,category,unit,sale_price,stock,active")
     .order("name", { ascending: true })
     .limit(100);
 
-  if (q) catalogQuery = catalogQuery.or(`ean.ilike.%${q}%,name.ilike.%${q}%,brand.ilike.%${q}%`);
+  if (q) catalogQuery = catalogQuery.or(`ean.ilike.%${q}%,name.ilike.%${q}%,display_name.ilike.%${q}%,brand.ilike.%${q}%`);
 
   let erpQuery = supabase
     .from("erp_products")
@@ -170,7 +170,7 @@ export default async function Page({
               <tbody>
                 {products.map((product) => (
                   <tr key={product.id}>
-                    <td>{product.ean}</td><td><Link href={`/app/produtos/${product.id}`} style={{ fontWeight: 700 }}>{product.name}</Link></td><td>{product.brand || "—"}</td><td>{product.specification || product.unit || "—"}</td>
+                    <td>{product.ean}</td><td><Link href={`/app/produtos/${product.id}`} style={{ fontWeight: 700 }}>{product.display_name || product.name}</Link>{product.display_name ? <div className="muted" style={{fontSize:12}}>ERP: {product.name}</div> : null}</td><td>{product.brand || "—"}</td><td>{product.specification || product.unit || "—"}</td>
                     <td>{money(product.sale_price)}</td>
                     <td>{product.stock ?? "—"}</td><td><span className="pill">{product.active ? "Ativo" : "Inativo"}</span></td>
                     <td><Link className="btn" style={{display:"inline-flex",alignItems:"center",whiteSpace:"nowrap"}} href={`/app/produtos/${product.id}#imagens-do-produto`}>Gerenciar imagens</Link></td>
