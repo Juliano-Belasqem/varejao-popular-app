@@ -305,6 +305,19 @@ export function TemplateEditor({
             </label>
           ))}
           <label className="field">
+            Fonte do campo
+            <select className="input" value={field.fontFamily ?? ""} onChange={(e) => patch({ fontFamily: e.target.value || undefined })}>
+              <option value="">Kit da Marca / padrão</option>
+              <option value="Arial">Arial</option>
+              <option value="Arial Black">Arial Black</option>
+              <option value="Helvetica">Helvetica</option>
+              <option value="Verdana">Verdana</option>
+              <option value="Trebuchet MS">Trebuchet MS</option>
+              <option value="Georgia">Georgia</option>
+              <option value="Impact">Impact</option>
+            </select>
+          </label>
+          <label className="field">
             Alinhamento
             <select
               className="input"
