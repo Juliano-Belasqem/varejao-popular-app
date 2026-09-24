@@ -73,6 +73,14 @@ test("layout rejects out-of-bounds, missing and malformed fields", () => {
   assert.deepEqual(previousMigrated.priceCents, defaultTemplate("digital-feed").layout.priceCents);
   assert.throws(() => validateLayout("digital-feed", { brand: legacy.brand }));
 });
+test("typography outline layer round-trips and rejects invalid values", () => {
+  const layout = defaultTemplate("digital-feed").layout;
+  layout.productLine1.strokeLayer = "above";
+  const validated = validateLayout("digital-feed", layout);
+  assert.equal(validated.productLine1.strokeLayer, "above");
+  (layout.productLine1 as unknown as { strokeLayer: string }).strokeLayer = "invalid";
+  assert.throws(() => validateLayout("digital-feed", layout));
+});
 test("public IPv6 images work; local and mapped private addresses are rejected", () => {
   for (const ip of [
     "8.8.8.8",
