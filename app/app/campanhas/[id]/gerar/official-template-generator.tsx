@@ -142,6 +142,31 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
     return promise;
   }, []);
 
+  const loadSavedComposition = useCallback(async () => {
+    if(!item?.product_id||!adjustmentKey)return;
+    try{
+      const response=await fetch(`/api/product-art-composition?product_id=${encodeURIComponent(item.product_id)}&format=${format}`,{cache:"no-store"});
+      if(!response.ok)return;
+      const payload=await response.json();
+      if(Array.isArray(payload.composition?.images)&&payload.composition.images.length)setImageCompositions(old=>({...old,[adjustmentKey]:payload.composition.images}));
+    }catch{/* Composition is optional until its migration is applied. */}
+  },[adjustmentKey,format,item?.product_id]);
+
+  const saveComposition = async () => {
+    if(!item?.product_id)return;
+    setBusy(true);setStatus("Salvando composição do produto...");
+    try{
+      const response=await fetch("/api/product-art-composition",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({product_id:item.product_id,format,images:imageInstances})});
+      const payload=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(payload.error||"Falha ao salvar composição");
+      if(imageInstances.some(instance=>instance.url.startsWith("data:")))setStatus("Composição salva. Imagens adicionadas só nesta arte não entram no padrão até serem salvas no acervo.");
+      else setStatus("Composição salva como padrão deste produto.");
+    }catch(error){setStatus(error instanceof Error?error.message:"Falha ao salvar composição.");}
+    finally{setBusy(false)}
+  };
+
+  useEffect(()=>{void loadSavedComposition()},[loadSavedComposition]);
+
   const loadMaterials = useCallback(async () => {
     try {
       const response = await fetch(`/api/digital-materials?campaign_id=${encodeURIComponent(campaign.id)}`, { cache: "no-store" });
@@ -316,6 +341,7 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
                 <div className="preview-actions"><button className="btn" type="button" onClick={()=>duplicateImageInstance(instance)}>Duplicar</button><button className="btn" type="button" onClick={()=>patchImageInstance(instance.id,{x:0,y:0,scale:1})}>Restaurar</button>{imageInstances.length>1&&<button className="btn danger" type="button" onClick={()=>setInstances(imageInstances.filter(candidate=>candidate.id!==instance.id))}>Remover</button>}</div>
               </div>)}
               <label className="btn" style={{textAlign:"center",cursor:"pointer"}}>+ Adicionar outra imagem<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={e=>{addDifferentImage(e.target.files?.[0]??null);e.currentTarget.value=""}}/></label>
+              <div className="preview-actions"><button className="btn primary" type="button" disabled={busy} onClick={()=>void saveComposition()}>Salvar como padrão deste produto</button><button className="btn" type="button" disabled={busy} onClick={()=>void loadSavedComposition()}>Restaurar composição salva</button></div>
             </div> : null}
           </div>
 
