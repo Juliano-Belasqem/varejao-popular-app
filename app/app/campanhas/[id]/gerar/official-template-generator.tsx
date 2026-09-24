@@ -208,13 +208,27 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
       ctx.translate(cx,cy);ctx.rotate(((field.rotation??0)*Math.PI)/180);ctx.translate(-cx,-cy);
       ctx.beginPath();ctx.rect(rect.x,rect.y,rect.width,rect.height);ctx.clip();
       const family=field.fontFamily||fieldFonts[key]||fieldFonts.body;
+      const canvasText=ctx as CanvasRenderingContext2D & {letterSpacing?:string};
+      canvasText.letterSpacing=`${field.letterSpacing??0}px`;
       const size=fitFont(ctx,values[key]||"",rect.width,field.fontSize*variant.width/1000,12,family,field.weight);
       ctx.font=`${field.weight} ${size}px ${family}`;ctx.textBaseline="top";ctx.textAlign=field.align;
       ctx.fillStyle=field.color==="#ff9b36"?accentColor:field.color;
       ctx.strokeStyle=field.strokeColor??"#000000";ctx.lineWidth=field.strokeWidth??0;
-      ctx.shadowColor=field.shadowColor??"transparent";ctx.shadowBlur=field.shadowBlur??0;ctx.shadowOffsetX=field.shadowX??0;ctx.shadowOffsetY=field.shadowY??0;
       const x=rect.x+(field.align==="center"?rect.width/2:field.align==="right"?rect.width:0);
-      if((field.strokeWidth??0)>0)ctx.strokeText(values[key]||"",x,rect.y,rect.width);
+      const strokeX=x+(field.strokeOffsetX??0),strokeY=rect.y+(field.strokeOffsetY??0);
+      if((field.strokeWidth??0)>0){
+        ctx.shadowColor=field.strokeShadowColor??"transparent";ctx.shadowBlur=field.strokeShadowBlur??0;ctx.shadowOffsetX=field.strokeShadowX??0;ctx.shadowOffsetY=field.strokeShadowY??0;
+        ctx.strokeText(values[key]||"",strokeX,strokeY,rect.width);
+        if((field.strokeInnerGlowBlur??0)>0||(field.strokeInnerGlowWidth??0)>0){
+          ctx.save();
+          ctx.strokeStyle=field.strokeInnerGlowColor??"#ffffff";
+          ctx.lineWidth=Math.max(.5,Math.min(field.strokeWidth??0,field.strokeInnerGlowWidth??0));
+          ctx.shadowColor=field.strokeInnerGlowColor??"#ffffff";ctx.shadowBlur=field.strokeInnerGlowBlur??0;ctx.shadowOffsetX=0;ctx.shadowOffsetY=0;
+          ctx.strokeText(values[key]||"",strokeX,strokeY,rect.width);
+          ctx.restore();
+        }
+      }
+      ctx.shadowColor=field.shadowColor??"transparent";ctx.shadowBlur=field.shadowBlur??0;ctx.shadowOffsetX=field.shadowX??0;ctx.shadowOffsetY=field.shadowY??0;
       ctx.fillText(values[key]||"",x,rect.y,rect.width);ctx.restore();
     }
 
