@@ -18,7 +18,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
   const [{ data: campaign, error }, { data: items }, { data: products }, { data: productImages }] = await Promise.all([
     supabase.from("campaigns").select("id,name,start_date,end_date,theme,format,status").eq("id", id).single(),
     supabase.from("campaign_items").select("id,campaign_id,product_id,normal_price,offer_price,highlighted_price,sort_order,ean_snapshot,name_snapshot,brand_snapshot,specification_snapshot").eq("campaign_id", id).order("sort_order", { ascending: true }).order("created_at", { ascending: true }),
-    supabase.from("products").select("id,ean,name,brand,sale_price,active").eq("active", true).order("name").limit(1000),
+    supabase.from("products").select("id,ean,name,display_name,brand,sale_price,active").eq("active", true).order("name").limit(1000),
     supabase.from("product_images").select("product_id").eq("approved", true),
   ]);
 
@@ -67,7 +67,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
             <h2 style={{ marginTop: 0 }}>Adicionar produto</h2>
             <form action={addCampaignItem} className="form">
               <input type="hidden" name="campaign_id" value={campaign.id} />
-              <label className="field"><span>Produto</span><select className="input" name="product_id" required defaultValue=""><option value="" disabled>Selecione</option>{(products ?? []).map((p) => <option key={p.id} value={p.id}>{p.ean} — {p.name}{p.brand ? ` — ${p.brand}` : ""}</option>)}</select></label>
+              <label className="field"><span>Produto</span><select className="input" name="product_id" required defaultValue=""><option value="" disabled>Selecione</option>{(products ?? []).map((p) => <option key={p.id} value={p.id}>{p.ean} — {p.display_name || p.name}{p.brand ? ` — ${p.brand}` : ""}</option>)}</select></label>
               <div className="form-grid compact">
                 <label className="field"><span>Preço normal</span><input className="input" name="normal_price" inputMode="decimal" placeholder="Usa preço do cadastro se vazio" /></label>
                 <label className="field"><span>Preço oferta</span><input className="input" name="offer_price" inputMode="decimal" required /></label>
