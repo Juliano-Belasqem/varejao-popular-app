@@ -16,7 +16,7 @@ export function ConfiguredTicket({
     <article
       className="configured-ticket"
       style={{
-        backgroundImage: `url("${config.backgroundUrl || "/media-templates/validity-background.png"}")`,
+        backgroundImage: config.backgroundUrl ? `url("${config.backgroundUrl}")` : config.id === "validity" ? `url("/media-templates/validity-background.png")` : "none",
       }}
     >
       {Object.entries(config.layout)
