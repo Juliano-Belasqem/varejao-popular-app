@@ -195,7 +195,7 @@ export function TemplateEditor({
         disabled={!canEdit || !ready || busy}
         style={{ border: 0, padding: 0, minWidth: 0 }}
       >
-        {config.id === "validity" && (
+        {(config.id === "validity" || config.id === "produce") && (
           <label>
             <input
               type="checkbox"
@@ -222,7 +222,7 @@ export function TemplateEditor({
           aria-label="Editor visual do template mestre"
           style={{
             position: "relative", width: "100%", maxWidth: 720, margin: "18px auto",
-            aspectRatio: config.id === "digital-story" ? "9 / 16" : "1 / 1",
+            aspectRatio: config.id === "digital-story" ? "9 / 16" : config.id === "produce" || config.id === "validity" ? "1 / 1.414" : "1 / 1",
             overflow: "hidden", borderRadius: 12, border: "1px solid var(--line)",
             background: config.backgroundUrl ? `url("${config.backgroundUrl}") center/cover no-repeat` : "rgba(255,255,255,.04)",
             touchAction: "none",
@@ -304,6 +304,19 @@ export function TemplateEditor({
               />
             </label>
           ))}
+          <label className="field">
+            Fonte do campo
+            <select className="input" value={field.fontFamily ?? ""} onChange={(e) => patch({ fontFamily: e.target.value || undefined })}>
+              <option value="">Kit da Marca / padrão</option>
+              <option value="Arial">Arial</option>
+              <option value="Arial Black">Arial Black</option>
+              <option value="Helvetica">Helvetica</option>
+              <option value="Verdana">Verdana</option>
+              <option value="Trebuchet MS">Trebuchet MS</option>
+              <option value="Georgia">Georgia</option>
+              <option value="Impact">Impact</option>
+            </select>
+          </label>
           <label className="field">
             Alinhamento
             <select
