@@ -97,6 +97,7 @@ export function TemplateEditor({
   const [quarter, setQuarter] = useState(false);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
+  const [previewZoom, setPreviewZoom] = useState(1);
   const visualRef = useRef<HTMLDivElement>(null);
   const key =
     selected in config.layout ? selected : Object.keys(config.layout)[0];
@@ -220,12 +221,19 @@ export function TemplateEditor({
           />
         </label>
         <div style={{ display: "grid", gridTemplateColumns: "minmax(300px, 1fr) minmax(340px, 1fr)", gap: 18, alignItems: "start" }}>
-        <div style={{ position: "sticky", top: 12, alignSelf: "start" }}>
+        <div style={{ position: "sticky", top: 12, alignSelf: "start", minWidth: 0 }}>
+          <div className="preview-actions" style={{ marginBottom: 8, justifyContent: "center" }}>
+            <button className="btn" type="button" aria-label="Diminuir zoom" onClick={() => setPreviewZoom((value) => Math.max(0.5, Number((value - 0.1).toFixed(1))))}>−</button>
+            <span className="pill" aria-live="polite">{Math.round(previewZoom * 100)}%</span>
+            <button className="btn" type="button" aria-label="Aumentar zoom" onClick={() => setPreviewZoom((value) => Math.min(2, Number((value + 0.1).toFixed(1))))}>+</button>
+            <button className="btn" type="button" onClick={() => setPreviewZoom(1)}>100%</button>
+          </div>
+          <div style={{ overflow: "auto", maxHeight: "72vh", padding: previewZoom > 1 ? 8 : 0 }}>
 <div
           ref={visualRef}
           aria-label="Editor visual do template mestre"
           style={{
-            position: "relative", width: "100%", maxWidth: 720, margin: "18px auto",
+            position: "relative", width: `${previewZoom * 100}%`, maxWidth: previewZoom <= 1 ? 720 : "none", margin: "18px auto",
             aspectRatio: config.id === "digital-story" ? "9 / 16" : config.id === "produce" || config.id === "validity" ? "1 / 1.414" : "1 / 1",
             overflow: "hidden", borderRadius: 12, border: "1px solid var(--line)",
             background: config.backgroundUrl ? `url("${config.backgroundUrl}") center/cover no-repeat` : "rgba(255,255,255,.04)",
@@ -264,6 +272,7 @@ export function TemplateEditor({
             </div>
           ))}
         </div>
+          </div>
           <p className="muted">Arraste os elementos diretamente na prévia. Ela permanece visível enquanto você ajusta os parâmetros.</p>
         </div>
         <div>
