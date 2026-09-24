@@ -219,7 +219,9 @@ export function TemplateEditor({
             }}
           />
         </label>
-        <div
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(300px, 1fr) minmax(340px, 1fr)", gap: 18, alignItems: "start" }}>
+        <div style={{ position: "sticky", top: 12, alignSelf: "start" }}>
+<div
           ref={visualRef}
           aria-label="Editor visual do template mestre"
           style={{
@@ -262,7 +264,9 @@ export function TemplateEditor({
             </div>
           ))}
         </div>
-        <p className="muted">Arraste os elementos diretamente na prévia. Os controles abaixo permitem ajuste fino.</p>
+          <p className="muted">Arraste os elementos diretamente na prévia. Ela permanece visível enquanto você ajusta os parâmetros.</p>
+        </div>
+        <div>
         <div className="form-grid compact" style={{ marginTop: 16 }}>
           <label className="field">
             Campo
@@ -367,6 +371,7 @@ export function TemplateEditor({
           </label>
           <label className="field">Contorno (px)<input className="input" type="number" min="0" max="30" step="0.5" value={field.strokeWidth ?? 0} onChange={(e) => patch({ strokeWidth: Number(e.target.value) })} /></label>
           <label className="field">Cor do contorno<input type="color" value={field.strokeColor ?? "#000000"} onChange={(e) => patch({ strokeColor: e.target.value })} /></label>
+          <label className="field">Posição do contorno<select className="input" value={field.strokeLayer ?? "behind"} onChange={(e)=>patch({strokeLayer:e.target.value as LayoutField["strokeLayer"]})}><option value="behind">Atrás da letra</option><option value="above">Acima da letra</option></select></label>
           {(config.id==="digital-feed"||config.id==="digital-story") ? <>
             <label className="field">Contorno · deslocamento X<input className="input" type="number" min="-100" max="100" step="1" value={field.strokeOffsetX ?? 0} onChange={(e)=>patch({strokeOffsetX:Number(e.target.value)})}/></label>
             <label className="field">Contorno · deslocamento Y<input className="input" type="number" min="-100" max="100" step="1" value={field.strokeOffsetY ?? 0} onChange={(e)=>patch({strokeOffsetY:Number(e.target.value)})}/></label>
@@ -391,6 +396,8 @@ export function TemplateEditor({
             />
           </label>
         </div>
+        </div>
+      </div>
         <div className="preview-actions" style={{ marginTop: 16 }}>
           {persist ? <button
             className="btn primary"
