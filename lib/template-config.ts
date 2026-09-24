@@ -23,6 +23,7 @@ export type LayoutField = {
   shadowBlur: number;
   shadowX: number;
   shadowY: number;
+  fontFamily?: string;
 };
 export type TemplateConfig = {
   id: TemplateId;
@@ -182,6 +183,7 @@ export function validateLayout(
       shadowBlur: f.shadowBlur ?? 0,
       shadowX: f.shadowX ?? 0,
       shadowY: f.shadowY ?? 0,
+      fontFamily: typeof f.fontFamily === "string" ? f.fontFamily.slice(0, 120) : undefined,
     };
   }
   return result;
