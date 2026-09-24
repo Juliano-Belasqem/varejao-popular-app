@@ -29,7 +29,7 @@ export function ConfiguredTicket({
             width: `${field.width}%`,
             height: `${field.height}%`,
             fontSize: `${field.fontSize / 10}cqw`,
-            fontFamily: fonts[key] || fonts.body,
+            fontFamily: field.fontFamily || fonts[key] || fonts.body,
             color: field.color,
             fontWeight: field.weight,
             textAlign: field.align,
