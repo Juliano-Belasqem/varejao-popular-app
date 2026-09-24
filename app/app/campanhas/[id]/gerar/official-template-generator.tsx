@@ -104,6 +104,7 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
   const [manualProductName, setManualProductName] = useState(false);
   const [productLines, setProductLines] = useState<[string,string,string]>(["","",""]);
   const [unitLabel, setUnitLabel] = useState("UN");
+  const [imageAdjustments, setImageAdjustments] = useState<Record<string,{x:number;y:number;scale:number}>>({});
   const [materials, setMaterials] = useState<SavedMaterial[]>([]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageCacheRef = useRef(new Map<string, Promise<HTMLImageElement>>());
@@ -157,7 +158,7 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
       const rect={x:field.x*variant.width/100,y:field.y*variant.height/100,width:field.width*variant.width/100,height:field.height*variant.height/100};
       if(key==="image"||key==="logo"){
         const url=key==="logo"?logoUrl:item.product_id?`/api/product-image/${encodeURIComponent(item.product_id)}`:null;
-        if(url){try{drawImageContain(ctx,await loadImage(url),rect)}catch{if(key==="image"){ctx.fillStyle="#555";ctx.font="24px Arial";ctx.fillText("Imagem indisponível",rect.x,rect.y+rect.height/2)}}}
+        if(url){try{const adjustment=key==="image"&&item?imageAdjustments[item.id]??{x:0,y:0,scale:1}:{x:0,y:0,scale:1};const adjusted={x:rect.x+adjustment.x-rect.width*(adjustment.scale-1)/2,y:rect.y+adjustment.y-rect.height*(adjustment.scale-1)/2,width:rect.width*adjustment.scale,height:rect.height*adjustment.scale};drawImageContain(ctx,await loadImage(url),adjusted)}catch{if(key==="image"){ctx.fillStyle="#555";ctx.font="24px Arial";ctx.fillText("Imagem indisponível",rect.x,rect.y+rect.height/2)}}}
         continue;
       }
       const price=item.highlighted_price==="normal"?item.normal_price:item.offer_price??item.normal_price;
@@ -168,7 +169,7 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
       const cx=rect.x+rect.width/2,cy=rect.y+rect.height/2;
       ctx.translate(cx,cy);ctx.rotate(((field.rotation??0)*Math.PI)/180);ctx.translate(-cx,-cy);
       ctx.beginPath();ctx.rect(rect.x,rect.y,rect.width,rect.height);ctx.clip();
-      const family=fieldFonts[key]||fieldFonts.body;
+      const family=field.fontFamily||fieldFonts[key]||fieldFonts.body;
       const size=fitFont(ctx,values[key]||"",rect.width,field.fontSize*variant.width/1000,12,family,field.weight);
       ctx.font=`${field.weight} ${size}px ${family}`;ctx.textBaseline="top";ctx.textAlign=field.align;
       ctx.fillStyle=field.color==="#ff9b36"?accentColor:field.color;
@@ -179,7 +180,7 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
       ctx.fillText(values[key]||"",x,rect.y,rect.width);ctx.restore();
     }
 
-  }, [campaign, fieldFonts, format, item, loadImage, logoUrl, variant, artConfig, accentColor]);
+  }, [campaign, fieldFonts, format, item, loadImage, logoUrl, variant, artConfig, accentColor, imageAdjustments]);
 
   useEffect(() => {
     void loadMaterials();
@@ -271,8 +272,6 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
         <p className="muted" style={{ marginBottom: 10 }}>Ajustes feitos aqui afetam somente a arte atual. O Template Mestre não é alterado.</p>
         <button className="btn" type="button" onClick={() => setArtConfig(structuredClone(template.config))} disabled={!template.ready}>Restaurar do Template Mestre</button>
       </div>
-      <TemplateEditor key={`art-${artConfig.id}`} config={artConfig} onChange={setArtConfig} onSaved={async()=>{}} canEdit={true} ready={template.ready} persist={false}/>
-      <TemplateEditor key={`master-${template.config.id}`} config={template.config} onChange={template.setConfig} onSaved={template.reload} canEdit={template.canEdit} ready={template.ready} title="Template Mestre"/>
       <div className="grid" style={{ alignItems: "start" }}>
         <div className="form">
           <label className="field">
@@ -294,6 +293,13 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
             <label><input type="checkbox" checked={manualProductName} onChange={(e)=>setManualProductName(e.target.checked)} /> Dividir nome manualmente</label>
             {productLines.map((line,index)=><input key={index} className="input" value={line} disabled={!manualProductName} onChange={(e)=>setProductLines(old=>old.map((v,i)=>i===index?e.target.value:v) as [string,string,string])} placeholder={`Produto · linha ${index+1}`} />)}
             <label className="field"><span>Unidade</span><input className="input" value={unitLabel} onChange={(e)=>setUnitLabel(e.target.value.toUpperCase().slice(0,8))} /></label>
+            {item ? <div className="card" style={{padding:10,display:"grid",gap:8}}>
+              <strong>Posição da imagem deste produto</strong>
+              <label className="field"><span>Horizontal (px)</span><input className="input" type="range" min="-300" max="300" value={imageAdjustments[item.id]?.x??0} onChange={e=>setImageAdjustments(old=>({...old,[item.id]:{x:Number(e.target.value),y:old[item.id]?.y??0,scale:old[item.id]?.scale??1}}))}/></label>
+              <label className="field"><span>Vertical (px)</span><input className="input" type="range" min="-300" max="300" value={imageAdjustments[item.id]?.y??0} onChange={e=>setImageAdjustments(old=>({...old,[item.id]:{x:old[item.id]?.x??0,y:Number(e.target.value),scale:old[item.id]?.scale??1}}))}/></label>
+              <label className="field"><span>Escala</span><input className="input" type="range" min="0.5" max="2" step="0.05" value={imageAdjustments[item.id]?.scale??1} onChange={e=>setImageAdjustments(old=>({...old,[item.id]:{x:old[item.id]?.x??0,y:old[item.id]?.y??0,scale:Number(e.target.value)}}))}/></label>
+              <button className="btn" type="button" onClick={()=>setImageAdjustments(old=>({...old,[item.id]:{x:0,y:0,scale:1}}))}>Restaurar imagem</button>
+            </div> : null}
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
@@ -330,6 +336,10 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
             </div>
           )}
         </div>
+      </div>
+      <div className="grid" style={{alignItems:"start",marginTop:18}}>
+        <TemplateEditor key={"art-"+artConfig.id} config={artConfig} onChange={setArtConfig} onSaved={async()=>{}} canEdit={true} ready={template.ready} persist={false} title="Configuração desta arte"/>
+        <TemplateEditor key={"master-"+template.config.id} config={template.config} onChange={template.setConfig} onSaved={template.reload} canEdit={template.canEdit} ready={template.ready} title="Template Mestre"/>
       </div>
     </section>
   );
