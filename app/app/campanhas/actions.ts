@@ -78,7 +78,7 @@ export async function addCampaignItem(formData: FormData) {
 
   const { data: product, error: productError } = await supabase
     .from("products")
-    .select("ean,name,brand,specification,sale_price")
+    .select("ean,name,display_name,brand,specification,sale_price")
     .eq("id", productId)
     .single();
 
@@ -94,7 +94,7 @@ export async function addCampaignItem(formData: FormData) {
     p_offer_price: offerPrice,
     p_highlighted_price: "offer",
     p_ean_snapshot: product.ean,
-    p_name_snapshot: product.name,
+    p_name_snapshot: product.display_name || product.name,
     p_brand_snapshot: product.brand,
     p_specification_snapshot: product.specification,
     p_user_id: profile.id,
