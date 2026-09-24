@@ -244,6 +244,7 @@ export function TemplateEditor({
                 opacity: item.opacity ?? 1, transform: `rotate(${item.rotation ?? 0}deg)`,
                 zIndex: item.layer ?? 1, color: item.color, fontWeight: item.weight,
                 fontSize: "clamp(10px, 2vw, 18px)", textAlign: item.align,
+                fontFamily: item.fontFamily, letterSpacing: `${item.letterSpacing ?? 0}px`,
                 background: name === key ? "rgba(255,255,255,.14)" : "rgba(0,0,0,.06)",
                 userSelect: "none",
               }}
