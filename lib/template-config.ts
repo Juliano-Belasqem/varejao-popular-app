@@ -35,6 +35,9 @@ export type LayoutField = {
   strokeInnerGlowColor?: string;
   strokeInnerGlowBlur?: number;
   strokeInnerGlowWidth?: number;
+  lineHeight?: number;
+  fontStyle?: "normal" | "italic";
+  textTransform?: "none" | "uppercase" | "lowercase";
 };
 export type TemplateConfig = {
   id: TemplateId;
@@ -189,7 +192,10 @@ export function validateLayout(
       (f.letterSpacing != null && (f.letterSpacing < -20 || f.letterSpacing > 100)) ||
       (f.strokeShadowBlur != null && (f.strokeShadowBlur < 0 || f.strokeShadowBlur > 100)) ||
       (f.strokeInnerGlowBlur != null && (f.strokeInnerGlowBlur < 0 || f.strokeInnerGlowBlur > 100)) ||
-      (f.strokeInnerGlowWidth != null && (f.strokeInnerGlowWidth < 0 || f.strokeInnerGlowWidth > 30))
+      (f.strokeInnerGlowWidth != null && (f.strokeInnerGlowWidth < 0 || f.strokeInnerGlowWidth > 30)) ||
+      (f.lineHeight != null && (f.lineHeight < 0.5 || f.lineHeight > 3)) ||
+      (f.fontStyle != null && !["normal","italic"].includes(f.fontStyle)) ||
+      (f.textTransform != null && !["none","uppercase","lowercase"].includes(f.textTransform))
     )
       throw new Error(`Ajuste os limites do campo ${fieldLabels[key]}.`);
     result[key] = {
@@ -221,6 +227,9 @@ export function validateLayout(
       strokeInnerGlowColor: f.strokeInnerGlowColor ?? "#ffffff",
       strokeInnerGlowBlur: f.strokeInnerGlowBlur ?? 0,
       strokeInnerGlowWidth: f.strokeInnerGlowWidth ?? 0,
+      lineHeight: f.lineHeight ?? 1.05,
+      fontStyle: f.fontStyle ?? "normal",
+      textTransform: f.textTransform ?? "none",
       ...(typeof f.fontFamily === "string" && f.fontFamily.trim() ? { fontFamily: f.fontFamily.slice(0, 120) } : {}),
     };
   }
