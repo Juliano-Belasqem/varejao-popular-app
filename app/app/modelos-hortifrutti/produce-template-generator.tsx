@@ -8,11 +8,11 @@ import { useTemplate } from "@/lib/use-template";
 import { deleteProduceProduct, saveProduceProduct } from "./actions";
 
 type Product={id:string;name:string;specification:string;unit:string;code:string};
-type Slot={productId:string;price:string};
-const empty=():Slot=>({productId:"",price:""});
+type Slot={productId:string;price:string;priceScale:number};
+const empty=():Slot=>({productId:"",price:"",priceScale:1});
 
 function splitPrice(value:string){const clean=value.replace(/[^0-9,]/g,"");const[a="0",b="00"]=clean.split(",");return{major:a||"0",minor:(b+"00").slice(0,2)}}
-function ProducePrice({value}:{value:string}){const p=splitPrice(value);const scale=p.major.length<=1?1.22:p.major.length===2?1:p.major.length===3?.82:.68;return <div className="produce-price" style={{transform:"scale("+scale+")",transformOrigin:"center"}}><small>R$</small><strong>{p.major}</strong><span>,{p.minor}</span></div>}
+function ProducePrice({value,manualScale=1}:{value:string;manualScale?:number}){const p=splitPrice(value);const scale=(p.major.length<=1?1.22:p.major.length===2?1:p.major.length===3?.82:.68)*manualScale;return <div className="produce-price" style={{transform:"scale("+scale+")",transformOrigin:"center"}}><small>R$</small><strong>{p.major}</strong><span>,{p.minor}</span></div>}
 
 export function ProduceTemplateGenerator({products}:{products:Product[]}){
   const template=useTemplate("produce");
@@ -24,7 +24,7 @@ export function ProduceTemplateGenerator({products}:{products:Product[]}){
   const ticket=(slot:Slot)=>{const product=products.find(p=>p.id===slot.productId);return <ConfiguredTicket config={template.config} fonts={fieldFonts} logoUrl={null} values={{
     produceName:product?.name||"PRODUTO",
     produceSpecification:product?.specification||"ESPECIFICAÇÃO",
-    producePrice:<ProducePrice value={slot.price}/>,
+    producePrice:<ProducePrice value={slot.price} manualScale={slot.priceScale}/>,
     produceUnit:product?.unit||"KG",
     produceCode:product?.code||"000",
   }}/>};
@@ -35,7 +35,7 @@ export function ProduceTemplateGenerator({products}:{products:Product[]}){
       <div className="validity-editor-grid" style={{marginTop:14}}>{slots.map((slot,index)=><div className="validity-editor" key={index}>
         <strong>Item {index+1}</strong>
         <label className="field"><span>Produto</span><select className="input" value={slot.productId} onChange={e=>patch(index,{productId:e.target.value})}><option value="">Selecione</option>{sorted.map(p=><option value={p.id} key={p.id}>{p.name}{p.specification?" · "+p.specification:""}</option>)}</select></label>
-        <label className="field"><span>Preço</span><input className="input" inputMode="decimal" placeholder="9,99" value={slot.price} onChange={e=>patch(index,{price:e.target.value})}/></label>
+        <label className="field"><span>Preço</span><input className="input" inputMode="decimal" placeholder="9,99" value={slot.price} onChange={e=>patch(index,{price:e.target.value})}/></label><label className="field"><span>Ajuste do preço · {Math.round(slot.priceScale*100)}%</span><input className="input" type="range" min=".7" max="1.4" step=".05" value={slot.priceScale} onChange={e=>patch(index,{priceScale:Number(e.target.value)})}/></label>
       </div>)}</div>
     </section>
 
