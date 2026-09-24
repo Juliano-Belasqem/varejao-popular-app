@@ -105,9 +105,6 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
   const [productLines, setProductLines] = useState<[string,string,string]>(["","",""]);
   const [unitLabel, setUnitLabel] = useState("UN");
   const [imageAdjustments, setImageAdjustments] = useState<Record<string,{x:number;y:number;scale:number}>>({});
-  const adjustmentKey=item?`${format}:${item.id}`:"";
-  const currentImageAdjustment=adjustmentKey?imageAdjustments[adjustmentKey]??{x:0,y:0,scale:1}:{x:0,y:0,scale:1};
-  const patchImageAdjustment=(patch:Partial<{x:number;y:number;scale:number}>)=>{if(!adjustmentKey)return;setImageAdjustments(old=>({...old,[adjustmentKey]:{...(old[adjustmentKey]??{x:0,y:0,scale:1}),...patch}}))};
   const [materials, setMaterials] = useState<SavedMaterial[]>([]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageCacheRef = useRef(new Map<string, Promise<HTMLImageElement>>());
@@ -115,6 +112,9 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
   useEffect(() => { if (template.ready) setArtConfig(structuredClone(template.config)); }, [template.ready, template.config.id, template.config.revision]);
 
   const item = useMemo(() => items.find((candidate) => candidate.id === itemId) ?? items[0] ?? null, [itemId, items]);
+  const adjustmentKey=item?`${format}:${item.id}`:"";
+  const currentImageAdjustment=adjustmentKey?imageAdjustments[adjustmentKey]??{x:0,y:0,scale:1}:{x:0,y:0,scale:1};
+  const patchImageAdjustment=(patch:Partial<{x:number;y:number;scale:number}>)=>{if(!adjustmentKey)return;setImageAdjustments(old=>({...old,[adjustmentKey]:{...(old[adjustmentKey]??{x:0,y:0,scale:1}),...patch}}))};
   const variant = useMemo(() => findTemplateVariant(currentMediaTemplate, format, "individual", 1), [format]);
   useEffect(() => { if (!manualProductName && item) setProductLines(splitProductName(item.name_snapshot || "Produto") as [string,string,string]); }, [item, manualProductName]);
 
