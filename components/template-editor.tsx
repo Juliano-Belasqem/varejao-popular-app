@@ -235,7 +235,7 @@ export function TemplateEditor({
           style={{
             position: "relative", width: previewZoom <= 1 ? "100%" : `${previewZoom * 100}%`, maxWidth: 720, margin: "18px auto",
             aspectRatio: config.id === "digital-story" ? "9 / 16" : config.id === "produce" || config.id === "validity" ? "1 / 1.414" : "1 / 1",
-            overflow: "visible", borderRadius: 12, border: "1px solid var(--line)",
+            overflow: "hidden", borderRadius: 12, border: "1px solid var(--line)",
             background: config.backgroundUrl ? `url("${config.backgroundUrl}") center/cover no-repeat` : "rgba(255,255,255,.04)",
             touchAction: "none",
           }}
