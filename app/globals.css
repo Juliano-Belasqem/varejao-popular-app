@@ -48,3 +48,6 @@
 
 /* Keep native form controls inside responsive editor columns. width:100% alone overflows when padding/borders use content-box. */
 .template-editor-workspace,.template-editor-workspace *,.digital-generator-workspace,.digital-generator-workspace *{box-sizing:border-box}.template-editor-controls,.template-editor-controls .form-grid,.template-editor-controls .field,.digital-generator-controls,.digital-generator-controls .field{min-width:0;max-width:100%}.template-editor-controls input,.template-editor-controls select,.template-editor-controls textarea,.digital-generator-controls input,.digital-generator-controls select,.digital-generator-controls textarea{min-width:0;max-width:100%}
+
+/* The template editor lives inside cards/grids whose available width can be smaller than the viewport. Keep preview and controls constrained by their actual container, not only viewport breakpoints. */
+.template-editor-workspace{grid-template-columns:minmax(0,.9fr) minmax(0,1.4fr)}.template-editor-preview,.template-editor-controls{width:100%;max-width:100%;overflow:hidden}@media(max-width:1250px){.template-editor-workspace{grid-template-columns:1fr}.template-editor-preview{position:relative;top:auto}}
