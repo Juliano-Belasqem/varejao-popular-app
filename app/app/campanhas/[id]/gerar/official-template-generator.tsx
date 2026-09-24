@@ -331,8 +331,8 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
         <p className="muted" style={{ marginBottom: 10 }}>Ajustes feitos aqui afetam somente a arte atual. O Template Mestre não é alterado.</p>
         <button className="btn" type="button" onClick={() => setArtConfig(structuredClone(template.config))} disabled={!template.ready}>Restaurar do Template Mestre</button>
       </div>
-      <div className="grid" style={{ alignItems: "start" }}>
-        <div className="form">
+      <div className="digital-generator-workspace">
+        <div className="form digital-generator-controls">
           <label className="field">
             <span>Formato</span>
             <select className="input" value={format} onChange={(event) => setFormat(event.target.value as MediaFormat)} disabled={busy}>
