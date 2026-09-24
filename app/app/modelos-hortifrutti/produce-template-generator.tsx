@@ -12,7 +12,7 @@ type Slot={productId:string;price:string;priceScale:number};
 const empty=():Slot=>({productId:"",price:"",priceScale:1});
 
 function splitPrice(value:string){const clean=value.replace(/[^0-9,]/g,"");const[a="0",b="00"]=clean.split(",");return{major:a||"0",minor:(b+"00").slice(0,2)}}
-function ProducePrice({value,manualScale=1}:{value:string;manualScale?:number}){const p=splitPrice(value);const scale=(p.major.length<=1?1.22:p.major.length===2?1:p.major.length===3?.82:.68)*manualScale;return <div className="produce-price" style={{transform:"scale("+scale+")",transformOrigin:"center",paddingTop:".12em",boxSizing:"border-box"}}><small>R$</small><strong>{p.major}</strong><span>,{p.minor}</span></div>}
+function ProducePrice({value,manualScale=1}:{value:string;manualScale?:number}){const p=splitPrice(value);const scale=(p.major.length<=1?1.22:p.major.length===2?.76:p.major.length===3?.68:.58)*manualScale;return <div className="produce-price" style={{transform:"scale("+scale+")",transformOrigin:"center center",paddingTop:".12em",boxSizing:"border-box",width:"100%",height:"100%"}}><small>R$</small><strong>{p.major}</strong><span>,{p.minor}</span></div>}
 
 export function ProduceTemplateGenerator({products}:{products:Product[]}){
   const template=useTemplate("produce");
@@ -23,7 +23,7 @@ export function ProduceTemplateGenerator({products}:{products:Product[]}){
   const patch=(index:number,values:Partial<Slot>)=>setSlots(old=>old.map((slot,i)=>i===index?{...slot,...values}:slot));
   const ticket=(slot:Slot)=>{const product=products.find(p=>p.id===slot.productId);return <ConfiguredTicket config={template.config} fonts={fieldFonts} logoUrl={null} values={{
     produceName:product?.name||"PRODUTO",
-    produceSpecification:product?.specification||"ESPECIFICAÇÃO",
+    produceSpecification:product ? (product.specification || "") : "ESPECIFICAÇÃO",
     producePrice:<ProducePrice value={slot.price} manualScale={slot.priceScale}/>,
     produceUnit:product?.unit||"KG",
     produceCode:product?.code||"000",

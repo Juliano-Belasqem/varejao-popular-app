@@ -188,6 +188,23 @@ export async function createProduct(formData: FormData) {
   revalidatePath("/app");
 }
 
+export async function updateProductDisplayName(formData: FormData) {
+  const profile = await requireProfile();
+  if (!canEdit(profile.role)) throw new Error("Sem permissão para editar produtos.");
+  const id = String(formData.get("id") ?? "").trim();
+  if (!id) throw new Error("Produto inválido.");
+  const supabase = await createClient();
+  const { error } = await supabase.from("products").update({
+    display_name: text(formData.get("display_name")),
+    updated_at: new Date().toISOString(),
+  }).eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/app/produtos");
+  revalidatePath(`/app/produtos/${id}`);
+  revalidatePath("/app/campanhas");
+  revalidatePath("/app");
+}
+
 export async function toggleProductActive(formData: FormData) {
   const profile = await requireProfile();
   if (!canEdit(profile.role)) throw new Error("Sem permissão para editar produtos.");

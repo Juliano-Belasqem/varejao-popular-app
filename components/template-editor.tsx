@@ -97,6 +97,7 @@ export function TemplateEditor({
   const [quarter, setQuarter] = useState(false);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
+  const [previewZoom, setPreviewZoom] = useState(1);
   const visualRef = useRef<HTMLDivElement>(null);
   const key =
     selected in config.layout ? selected : Object.keys(config.layout)[0];
@@ -219,11 +220,20 @@ export function TemplateEditor({
             }}
           />
         </label>
-        <div
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(300px, 1fr) minmax(340px, 1fr)", gap: 18, alignItems: "start" }}>
+        <div style={{ position: "sticky", top: 12, alignSelf: "start", minWidth: 0 }}>
+          <div className="preview-actions" style={{ marginBottom: 8, justifyContent: "center" }}>
+            <button className="btn" type="button" aria-label="Diminuir zoom" onClick={() => setPreviewZoom((value) => Math.max(0.5, Number((value - 0.1).toFixed(1))))}>−</button>
+            <span className="pill" aria-live="polite">{Math.round(previewZoom * 100)}%</span>
+            <button className="btn" type="button" aria-label="Aumentar zoom" onClick={() => setPreviewZoom((value) => Math.min(2, Number((value + 0.1).toFixed(1))))}>+</button>
+            <button className="btn" type="button" onClick={() => setPreviewZoom(1)}>100%</button>
+          </div>
+          <div style={{ overflow: "auto", maxHeight: "72vh", padding: previewZoom > 1 ? 8 : 0 }}>
+<div
           ref={visualRef}
           aria-label="Editor visual do template mestre"
           style={{
-            position: "relative", width: "100%", maxWidth: 720, margin: "18px auto",
+            position: "relative", width: `${previewZoom * 100}%`, maxWidth: previewZoom <= 1 ? 720 : "none", margin: "18px auto",
             aspectRatio: config.id === "digital-story" ? "9 / 16" : config.id === "produce" || config.id === "validity" ? "1 / 1.414" : "1 / 1",
             overflow: "hidden", borderRadius: 12, border: "1px solid var(--line)",
             background: config.backgroundUrl ? `url("${config.backgroundUrl}") center/cover no-repeat` : "rgba(255,255,255,.04)",
@@ -262,7 +272,10 @@ export function TemplateEditor({
             </div>
           ))}
         </div>
-        <p className="muted">Arraste os elementos diretamente na prévia. Os controles abaixo permitem ajuste fino.</p>
+          </div>
+          <p className="muted">Arraste os elementos diretamente na prévia. Ela permanece visível enquanto você ajusta os parâmetros.</p>
+        </div>
+        <div>
         <div className="form-grid compact" style={{ marginTop: 16 }}>
           <label className="field">
             Campo
@@ -367,6 +380,7 @@ export function TemplateEditor({
           </label>
           <label className="field">Contorno (px)<input className="input" type="number" min="0" max="30" step="0.5" value={field.strokeWidth ?? 0} onChange={(e) => patch({ strokeWidth: Number(e.target.value) })} /></label>
           <label className="field">Cor do contorno<input type="color" value={field.strokeColor ?? "#000000"} onChange={(e) => patch({ strokeColor: e.target.value })} /></label>
+          <label className="field">Posição do contorno<select className="input" value={field.strokeLayer ?? "behind"} onChange={(e)=>patch({strokeLayer:e.target.value as LayoutField["strokeLayer"]})}><option value="behind">Atrás da letra</option><option value="above">Acima da letra</option></select></label>
           {(config.id==="digital-feed"||config.id==="digital-story") ? <>
             <label className="field">Contorno · deslocamento X<input className="input" type="number" min="-100" max="100" step="1" value={field.strokeOffsetX ?? 0} onChange={(e)=>patch({strokeOffsetX:Number(e.target.value)})}/></label>
             <label className="field">Contorno · deslocamento Y<input className="input" type="number" min="-100" max="100" step="1" value={field.strokeOffsetY ?? 0} onChange={(e)=>patch({strokeOffsetY:Number(e.target.value)})}/></label>
@@ -391,6 +405,8 @@ export function TemplateEditor({
             />
           </label>
         </div>
+        </div>
+      </div>
         <div className="preview-actions" style={{ marginTop: 16 }}>
           {persist ? <button
             className="btn primary"

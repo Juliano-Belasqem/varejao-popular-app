@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { canEdit, requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { updateProductDisplayName } from "../actions";
 import { importOpenFactsImage, importSerpApiImage, removeProductImage, setPrimaryProductImage, uploadProductImage } from "../image-actions";
 import { GoogleImageSearchForm } from "./google-image-search-form";
 
@@ -89,7 +90,7 @@ export default async function ProductDetailPage({ params, searchParams }: {
   const supabase = await createClient();
 
   const [{ data: product, error }, { data: images }] = await Promise.all([
-    supabase.from("products").select("id,ean,name,brand,specification,category,unit,sale_price,stock,active,erp_description").eq("id", id).single(),
+    supabase.from("products").select("id,ean,name,display_name,brand,specification,category,unit,sale_price,stock,active,erp_description").eq("id", id).single(),
     supabase.from("product_images").select("id,storage_path,source,source_url,approved,is_primary,created_at").eq("product_id", id).order("is_primary", { ascending: false }).order("created_at", { ascending: false }),
   ]);
   if (error || !product) notFound();
@@ -111,7 +112,7 @@ export default async function ProductDetailPage({ params, searchParams }: {
       <header className="page-head">
         <div>
           <Link href="/app/produtos" className="muted">← Produtos</Link>
-          <h1 style={{ marginTop: 8 }}>{product.name}</h1>
+          <h1 style={{ marginTop: 8 }}>{product.display_name || product.name}</h1>
           <div className="muted">EAN {product.ean}{product.brand ? ` · ${product.brand}` : ""}</div>
         </div>
         <span className="pill">{product.active ? "Ativo" : "Inativo"}</span>
@@ -124,7 +125,7 @@ export default async function ProductDetailPage({ params, searchParams }: {
         <section className="card">
           <h2 style={{ marginTop: 0 }}>Cadastro</h2>
           <table className="table"><tbody>
-            <tr><th>EAN</th><td>{product.ean}</td></tr><tr><th>Produto</th><td>{product.name}</td></tr><tr><th>Marca</th><td>{product.brand || "—"}</td></tr>
+            <tr><th>EAN</th><td>{product.ean}</td></tr><tr><th>Produto ERP</th><td>{product.name}</td></tr><tr><th>Nome para exibição</th><td>{editable ? <form action={updateProductDisplayName} style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><input type="hidden" name="id" value={product.id}/><input className="input" style={{maxWidth:420}} name="display_name" defaultValue={product.display_name ?? ""} placeholder={product.name}/><button className="btn primary" type="submit">Salvar nome</button><span className="muted" style={{fontSize:12}}>Usado nos próximos encartes; vazio usa o nome do ERP.</span></form> : (product.display_name || product.name)}</td></tr><tr><th>Marca</th><td>{product.brand || "—"}</td></tr>
             <tr><th>Especificação</th><td>{product.specification || "—"}</td></tr><tr><th>Categoria</th><td>{product.category || "—"}</td></tr><tr><th>Unidade</th><td>{product.unit || "—"}</td></tr>
             <tr><th>Preço ERP</th><td>{money(product.sale_price)}</td></tr><tr><th>Estoque</th><td>{product.stock ?? "—"}</td></tr><tr><th>Descrição ERP</th><td>{product.erp_description || "—"}</td></tr>
           </tbody></table>

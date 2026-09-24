@@ -91,8 +91,8 @@ function splitProductName(value: string) {
 
 function footerText(campaign: Campaign) {
   return campaign.end_date
-    ? `OFERTA VÁLIDA ATÉ ${dateLabel(campaign.end_date)}`
-    : "OFERTA VÁLIDA ENQUANTO DURAREM OS ESTOQUES";
+    ? `Ofertas válidas até ${dateLabel(campaign.end_date)} ou enquanto durarem os estoques`
+    : "Ofertas válidas enquanto durarem os estoques";
 }
 
 export default function OfficialTemplateGenerator({ campaign, items }: { campaign: Campaign; items: Item[] }) {
@@ -102,6 +102,7 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
   const [artConfig, setArtConfig] = useState<TemplateConfig>(template.config);
   const [itemId, setItemId] = useState(items[0]?.id ?? "");
   const [busy, setBusy] = useState(false);
+  const [previewZoom, setPreviewZoom] = useState(1);
   const [status, setStatus] = useState<string | null>(null);
   const [manualProductName, setManualProductName] = useState(false);
   const [productLines, setProductLines] = useState<[string,string,string]>(["","",""]);
@@ -218,7 +219,8 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
       ctx.strokeStyle=field.strokeColor??"#000000";ctx.lineWidth=field.strokeWidth??0;
       const x=rect.x+(field.align==="center"?rect.width/2:field.align==="right"?rect.width:0);
       const strokeX=x+(field.strokeOffsetX??0),strokeY=rect.y+(field.strokeOffsetY??0);
-      if((field.strokeWidth??0)>0){
+      const drawStroke=()=>{
+        if((field.strokeWidth??0)<=0)return;
         ctx.shadowColor=field.strokeShadowColor??"transparent";ctx.shadowBlur=field.strokeShadowBlur??0;ctx.shadowOffsetX=field.strokeShadowX??0;ctx.shadowOffsetY=field.strokeShadowY??0;
         ctx.strokeText(text,strokeX,strokeY,rect.width);
         if((field.strokeInnerGlowBlur??0)>0||(field.strokeInnerGlowWidth??0)>0){
@@ -229,9 +231,12 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
           ctx.strokeText(text,strokeX,strokeY,rect.width);
           ctx.restore();
         }
-      }
+      };
+      if((field.strokeLayer??"behind")==="behind")drawStroke();
       ctx.shadowColor=field.shadowColor??"transparent";ctx.shadowBlur=field.shadowBlur??0;ctx.shadowOffsetX=field.shadowX??0;ctx.shadowOffsetY=field.shadowY??0;
-      ctx.fillText(text,x,rect.y,rect.width);ctx.restore();
+      ctx.fillText(text,x,rect.y,rect.width);
+      if(field.strokeLayer==="above"){ctx.shadowColor="transparent";ctx.shadowBlur=0;ctx.shadowOffsetX=0;ctx.shadowOffsetY=0;drawStroke();}
+      ctx.restore();
     }
 
   }, [campaign, fieldFonts, item, loadImage, logoUrl, variant, artConfig, accentColor, imageInstances]);
@@ -390,8 +395,18 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
           {!item ? (
             <div className="empty">Adicione produtos à campanha para gerar uma arte.</div>
           ) : (
-            <div style={{ width: "100%", maxWidth: format === "story" ? 430 : 620, margin: "0 auto" }}>
-              <canvas ref={canvasRef} style={{ width: "100%", height: "auto", display: "block", borderRadius: 14, boxShadow: "0 18px 50px rgba(15,23,42,.16)" }} />
+            <div>
+              <div className="preview-actions" style={{ marginBottom: 8, justifyContent: "center" }}>
+                <button className="btn" type="button" aria-label="Diminuir zoom da arte" onClick={() => setPreviewZoom((value) => Math.max(0.5, Number((value - 0.1).toFixed(1))))}>−</button>
+                <span className="pill" aria-live="polite">{Math.round(previewZoom * 100)}%</span>
+                <button className="btn" type="button" aria-label="Aumentar zoom da arte" onClick={() => setPreviewZoom((value) => Math.min(2, Number((value + 0.1).toFixed(1))))}>+</button>
+                <button className="btn" type="button" onClick={() => setPreviewZoom(1)}>100%</button>
+              </div>
+              <div style={{ overflow: "auto", maxHeight: "78vh", padding: previewZoom > 1 ? 8 : 0 }}>
+                <div style={{ width: `${previewZoom * 100}%`, maxWidth: previewZoom <= 1 ? (format === "story" ? 430 : 620) : "none", margin: "0 auto" }}>
+                  <canvas ref={canvasRef} style={{ width: "100%", height: "auto", display: "block", borderRadius: 14, boxShadow: "0 18px 50px rgba(15,23,42,.16)" }} />
+                </div>
+              </div>
             </div>
           )}
         </div>
