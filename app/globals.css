@@ -54,3 +54,6 @@
 
 /* Template editor: side-by-side is only useful when the editor itself is wide enough. On normal content widths, give the preview a full row so it remains readable. */
 .template-editor-workspace{grid-template-columns:1fr}.template-editor-preview{position:relative;top:auto;overflow:visible}.template-editor-preview>div:nth-child(2){width:min(100%,720px);margin-inline:auto}.template-editor-controls{width:100%}@media(min-width:1500px){.template-editor-workspace{grid-template-columns:minmax(520px,.95fr) minmax(560px,1.05fr)}.template-editor-preview{position:sticky;top:12px}}
+
+/* Screen preview for four-up A4 sheets: scale to the available content width without shrinking the artwork itself. Print keeps physical A4 dimensions. */
+@media screen{.validity-sheet-wrap{width:100%;max-width:100%;overflow:auto}.produce-sheet{width:min(794px,100%);height:auto;aspect-ratio:794/1123;box-sizing:border-box}.produce-slot{min-width:0;min-height:0}}
