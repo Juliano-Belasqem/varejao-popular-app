@@ -276,138 +276,60 @@ export function TemplateEditor({
           </div>
           <p className="muted">Arraste os elementos diretamente na prévia. Ela permanece visível enquanto você ajusta os parâmetros.</p>
         </div>
-        <div className="template-editor-controls">
-        <div className="form-grid compact" style={{ marginTop: 16 }}>
-          <label className="field">
-            Campo
-            <select
-              aria-label="Campo"
-              className="input"
-              value={key}
-              onChange={(e) => setSelected(e.target.value)}
-            >
-              {Object.keys(config.layout).map((name) => (
-                <option key={name} value={name}>
-                  {fieldLabels[name]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={field.visible}
-              onChange={(e) => patch({ visible: e.target.checked })}
-            />{" "}
-            Mostrar campo
-          </label>
-          {(
-            [
-              ["x", "Posição X (%)"],
-              ["y", "Posição Y (%)"],
-              ["width", "Largura (%)"],
-              ["height", "Altura (%)"],
-              ["fontSize", "Tamanho da fonte"],
-            ] as const
-          ).map(([name, label]) => (
-            <label className="field" key={name}>
-              {label}
-              <input
-                className="input"
-                type="number"
-                min={name === "fontSize" ? 8 : 0}
-                max={name === "fontSize" ? 500 : 100}
-                step="0.5"
-                value={field[name]}
-                onChange={(e) => patch({ [name]: Number(e.target.value) })}
-              />
-            </label>
-          ))}
-          <label className="field">
-            Fonte do campo
-            <select className="input" value={field.fontFamily ?? ""} onChange={(e) => patch({ fontFamily: e.target.value || undefined })}>
-              <option value="">Kit da Marca / padrão</option>
-              <option value="Arial">Arial</option>
-              <option value="Arial Black">Arial Black</option>
-              <option value="Helvetica">Helvetica</option>
-              <option value="Verdana">Verdana</option>
-              <option value="Trebuchet MS">Trebuchet MS</option>
-              <option value="Georgia">Georgia</option>
-              <option value="Impact">Impact</option>
-              {brandFonts.length ? <optgroup label="Biblioteca tipográfica">{brandFonts.map(font=><option key={font.id} value={font.family}>{font.name}</option>)}</optgroup> : null}
-            </select>
-          </label>
-          <label className="field">Kerning / espaçamento (px)<input className="input" type="number" min="-20" max="100" step="0.5" value={field.letterSpacing ?? 0} onChange={(e) => patch({ letterSpacing: Number(e.target.value) })} /></label>
-          <label className="field">Altura de linha<input className="input" type="number" min="0.5" max="3" step="0.05" value={field.lineHeight ?? 1.05} onChange={(e)=>patch({lineHeight:Number(e.target.value)})}/></label>
-          <label className="field">Estilo<select className="input" value={field.fontStyle ?? "normal"} onChange={(e)=>patch({fontStyle:e.target.value as LayoutField["fontStyle"]})}><option value="normal">Normal</option><option value="italic">Itálico</option></select></label>
-          <label className="field">Transformação<select className="input" value={field.textTransform ?? "none"} onChange={(e)=>patch({textTransform:e.target.value as LayoutField["textTransform"]})}><option value="none">Como digitado</option><option value="uppercase">MAIÚSCULAS</option><option value="lowercase">minúsculas</option></select></label>
-          <label className="field">
-            Alinhamento
-            <select
-              className="input"
-              value={field.align}
-              onChange={(e) =>
-                patch({ align: e.target.value as LayoutField["align"] })
-              }
-            >
-              <option value="left">Esquerda</option>
-              <option value="center">Centro</option>
-              <option value="right">Direita</option>
-            </select>
-          </label>
-          <label className="field">
-            Peso
-            <select
-              className="input"
-              value={field.weight}
-              onChange={(e) => patch({ weight: Number(e.target.value) })}
-            >
-              {[400, 500, 600, 700, 800, 900].map((n) => (
-                <option key={n}>{n}</option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            Opacidade
-            <input className="input" type="number" min="0" max="1" step="0.05" value={field.opacity ?? 1} onChange={(e) => patch({ opacity: Number(e.target.value) })} />
-          </label>
-          <label className="field">
-            Rotação (°)
-            <input className="input" type="number" min="-180" max="180" step="1" value={field.rotation ?? 0} onChange={(e) => patch({ rotation: Number(e.target.value) })} />
-          </label>
-          <label className="field">
-            Camada
-            <input className="input" type="number" min="0" max="100" step="1" value={field.layer ?? 1} onChange={(e) => patch({ layer: Number(e.target.value) })} />
-          </label>
-          <label className="field">Contorno (px)<input className="input" type="number" min="0" max="30" step="0.5" value={field.strokeWidth ?? 0} onChange={(e) => patch({ strokeWidth: Number(e.target.value) })} /></label>
-          <label className="field">Cor do contorno<input type="color" value={field.strokeColor ?? "#000000"} onChange={(e) => patch({ strokeColor: e.target.value })} /></label>
-          <label className="field">Opacidade do contorno (%)<input className="input" type="number" min="0" max="100" step="1" value={Math.round((field.strokeOpacity ?? 1) * 100)} onChange={(e) => patch({ strokeOpacity: Math.max(0, Math.min(100, Number(e.target.value))) / 100 })} /></label>
-          <label className="field">Posição do contorno<select className="input" value={field.strokeLayer ?? "behind"} onChange={(e)=>patch({strokeLayer:e.target.value as LayoutField["strokeLayer"]})}><option value="behind">Atrás da letra</option><option value="above">Acima da letra</option></select></label>
-          {(config.id==="digital-feed"||config.id==="digital-story") ? <>
-            <label className="field">Contorno · deslocamento X<input className="input" type="number" min="-100" max="100" step="1" value={field.strokeOffsetX ?? 0} onChange={(e)=>patch({strokeOffsetX:Number(e.target.value)})}/></label>
-            <label className="field">Contorno · deslocamento Y<input className="input" type="number" min="-100" max="100" step="1" value={field.strokeOffsetY ?? 0} onChange={(e)=>patch({strokeOffsetY:Number(e.target.value)})}/></label>
-            <label className="field">Sombra do contorno · desfoque<input className="input" type="number" min="0" max="100" step="1" value={field.strokeShadowBlur ?? 0} onChange={(e)=>patch({strokeShadowBlur:Number(e.target.value)})}/></label>
-            <label className="field">Sombra do contorno X<input className="input" type="number" min="-100" max="100" step="1" value={field.strokeShadowX ?? 0} onChange={(e)=>patch({strokeShadowX:Number(e.target.value)})}/></label>
-            <label className="field">Sombra do contorno Y<input className="input" type="number" min="-100" max="100" step="1" value={field.strokeShadowY ?? 0} onChange={(e)=>patch({strokeShadowY:Number(e.target.value)})}/></label>
-            <label className="field">Cor da sombra do contorno<input type="color" value={field.strokeShadowColor ?? "#000000"} onChange={(e)=>patch({strokeShadowColor:e.target.value})}/></label>
-            <label className="field">Brilho interno · intensidade<input className="input" type="number" min="0" max="100" step="1" value={field.strokeInnerGlowBlur ?? 0} onChange={(e)=>patch({strokeInnerGlowBlur:Number(e.target.value)})}/></label>
-            <label className="field">Brilho interno · largura<input className="input" type="number" min="0" max="30" step="0.5" value={field.strokeInnerGlowWidth ?? 0} onChange={(e)=>patch({strokeInnerGlowWidth:Number(e.target.value)})}/></label>
-            <label className="field">Cor do brilho interno<input type="color" value={field.strokeInnerGlowColor ?? "#ffffff"} onChange={(e)=>patch({strokeInnerGlowColor:e.target.value})}/></label>
-          </> : null}
-          <label className="field">Sombra · desfoque<input className="input" type="number" min="0" max="100" step="1" value={field.shadowBlur ?? 0} onChange={(e) => patch({ shadowBlur: Number(e.target.value) })} /></label>
-          <label className="field">Sombra X<input className="input" type="number" step="1" value={field.shadowX ?? 0} onChange={(e) => patch({ shadowX: Number(e.target.value) })} /></label>
-          <label className="field">Sombra Y<input className="input" type="number" step="1" value={field.shadowY ?? 0} onChange={(e) => patch({ shadowY: Number(e.target.value) })} /></label>
-          <label className="field">Cor da sombra<input type="color" value={field.shadowColor ?? "#000000"} onChange={(e) => patch({ shadowColor: e.target.value })} /></label>
-          <label className="field">
-            Cor
-            <input
-              type="color"
-              value={field.color}
-              onChange={(e) => patch({ color: e.target.value })}
-            />
-          </label>
-        </div>
-        </div>
+        <aside className="template-editor-controls template-inspector">
+          <div className="inspector-head">
+            <div><small className="eyebrow">ELEMENTO SELECIONADO</small><strong>{fieldLabels[key]}</strong></div>
+            <label className="inspector-visible"><input type="checkbox" checked={field.visible} onChange={(e)=>patch({visible:e.target.checked})}/> Visível</label>
+          </div>
+          <label className="field">Elemento<select aria-label="Campo" className="input" value={key} onChange={(e)=>setSelected(e.target.value)}>{Object.keys(config.layout).map((name)=><option key={name} value={name}>{fieldLabels[name]}</option>)}</select></label>
+
+          <details className="inspector-section" open>
+            <summary>Tipografia</summary>
+            <div className="inspector-grid">
+              <label className="field inspector-wide">Fonte<select className="input" value={field.fontFamily??""} onChange={(e)=>patch({fontFamily:e.target.value||undefined})}><option value="">Kit da Marca / padrão</option><option value="Arial">Arial</option><option value="Arial Black">Arial Black</option><option value="Helvetica">Helvetica</option><option value="Verdana">Verdana</option><option value="Trebuchet MS">Trebuchet MS</option><option value="Georgia">Georgia</option><option value="Impact">Impact</option>{brandFonts.length?<optgroup label="Biblioteca tipográfica">{brandFonts.map(font=><option key={font.id} value={font.family}>{font.name}</option>)}</optgroup>:null}</select></label>
+              <label className="field">Tamanho<input className="input" type="number" min="8" max="500" step=".5" value={field.fontSize} onChange={(e)=>patch({fontSize:Number(e.target.value)})}/></label>
+              <label className="field">Peso<select className="input" value={field.weight} onChange={(e)=>patch({weight:Number(e.target.value)})}>{[400,500,600,700,800,900].map(n=><option key={n}>{n}</option>)}</select></label>
+              <label className="field">Cor<input type="color" value={field.color} onChange={(e)=>patch({color:e.target.value})}/></label>
+              <label className="field">Alinhamento<select className="input" value={field.align} onChange={(e)=>patch({align:e.target.value as LayoutField["align"]})}><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select></label>
+              <label className="field">Kerning<input className="input" type="number" min="-20" max="100" step=".5" value={field.letterSpacing??0} onChange={(e)=>patch({letterSpacing:Number(e.target.value)})}/></label>
+              <label className="field">Altura de linha<input className="input" type="number" min=".5" max="3" step=".05" value={field.lineHeight??1.05} onChange={(e)=>patch({lineHeight:Number(e.target.value)})}/></label>
+              <label className="field">Estilo<select className="input" value={field.fontStyle??"normal"} onChange={(e)=>patch({fontStyle:e.target.value as LayoutField["fontStyle"]})}><option value="normal">Normal</option><option value="italic">Itálico</option></select></label>
+              <label className="field">Caixa<select className="input" value={field.textTransform??"none"} onChange={(e)=>patch({textTransform:e.target.value as LayoutField["textTransform"]})}><option value="none">Como digitado</option><option value="uppercase">MAIÚSCULAS</option><option value="lowercase">minúsculas</option></select></label>
+            </div>
+          </details>
+
+          <details className="inspector-section">
+            <summary>Posição e tamanho</summary>
+            <div className="inspector-grid">
+              {([["x","X (%)"],["y","Y (%)"],["width","Largura (%)"],["height","Altura (%)"]] as const).map(([name,label])=><label className="field" key={name}>{label}<input className="input" type="number" min="0" max="100" step=".5" value={field[name]} onChange={(e)=>patch({[name]:Number(e.target.value)})}/></label>)}
+              <label className="field">Rotação (°)<input className="input" type="number" min="-180" max="180" value={field.rotation??0} onChange={(e)=>patch({rotation:Number(e.target.value)})}/></label>
+              <label className="field">Camada<input className="input" type="number" min="0" max="100" value={field.layer??1} onChange={(e)=>patch({layer:Number(e.target.value)})}/></label>
+              <label className="field">Opacidade<input className="input" type="number" min="0" max="1" step=".05" value={field.opacity??1} onChange={(e)=>patch({opacity:Number(e.target.value)})}/></label>
+            </div>
+          </details>
+
+          <details className="inspector-section">
+            <summary>Contorno</summary>
+            <div className="inspector-grid">
+              <label className="field">Espessura<input className="input" type="number" min="0" max="30" step=".5" value={field.strokeWidth??0} onChange={(e)=>patch({strokeWidth:Number(e.target.value)})}/></label>
+              <label className="field">Cor<input type="color" value={field.strokeColor??"#000000"} onChange={(e)=>patch({strokeColor:e.target.value})}/></label>
+              <label className="field">Opacidade (%)<input className="input" type="number" min="0" max="100" value={Math.round((field.strokeOpacity??1)*100)} onChange={(e)=>patch({strokeOpacity:Math.max(0,Math.min(100,Number(e.target.value)))/100})}/></label>
+              <label className="field inspector-wide">Camada<select className="input" value={field.strokeLayer??"behind"} onChange={(e)=>patch({strokeLayer:e.target.value as LayoutField["strokeLayer"]})}><option value="behind">Atrás da letra</option><option value="above">Acima da letra</option></select></label>
+              {(config.id==="digital-feed"||config.id==="digital-story")?<><label className="field">Deslocamento X<input className="input" type="number" min="-100" max="100" value={field.strokeOffsetX??0} onChange={(e)=>patch({strokeOffsetX:Number(e.target.value)})}/></label><label className="field">Deslocamento Y<input className="input" type="number" min="-100" max="100" value={field.strokeOffsetY??0} onChange={(e)=>patch({strokeOffsetY:Number(e.target.value)})}/></label></>:null}
+            </div>
+          </details>
+
+          <details className="inspector-section">
+            <summary>Sombra e efeitos</summary>
+            <div className="inspector-grid">
+              <label className="field">Sombra · blur<input className="input" type="number" min="0" max="100" value={field.shadowBlur??0} onChange={(e)=>patch({shadowBlur:Number(e.target.value)})}/></label>
+              <label className="field">Sombra X<input className="input" type="number" value={field.shadowX??0} onChange={(e)=>patch({shadowX:Number(e.target.value)})}/></label>
+              <label className="field">Sombra Y<input className="input" type="number" value={field.shadowY??0} onChange={(e)=>patch({shadowY:Number(e.target.value)})}/></label>
+              <label className="field">Cor da sombra<input type="color" value={field.shadowColor??"#000000"} onChange={(e)=>patch({shadowColor:e.target.value})}/></label>
+              {(config.id==="digital-feed"||config.id==="digital-story")?<><label className="field">Contorno · blur<input className="input" type="number" min="0" max="100" value={field.strokeShadowBlur??0} onChange={(e)=>patch({strokeShadowBlur:Number(e.target.value)})}/></label><label className="field">Contorno sombra X<input className="input" type="number" value={field.strokeShadowX??0} onChange={(e)=>patch({strokeShadowX:Number(e.target.value)})}/></label><label className="field">Contorno sombra Y<input className="input" type="number" value={field.strokeShadowY??0} onChange={(e)=>patch({strokeShadowY:Number(e.target.value)})}/></label><label className="field">Cor sombra contorno<input type="color" value={field.strokeShadowColor??"#000000"} onChange={(e)=>patch({strokeShadowColor:e.target.value})}/></label><label className="field">Glow · intensidade<input className="input" type="number" min="0" max="100" value={field.strokeInnerGlowBlur??0} onChange={(e)=>patch({strokeInnerGlowBlur:Number(e.target.value)})}/></label><label className="field">Glow · largura<input className="input" type="number" min="0" max="30" step=".5" value={field.strokeInnerGlowWidth??0} onChange={(e)=>patch({strokeInnerGlowWidth:Number(e.target.value)})}/></label><label className="field">Cor do glow<input type="color" value={field.strokeInnerGlowColor??"#ffffff"} onChange={(e)=>patch({strokeInnerGlowColor:e.target.value})}/></label></>:null}
+            </div>
+          </details>
+        </aside>
       </div>
         <div className="preview-actions" style={{ marginTop: 16 }}>
           {persist ? <button
