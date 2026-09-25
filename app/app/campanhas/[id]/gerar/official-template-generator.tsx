@@ -217,7 +217,7 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
       const size=fitFont(ctx,text,rect.width,field.fontSize*variant.width/1000,12,family,field.weight);
       ctx.font=`${field.fontStyle??"normal"} ${field.weight} ${size}px ${family}`;ctx.textBaseline="top";ctx.textAlign=field.align;
       ctx.fillStyle=field.color==="#ff9b36"?accentColor:field.color;
-      ctx.strokeStyle=field.strokeColor??"#000000";ctx.lineWidth=field.strokeWidth??0;
+      ctx.strokeStyle=field.strokeColor??"#000000";ctx.lineWidth=field.strokeWidth??0;ctx.lineJoin="round";ctx.lineCap="round";
       const x=rect.x+(field.align==="center"?rect.width/2:field.align==="right"?rect.width:0);
       const strokeX=x+(field.strokeOffsetX??0),strokeY=rect.y+(field.strokeOffsetY??0);
       const drawStroke=()=>{
@@ -414,7 +414,7 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
           )}
         </div>
       </div>
-      <div className="grid" style={{alignItems:"start",marginTop:18}}>
+      <div className="digital-template-editors" style={{marginTop:18}}>
         <TemplateEditor key={"art-"+artConfig.id} config={artConfig} onChange={setArtConfig} onSaved={async()=>{}} canEdit={true} ready={template.ready} persist={false} title="Configuração desta arte"/>
         <TemplateEditor key={"master-"+template.config.id} config={template.config} onChange={template.setConfig} onSaved={template.reload} canEdit={template.canEdit} ready={template.ready} title="Template Mestre"/>
       </div>
