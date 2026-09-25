@@ -73,3 +73,13 @@
 .template-editor-preview>div:nth-child(2){width:min(100%,720px)!important;margin-inline:auto}
 .template-inspector{width:100%;max-width:720px;margin-inline:auto;max-height:none}
 @media(min-width:900px){.template-inspector{max-width:860px}.inspector-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.inspector-wide{grid-column:span 2}}
+
+/* Inspector navigation: distribute the main editing groups horizontally below the preview. */
+.template-inspector{max-width:100%!important;grid-template-columns:repeat(4,minmax(0,1fr));align-items:start}
+.template-inspector>.inspector-head,.template-inspector>label.field{grid-column:1/-1}
+.template-inspector>.inspector-section{min-width:0;border-top:0;border:1px solid var(--line);border-radius:10px;padding:6px 9px;background:color-mix(in srgb,var(--panel) 94%,#000)}
+.template-inspector>.inspector-section>summary{min-height:34px;display:flex;align-items:center;white-space:nowrap}
+.template-inspector>.inspector-section .inspector-grid{grid-template-columns:1fr}
+.template-inspector>.inspector-section .inspector-wide{grid-column:auto}
+@media(max-width:1050px){.template-inspector{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.template-inspector{grid-template-columns:1fr}.template-inspector>.inspector-section>summary{white-space:normal}}
