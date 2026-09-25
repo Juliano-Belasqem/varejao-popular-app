@@ -207,7 +207,8 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
       ctx.globalAlpha=field.opacity??1;
       const cx=rect.x+rect.width/2,cy=rect.y+rect.height/2;
       ctx.translate(cx,cy);ctx.rotate(((field.rotation??0)*Math.PI)/180);ctx.translate(-cx,-cy);
-      ctx.beginPath();ctx.rect(rect.x,rect.y,rect.width,rect.height);ctx.clip();
+      const effectPad=Math.max(0,(field.strokeWidth??0)/2+(field.strokeShadowBlur??0)+Math.abs(field.strokeShadowX??0)+Math.abs(field.strokeShadowY??0)+(field.shadowBlur??0)+Math.abs(field.shadowX??0)+Math.abs(field.shadowY??0)+(field.strokeInnerGlowBlur??0));
+      ctx.beginPath();ctx.rect(rect.x-effectPad,rect.y-effectPad,rect.width+effectPad*2,rect.height+effectPad*2);ctx.clip();
       const family=field.fontFamily||fieldFonts[key]||fieldFonts.body;
       const rawValue=values[key]||"";
       const text=field.textTransform==="uppercase"?rawValue.toUpperCase():field.textTransform==="lowercase"?rawValue.toLowerCase():rawValue;
