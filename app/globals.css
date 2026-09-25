@@ -83,3 +83,7 @@
 .template-inspector>.inspector-section .inspector-wide{grid-column:auto}
 @media(max-width:1050px){.template-inspector{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:620px){.template-inspector{grid-template-columns:1fr}.template-inspector>.inspector-section>summary{white-space:normal}}
+
+/* Digital artwork editors need the full content width: keep art settings and master template stacked. */
+.digital-template-editors{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;width:100%}
+.digital-template-editors>details{width:100%;max-width:100%;min-width:0;margin-bottom:0!important}
