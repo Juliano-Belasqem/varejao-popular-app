@@ -51,3 +51,6 @@
 
 /* The template editor lives inside cards/grids whose available width can be smaller than the viewport. Keep preview and controls constrained by their actual container, not only viewport breakpoints. */
 .template-editor-workspace{grid-template-columns:minmax(0,.9fr) minmax(0,1.4fr)}.template-editor-preview,.template-editor-controls{width:100%;max-width:100%;overflow:hidden}@media(max-width:1250px){.template-editor-workspace{grid-template-columns:1fr}.template-editor-preview{position:relative;top:auto}}
+
+/* Template editor: side-by-side is only useful when the editor itself is wide enough. On normal content widths, give the preview a full row so it remains readable. */
+.template-editor-workspace{grid-template-columns:1fr}.template-editor-preview{position:relative;top:auto;overflow:visible}.template-editor-preview>div:nth-child(2){width:min(100%,720px);margin-inline:auto}.template-editor-controls{width:100%}@media(min-width:1500px){.template-editor-workspace{grid-template-columns:minmax(520px,.95fr) minmax(560px,1.05fr)}.template-editor-preview{position:sticky;top:12px}}
