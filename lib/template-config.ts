@@ -20,6 +20,7 @@ export type LayoutField = {
   layer: number;
   strokeColor: string;
   strokeWidth: number;
+  strokeOpacity?: number;
   strokeLayer?: "behind" | "above";
   shadowColor: string;
   shadowBlur: number;
@@ -93,6 +94,7 @@ const field = (
   layer: 1,
   strokeColor: "#000000",
   strokeWidth: 0,
+  strokeOpacity: 1,
   shadowColor: "#000000",
   shadowBlur: 0,
   shadowX: 0,
@@ -203,6 +205,7 @@ export function validateLayout(
       (f.rotation != null && (f.rotation < -180 || f.rotation > 180)) ||
       (f.layer != null && (f.layer < 0 || f.layer > 100)) ||
       (f.strokeWidth != null && (f.strokeWidth < 0 || f.strokeWidth > 30)) ||
+      (f.strokeOpacity != null && (f.strokeOpacity < 0 || f.strokeOpacity > 1)) ||
       (f.strokeLayer != null && !["behind", "above"].includes(f.strokeLayer)) ||
       (f.shadowBlur != null && (f.shadowBlur < 0 || f.shadowBlur > 100)) ||
       (f.letterSpacing != null && (f.letterSpacing < -20 || f.letterSpacing > 100)) ||
@@ -229,6 +232,7 @@ export function validateLayout(
       layer: f.layer ?? 1,
       strokeColor: f.strokeColor ?? "#000000",
       strokeWidth: f.strokeWidth ?? 0,
+      strokeOpacity: f.strokeOpacity ?? 1,
       strokeLayer: f.strokeLayer ?? "behind",
       shadowColor: f.shadowColor ?? "#000000",
       shadowBlur: f.shadowBlur ?? 0,

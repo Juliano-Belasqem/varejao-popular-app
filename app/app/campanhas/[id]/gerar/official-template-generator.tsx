@@ -207,7 +207,8 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
       ctx.globalAlpha=field.opacity??1;
       const cx=rect.x+rect.width/2,cy=rect.y+rect.height/2;
       ctx.translate(cx,cy);ctx.rotate(((field.rotation??0)*Math.PI)/180);ctx.translate(-cx,-cy);
-      ctx.beginPath();ctx.rect(rect.x,rect.y,rect.width,rect.height);ctx.clip();
+      const effectPad=Math.max(0,(field.strokeWidth??0)/2+(field.strokeShadowBlur??0)+Math.abs(field.strokeShadowX??0)+Math.abs(field.strokeShadowY??0)+(field.shadowBlur??0)+Math.abs(field.shadowX??0)+Math.abs(field.shadowY??0)+(field.strokeInnerGlowBlur??0));
+      ctx.beginPath();ctx.rect(rect.x-effectPad,rect.y-effectPad,rect.width+effectPad*2,rect.height+effectPad*2);ctx.clip();
       const family=field.fontFamily||fieldFonts[key]||fieldFonts.body;
       const rawValue=values[key]||"";
       const text=field.textTransform==="uppercase"?rawValue.toUpperCase():field.textTransform==="lowercase"?rawValue.toLowerCase():rawValue;
@@ -221,6 +222,7 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
       const strokeX=x+(field.strokeOffsetX??0),strokeY=rect.y+(field.strokeOffsetY??0);
       const drawStroke=()=>{
         if((field.strokeWidth??0)<=0)return;
+        ctx.save();ctx.globalAlpha=(field.opacity??1)*(field.strokeOpacity??1);
         ctx.shadowColor=field.strokeShadowColor??"transparent";ctx.shadowBlur=field.strokeShadowBlur??0;ctx.shadowOffsetX=field.strokeShadowX??0;ctx.shadowOffsetY=field.strokeShadowY??0;
         ctx.strokeText(text,strokeX,strokeY,rect.width);
         if((field.strokeInnerGlowBlur??0)>0||(field.strokeInnerGlowWidth??0)>0){
@@ -231,6 +233,7 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
           ctx.strokeText(text,strokeX,strokeY,rect.width);
           ctx.restore();
         }
+        ctx.restore();
       };
       if((field.strokeLayer??"behind")==="behind")drawStroke();
       ctx.shadowColor=field.shadowColor??"transparent";ctx.shadowBlur=field.shadowBlur??0;ctx.shadowOffsetX=field.shadowX??0;ctx.shadowOffsetY=field.shadowY??0;
