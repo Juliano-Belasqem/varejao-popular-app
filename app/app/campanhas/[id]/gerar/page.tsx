@@ -18,6 +18,7 @@ export default async function DigitalGeneratorPage({ params }: { params: Promise
       .eq("campaign_id", id)
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: true }),
+    supabase.from("products").select("id,display_name").limit(2000),
   ]);
 
   if (campaignError || !campaign) notFound();
