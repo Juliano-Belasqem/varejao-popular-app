@@ -1,6 +1,8 @@
 export const templateIds = [
   "validity",
   "produce",
+  "physical-one",
+  "physical-four",
   "digital-feed",
   "digital-story",
 ] as const;
@@ -118,6 +120,7 @@ const field = (
 // Coordinates are percentages; font sizes use a 1000-unit-wide design space.
 export function defaultTemplate(id: TemplateId): TemplateConfig {
   const story = id === "digital-story";
+  const validityLike = id === "validity" || id === "physical-one" || id === "physical-four";
   return {
     id,
     revision: 0,
@@ -132,7 +135,7 @@ export function defaultTemplate(id: TemplateId): TemplateConfig {
             produceUnit: field(67, 72, 22, 10, 85, "#111111"),
             produceCode: field(74, 84, 22, 12, 100, "#ffffff"),
           }
-        : id === "validity"
+        : validityLike
         ? {
             title: { ...field(5, 2, 90, 9, 90), visible: false },
             product: field(7, 20, 86, 6, 85),
