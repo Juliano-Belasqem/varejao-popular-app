@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 
 export function CampaignItemsSpacing({children}:{children:ReactNode}) {
   const [spacing,setSpacing]=useState(10);
-  return <div style={{"--campaign-column-gap":spacing+"px"} as React.CSSProperties}>
+  return <div style={{"--campaign-column-gap":spacing+"px"} as CSSProperties}>
     <div className="no-print campaign-column-spacing">
       <label className="field">
         <span>Espaçamento entre colunas · {spacing}px</span>
