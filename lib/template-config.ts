@@ -71,6 +71,7 @@ export const fieldLabels: Record<string, string> = {
   produceUnit: "Unidade do hortifrutti",
   produceCode: "Código do hortifrutti",
   producePrice: "Preço do hortifrutti",
+  produceCurrency: "Símbolo R$ do hortifrutti",
 };
 const field = (
   x: number,
@@ -126,7 +127,8 @@ export function defaultTemplate(id: TemplateId): TemplateConfig {
         ? {
             produceName: field(8, 4, 84, 18, 150, "#ffffff"),
             produceSpecification: { ...field(8, 24, 84, 12, 90, "#ffffff"), weight: 400 },
-            producePrice: field(8, 42, 68, 32, 420, "#111111"),
+            produceCurrency: field(7, 47, 13, 10, 72, "#111111"),
+            producePrice: field(17, 42, 59, 32, 420, "#111111"),
             produceUnit: field(67, 72, 22, 10, 85, "#111111"),
             produceCode: field(74, 84, 22, 12, 100, "#ffffff"),
           }
@@ -170,6 +172,7 @@ export function validateLayout(
   const result: Record<string, LayoutField> = {};
   const legacyDigital = id !== "validity" && id !== "produce" && !!input.product && !input.productLine1 && !input.productLine2 && !input.productLine3 && !input.currency && !input.unit;
   const previousDigital = id !== "validity" && id !== "produce" && !!input.productLine1 && !!input.price && !input.priceReais && !input.priceCents;
+  const previousProduce = id === "produce" && !!input.producePrice && !input.produceCurrency;
   const legacyKeys = new Set(["product", "brand", "specification", "image", "price", "footer", "logo"]);
   const previousKeys = new Set(["productLine1","productLine2","productLine3","brand","specification","image","currency","price","unit","footer","logo"]);
   if (legacyDigital && !Object.keys(input).every((key) => legacyKeys.has(key)))
@@ -177,7 +180,7 @@ export function validateLayout(
   if (previousDigital && !Object.keys(input).every((key) => previousKeys.has(key)))
     throw new Error("Layout digital anterior inválido.");
   for (const key of Object.keys(defaults)) {
-    const f = input[key] ?? (legacyDigital ? (key === "productLine1" ? input.product : defaults[key]) : previousDigital ? (key === "priceReais" ? input.price : key === "priceCents" ? defaults[key] : input[key]) : undefined);
+    const f = input[key] ?? (legacyDigital ? (key === "productLine1" ? input.product : defaults[key]) : previousDigital ? (key === "priceReais" ? input.price : key === "priceCents" ? defaults[key] : input[key]) : previousProduce && key === "produceCurrency" ? defaults[key] : undefined);
     if (
       !f ||
       ["x", "y", "width", "height", "fontSize", "weight"].some(

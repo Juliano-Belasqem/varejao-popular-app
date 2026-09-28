@@ -8,11 +8,11 @@ import { useTemplate } from "@/lib/use-template";
 import { deleteProduceProduct, saveProduceProduct } from "./actions";
 
 type Product={id:string;name:string;specification:string;unit:string;code:string};
-type Slot={productId:string;price:string;priceScale:number};
-const empty=():Slot=>({productId:"",price:"",priceScale:1});
+type Slot={productId:string;productQuery:string;price:string;priceScale:number};
+const empty=():Slot=>({productId:"",productQuery:"",price:"",priceScale:1});
 
 function splitPrice(value:string){const clean=value.replace(/[^0-9,]/g,"");const[a="0",b="00"]=clean.split(",");return{major:a||"0",minor:(b+"00").slice(0,2)}}
-function ProducePrice({value,manualScale=1}:{value:string;manualScale?:number}){const p=splitPrice(value);const scale=(p.major.length<=1?1.22:p.major.length===2?.76:p.major.length===3?.68:.58)*manualScale;return <div className="produce-price" style={{transform:"scale("+scale+")",transformOrigin:"center center",paddingTop:".12em",boxSizing:"border-box",width:"100%",height:"100%"}}><small>R$</small><strong>{p.major}</strong><span>,{p.minor}</span></div>}
+function ProducePrice({value,manualScale=1}:{value:string;manualScale?:number}){const p=splitPrice(value);const scale=(p.major.length<=1?1.22:p.major.length===2?.76:p.major.length===3?.68:.58)*manualScale;return <div className="produce-price" style={{transform:"scale("+scale+")",transformOrigin:"center center",paddingTop:".12em",boxSizing:"border-box",width:"100%",height:"100%"}}><strong>{p.major}</strong><span>,{p.minor}</span></div>}
 
 export function ProduceTemplateGenerator({products}:{products:Product[]}){
   const template=useTemplate("produce");
@@ -25,6 +25,7 @@ export function ProduceTemplateGenerator({products}:{products:Product[]}){
   const ticket=(slot:Slot)=>{const product=products.find(p=>p.id===slot.productId);return <ConfiguredTicket config={template.config} fonts={fieldFonts} logoUrl={null} values={{
     produceName:product?.name||"PRODUTO",
     produceSpecification:product ? (product.specification || "") : "ESPECIFICAÇÃO",
+    produceCurrency:"R$",
     producePrice:<ProducePrice value={slot.price} manualScale={slot.priceScale}/>,
     produceUnit:product?.unit||"KG",
     produceCode:product?.code||"000",
@@ -36,7 +37,7 @@ export function ProduceTemplateGenerator({products}:{products:Product[]}){
       <label className="field" style={{maxWidth:260,marginTop:14}}><span>Quantidade para imprimir</span><select className="input" value={printCount} onChange={e=>setPrintCount(Number(e.target.value))}>{[1,2,3,4].map(n=><option key={n} value={n}>{n} {n===1?"produto":"produtos"}</option>)}</select></label>
       <div className="validity-editor-grid" style={{marginTop:14}}>{slots.slice(0,printCount).map((slot,index)=><div className="validity-editor" key={index}>
         <strong>Item {index+1}</strong>
-        <label className="field"><span>Produto</span><input className="input" list={"produce-options-"+index} value={slot.productId ? (products.find(p=>p.id===slot.productId)?.name??"") : ""} placeholder="Digite para buscar..." onChange={e=>{const typed=e.target.value;const found=sorted.find(p=>p.name.localeCompare(typed,"pt-BR",{sensitivity:"base"})===0);patch(index,{productId:found?.id??""})}}/><datalist id={"produce-options-"+index}>{sorted.map(p=><option value={p.name} key={p.id}>{p.specification?" · "+p.specification:""}</option>)}</datalist><select className="input" value={slot.productId} onChange={e=>patch(index,{productId:e.target.value})}><option value="">Ou selecione na lista</option>{sorted.map(p=><option value={p.id} key={p.id}>{p.name}{p.specification?" · "+p.specification:""}</option>)}</select></label>
+        <label className="field"><span>Produto</span><input className="input" list={"produce-options-"+index} value={slot.productQuery} placeholder="Digite ou abra a lista de produtos..." onChange={e=>{const typed=e.target.value;const found=sorted.find(p=>p.name.localeCompare(typed,"pt-BR",{sensitivity:"base"})===0);patch(index,{productQuery:typed,productId:found?.id??""})}} onBlur={()=>{if(slot.productId)return;const typed=slot.productQuery.trim().toLocaleLowerCase("pt-BR");const found=sorted.find(p=>p.name.toLocaleLowerCase("pt-BR").startsWith(typed));if(found)patch(index,{productId:found.id,productQuery:found.name})}}/><datalist id={"produce-options-"+index}>{sorted.map(p=><option value={p.name} key={p.id}>{p.specification?" · "+p.specification:""}</option>)}</datalist></label>
         <label className="field"><span>Preço</span><input className="input" inputMode="decimal" placeholder="9,99" value={slot.price} onChange={e=>patch(index,{price:e.target.value})}/></label><label className="field"><span>Ajuste do preço · {Math.round(slot.priceScale*100)}%</span><input className="input" type="range" min=".7" max="1.4" step=".05" value={slot.priceScale} onChange={e=>patch(index,{priceScale:Number(e.target.value)})}/></label>
       </div>)}</div>
     </section>
