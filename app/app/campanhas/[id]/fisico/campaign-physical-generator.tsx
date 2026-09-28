@@ -14,8 +14,8 @@ function eanBars(code:string){const d=validEan13(code);if(!d)return null;const L
 function Barcode({code,scale,stretch}:{code:string;scale:number;stretch:number}){const bits=eanBars(code);const digits=validEan13(code);if(!bits||!digits)return <div className="barcode-fallback">{code||"EAN-13 inválido"}</div>;return <div style={{background:"#fff",padding:"2% 4%",transform:`scale(${scale})`,transformOrigin:"center"}}><svg className="barcode-svg" style={{height:"1.15em",minHeight:32,width:`${stretch*100}%`,maxWidth:"none",marginLeft:`${(1-stretch)*50}%`}} viewBox="0 0 113 60" preserveAspectRatio="none" shapeRendering="crispEdges"><rect width="113" height="60" fill="#fff"/>{bits.split("").map((b,i)=>b==="1"?<rect key={i} x={11+i} y="2" width="1" height={(i<3||(i>=45&&i<50)||i>=92)?46:41} fill="#000"/>:null)}</svg><div className="barcode-number">{digits}</div></div>}
 
 export function CampaignPhysicalGenerator({campaign,items}:{campaign:Campaign;items:Item[]}){
- const templateOne=useTemplate("validity");
- const templateFour=useTemplate("validity");
+ const templateOne=useTemplate("physical-one");
+ const templateFour=useTemplate("physical-four");
  const {logoUrl,fieldFonts,ready}=useBrandKit("validity");
  const [mode,setMode]=useState<1|4>(4),[printCount,setPrintCount]=useState(4);
  const [selected,setSelected]=useState<string[]>(()=>items.slice(0,4).map(x=>x.id));
