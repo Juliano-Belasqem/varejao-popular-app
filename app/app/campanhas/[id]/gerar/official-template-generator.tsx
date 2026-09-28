@@ -26,6 +26,7 @@ type Item = {
   name_snapshot: string | null;
   brand_snapshot: string | null;
   specification_snapshot: string | null;
+  display_name?: string | null;
 };
 
 type ProductImageInstance = { id:string; url:string; label:string; x:number; y:number; scale:number };
@@ -123,7 +124,7 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
   const duplicateImageInstance=(source:ProductImageInstance)=>setInstances([...imageInstances,{...source,id:crypto.randomUUID(),label:`Imagem ${imageInstances.length+1}`,x:source.x+24,y:source.y+24}]);
   const addDifferentImage=(file:File|null)=>{if(!file||!file.type.startsWith("image/"))return;const reader=new FileReader();reader.onload=()=>{if(typeof reader.result!=="string")return;setInstances([...imageInstances,{id:crypto.randomUUID(),url:reader.result,label:file.name,x:0,y:0,scale:1}])};reader.readAsDataURL(file)};
   const variant = useMemo(() => findTemplateVariant(currentMediaTemplate, format, "individual", 1), [format]);
-  useEffect(() => { if (!manualProductName && item) setProductLines(splitProductName(item.name_snapshot || "Produto") as [string,string,string]); }, [item, manualProductName]);
+  useEffect(() => { if (!manualProductName && item) setProductLines(splitProductName(item.display_name || item.name_snapshot || "Produto") as [string,string,string]); }, [item, manualProductName]);
 
   const loadImage = useCallback((url: string) => {
     const cached = imageCacheRef.current.get(url);
@@ -348,7 +349,7 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
           <label className="field">
             <span>Produto</span>
             <select className="input" value={item?.id ?? ""} onChange={(event) => setItemId(event.target.value)} disabled={busy || !items.length}>
-              {items.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name_snapshot || "Produto"}</option>)}
+              {items.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.display_name || candidate.name_snapshot || "Produto"}</option>)}
             </select>
           </label>
 
