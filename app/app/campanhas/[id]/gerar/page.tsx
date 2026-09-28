@@ -10,7 +10,7 @@ export default async function DigitalGeneratorPage({ params }: { params: Promise
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: campaign, error: campaignError }, { data: items, error: itemsError }] = await Promise.all([
+  const [{ data: campaign, error: campaignError }, { data: items, error: itemsError }, { data: products }] = await Promise.all([
     supabase.from("campaigns").select("id,name,start_date,end_date,theme,status").eq("id", id).single(),
     supabase
       .from("campaign_items")
@@ -40,7 +40,7 @@ export default async function DigitalGeneratorPage({ params }: { params: Promise
         <div className="error">Não foi possível carregar os itens da campanha.</div>
       ) : (
         <>
-          <OfficialTemplateGenerator campaign={campaign} items={items ?? []} />
+          <OfficialTemplateGenerator campaign={campaign} items={(items ?? []).map(item=>({...item,display_name:products?.find(product=>product.id===item.product_id)?.display_name??null}))} />
 
           <details className="card">
             <summary style={{ cursor: "pointer", fontWeight: 800 }}>Abrir gerador legado / peças compostas</summary>
