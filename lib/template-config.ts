@@ -173,8 +173,9 @@ export function validateLayout(
   const input = value as Record<string, LayoutField>;
   const defaults = defaultTemplate(id).layout;
   const result: Record<string, LayoutField> = {};
-  const legacyDigital = id !== "validity" && id !== "produce" && !!input.product && !input.productLine1 && !input.productLine2 && !input.productLine3 && !input.currency && !input.unit;
-  const previousDigital = id !== "validity" && id !== "produce" && !!input.productLine1 && !!input.price && !input.priceReais && !input.priceCents;
+  const digital = id === "digital-feed" || id === "digital-story";
+  const legacyDigital = digital && !!input.product && !input.productLine1 && !input.productLine2 && !input.productLine3 && !input.currency && !input.unit;
+  const previousDigital = digital && !!input.productLine1 && !!input.price && !input.priceReais && !input.priceCents;
   const previousProduce = id === "produce" && !!input.producePrice && !input.produceCurrency;
   const legacyKeys = new Set(["product", "brand", "specification", "image", "price", "footer", "logo"]);
   const previousKeys = new Set(["productLine1","productLine2","productLine3","brand","specification","image","currency","price","unit","footer","logo"]);
