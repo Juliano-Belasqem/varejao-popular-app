@@ -19,6 +19,7 @@ export function ProduceTemplateGenerator({products}:{products:Product[]}){
   const {fieldFonts}=useBrandKit("validity");
   const [slots,setSlots]=useState<Slot[]>(()=>[empty(),empty(),empty(),empty()]);
   const [editing,setEditing]=useState<Product|null>(null);
+  const [printCount,setPrintCount]=useState(4);
   const sorted=useMemo(()=>[...products].sort((a,b)=>a.name.localeCompare(b.name,"pt-BR")),[products]);
   const patch=(index:number,values:Partial<Slot>)=>setSlots(old=>old.map((slot,i)=>i===index?{...slot,...values}:slot));
   const ticket=(slot:Slot)=>{const product=products.find(p=>p.id===slot.productId);return <ConfiguredTicket config={template.config} fonts={fieldFonts} logoUrl={null} values={{
@@ -31,15 +32,16 @@ export function ProduceTemplateGenerator({products}:{products:Product[]}){
 
   return <>
     <section className="card no-print" style={{marginBottom:18}}>
-      <div className="section-title-row"><div><small className="eyebrow">DADOS DA FOLHA</small><h2>4 itens de hortifrutti</h2></div><div className="preview-actions"><button className="btn" type="button" onClick={()=>document.getElementById("cadastro-hortifrutti")?.scrollIntoView({behavior:"smooth",block:"start"})}>+ Adicionar produto</button><button className="btn primary" type="button" disabled={!template.ready} onClick={()=>window.print()}>Imprimir / salvar PDF</button></div></div>
-      <div className="validity-editor-grid" style={{marginTop:14}}>{slots.map((slot,index)=><div className="validity-editor" key={index}>
+      <div className="section-title-row"><div><small className="eyebrow">DADOS DA FOLHA</small><h2>{printCount} {printCount===1?"item":"itens"} de hortifrutti</h2></div><div className="preview-actions"><button className="btn" type="button" onClick={()=>document.getElementById("cadastro-hortifrutti")?.scrollIntoView({behavior:"smooth",block:"start"})}>+ Adicionar produto</button><button className="btn primary" type="button" disabled={!template.ready} onClick={()=>window.print()}>Imprimir / salvar PDF</button></div></div>
+      <label className="field" style={{maxWidth:260,marginTop:14}}><span>Quantidade para imprimir</span><select className="input" value={printCount} onChange={e=>setPrintCount(Number(e.target.value))}>{[1,2,3,4].map(n=><option key={n} value={n}>{n} {n===1?"produto":"produtos"}</option>)}</select></label>
+      <div className="validity-editor-grid" style={{marginTop:14}}>{slots.slice(0,printCount).map((slot,index)=><div className="validity-editor" key={index}>
         <strong>Item {index+1}</strong>
-        <label className="field"><span>Produto</span><select className="input" value={slot.productId} onChange={e=>patch(index,{productId:e.target.value})}><option value="">Selecione</option>{sorted.map(p=><option value={p.id} key={p.id}>{p.name}{p.specification?" · "+p.specification:""}</option>)}</select></label>
+        <label className="field"><span>Produto</span><input className="input" list={"produce-options-"+index} value={slot.productId ? (products.find(p=>p.id===slot.productId)?.name??"") : ""} placeholder="Digite para buscar..." onChange={e=>{const typed=e.target.value;const found=sorted.find(p=>p.name.localeCompare(typed,"pt-BR",{sensitivity:"base"})===0);patch(index,{productId:found?.id??""})}}/><datalist id={"produce-options-"+index}>{sorted.map(p=><option value={p.name} key={p.id}>{p.specification?" · "+p.specification:""}</option>)}</datalist><select className="input" value={slot.productId} onChange={e=>patch(index,{productId:e.target.value})}><option value="">Ou selecione na lista</option>{sorted.map(p=><option value={p.id} key={p.id}>{p.name}{p.specification?" · "+p.specification:""}</option>)}</select></label>
         <label className="field"><span>Preço</span><input className="input" inputMode="decimal" placeholder="9,99" value={slot.price} onChange={e=>patch(index,{price:e.target.value})}/></label><label className="field"><span>Ajuste do preço · {Math.round(slot.priceScale*100)}%</span><input className="input" type="range" min=".7" max="1.4" step=".05" value={slot.priceScale} onChange={e=>patch(index,{priceScale:Number(e.target.value)})}/></label>
       </div>)}</div>
     </section>
 
-    <div className="validity-sheet-wrap"><div className="validity-sheet produce-sheet">{slots.map((slot,index)=><div key={index} className="produce-slot">{ticket(slot)}</div>)}</div></div>
+    <div className="validity-sheet-wrap"><div className="validity-sheet produce-sheet">{slots.map((slot,index)=><div key={index} className="produce-slot">{index<printCount?ticket(slot):null}</div>)}</div></div>
 
     <section id="cadastro-hortifrutti" className="card no-print" style={{marginTop:18}}>
       <div className="section-title-row"><div><small className="eyebrow">BANCO PRÓPRIO</small><h2>{editing?"Editar produto":"Adicionar produto ao cadastro"}</h2><div className="muted" style={{marginTop:4}}>Cadastre aqui itens que ainda não aparecem na seleção da folha.</div></div><span className="pill">{products.length} cadastrados</span></div>

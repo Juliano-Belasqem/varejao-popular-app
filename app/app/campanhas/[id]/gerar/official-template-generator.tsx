@@ -179,14 +179,15 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
     }
   }, [campaign.id]);
 
-  const draw = useCallback(async (target: HTMLCanvasElement) => {
+  const draw = useCallback(async (target: HTMLCanvasElement, renderScale = 1) => {
     if (!item || !variant) return;
-    target.width = variant.width;
-    target.height = variant.height;
+    target.width = Math.round(variant.width * renderScale);
+    target.height = Math.round(variant.height * renderScale);
     const ctx = target.getContext("2d");
     if (!ctx) throw new Error("Canvas indisponível");
 
     await document.fonts.ready;
+    if(renderScale!==1) ctx.scale(renderScale,renderScale);
     await drawTemplateBackground(ctx, variant.width, variant.height, artConfig.backgroundUrl?{kind:"image",value:artConfig.backgroundUrl}:variant.background, loadImage);
     for(const [key,field] of Object.entries(artConfig.layout).sort(([,a],[,b])=>(a.layer??1)-(b.layer??1))){
       if(!field.visible)continue;
@@ -264,7 +265,7 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
     setStatus(download ? "Preparando PNG..." : "Salvando material...");
     try {
       const output=document.createElement("canvas");
-      await draw(output);
+      await draw(output, 2);
       const blob = await canvasBlob(output);
       const filename = `${slug(campaign.name)}-${slug(item.name_snapshot || "produto")}-${format}.png`;
 
@@ -414,7 +415,7 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
           )}
         </div>
       </div>
-      <div className="digital-template-editors" style={{marginTop:18}}>
+      <div className="digital-template-editors digital-template-workbench" style={{marginTop:18}}>
         <TemplateEditor key={"art-"+artConfig.id} config={artConfig} onChange={setArtConfig} onSaved={async()=>{}} canEdit={true} ready={template.ready} persist={false} title="Configuração desta arte"/>
         <TemplateEditor key={"master-"+template.config.id} config={template.config} onChange={template.setConfig} onSaved={template.reload} canEdit={template.canEdit} ready={template.ready} title="Template Mestre"/>
       </div>
