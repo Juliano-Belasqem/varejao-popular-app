@@ -87,3 +87,15 @@
 /* Digital artwork editors need the full content width: keep art settings and master template stacked. */
 .digital-template-editors{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;width:100%}
 .digital-template-editors>details{width:100%;max-width:100%;min-width:0;margin-bottom:0!important}
+
+/* Digital template workbench: inspector on the left, large live stage on the right, matching the editing workflow. */
+@media(min-width:1050px){
+ .template-editor-digital-workspace{display:grid!important;grid-template-columns:minmax(280px,340px) minmax(0,1fr)!important;gap:18px!important;align-items:start}
+ .template-editor-digital-workspace>.template-editor-preview{grid-column:2;grid-row:1;position:sticky!important;top:12px!important}
+ .template-editor-digital-workspace>.template-inspector{grid-column:1;grid-row:1;width:100%;max-width:none!important;margin:0;display:grid;grid-template-columns:1fr!important;max-height:78vh;overflow:auto}
+ .template-editor-digital-workspace>.template-inspector>.inspector-head,.template-editor-digital-workspace>.template-inspector>label.field{grid-column:1}
+ .template-editor-digital-workspace>.template-inspector>.inspector-section{grid-column:1}
+ .template-editor-digital-workspace>.template-inspector>.inspector-section .inspector-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .template-editor-digital-workspace>.template-inspector>.inspector-section .inspector-wide{grid-column:1/-1}
+}
+.configured-fit-text{width:100%;height:100%;display:flex;align-items:center;justify-content:center;transform-origin:center center;white-space:normal;overflow-wrap:anywhere}
