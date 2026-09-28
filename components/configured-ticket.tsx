@@ -1,7 +1,18 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { TemplateConfig } from "@/lib/template-config";
 
-function FitText({children}:{children:ReactNode}) {\n  const ref=useRef<HTMLDivElement>(null);\n  const [scale,setScale]=useState(1);\n  useLayoutEffect(()=>{\n    const el=ref.current;if(!el)return;\n    const fit=()=>{el.style.transform="scale(1)";const sx=el.scrollWidth?el.clientWidth/el.scrollWidth:1;const sy=el.scrollHeight?el.clientHeight/el.scrollHeight:1;setScale(Math.min(1,sx,sy));};\n    fit();const ro=new ResizeObserver(fit);ro.observe(el);return()=>ro.disconnect();\n  },[children]);\n  return <div ref={ref} className="configured-fit-text" style={{transform:`scale(${scale})`}}>{children}</div>;\n}\n\nexport function ConfiguredTicket({
+function FitText({children}:{children:ReactNode}) {
+  const ref=useRef<HTMLDivElement>(null);
+  const [scale,setScale]=useState(1);
+  useLayoutEffect(()=>{
+    const el=ref.current;if(!el)return;
+    const fit=()=>{el.style.transform="scale(1)";const sx=el.scrollWidth?el.clientWidth/el.scrollWidth:1;const sy=el.scrollHeight?el.clientHeight/el.scrollHeight:1;setScale(Math.min(1,sx,sy));};
+    fit();const ro=new ResizeObserver(fit);ro.observe(el);return()=>ro.disconnect();
+  },[children]);
+  return <div ref={ref} className="configured-fit-text" style={{transform:`scale(${scale})`}}>{children}</div>;
+}
+
+export function ConfiguredTicket({
   config,
   values,
   fonts,
@@ -64,7 +75,7 @@ function FitText({children}:{children:ReactNode}) {\n  const ref=useRef<HTMLDivE
                   />
                 ) : null
               ) : (
-                values[key]
+                key === "price" || key === "producePrice" ? values[key] : <FitText>{values[key]}</FitText>
               )}
             </div>
           );
