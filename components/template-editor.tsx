@@ -220,7 +220,7 @@ export function TemplateEditor({
             }}
           />
         </label>
-        <div className="template-editor-workspace">
+        <div className={`template-editor-workspace ${config.id==="digital-feed"||config.id==="digital-story"?"template-editor-digital-workspace":""}`}>
         <div className="template-editor-preview">
           <div className="preview-actions" style={{ marginBottom: 8, justifyContent: "center" }}>
             <button className="btn" type="button" aria-label="Diminuir zoom" onClick={() => setPreviewZoom((value) => Math.max(0.5, Number((value - 0.1).toFixed(1))))}>−</button>
