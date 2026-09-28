@@ -99,3 +99,19 @@
  .template-editor-digital-workspace>.template-inspector>.inspector-section .inspector-wide{grid-column:1/-1}
 }
 .configured-fit-text{width:100%;height:100%;display:flex;align-items:center;justify-content:center;transform-origin:center center;white-space:normal;overflow-wrap:anywhere}
+
+/* Unified template workbench: compact controls on the left and the largest possible preview on the right. */
+@media(min-width:1050px){
+ .template-editor-side-workspace{display:grid!important;grid-template-columns:minmax(290px,350px) minmax(0,1fr)!important;gap:18px!important;align-items:start}
+ .template-editor-side-workspace>.template-editor-preview{grid-column:2;grid-row:1;position:sticky!important;top:12px!important}
+ .template-editor-side-workspace>.template-inspector{grid-column:1;grid-row:1;width:100%;max-width:none!important;margin:0;display:grid;grid-template-columns:1fr!important;max-height:78vh;overflow:auto}
+ .template-editor-side-workspace>.template-inspector>.inspector-head,.template-editor-side-workspace>.template-inspector>label.field,.template-editor-side-workspace>.template-inspector>.inspector-section{grid-column:1}
+ .template-editor-side-workspace>.template-inspector>.inspector-section .inspector-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .template-editor-side-workspace>.template-inspector>.inspector-section .inspector-wide{grid-column:1/-1}
+}
+/* Keep the four Hortifrutti pieces tight on the A4 sheet for easier straight cuts. */
+.produce-sheet{gap:1mm!important;padding:3mm!important}
+.produce-slot{display:flex;align-items:stretch;justify-content:stretch;overflow:hidden}
+.produce-slot>.configured-ticket{flex:1 1 auto;width:100%;height:100%}
+@media print{.produce-sheet{gap:1mm!important;padding:3mm!important}}
+.campaign-column-spacing{display:flex;justify-content:flex-end;margin:8px 0 12px}.campaign-column-spacing .field{width:min(100%,320px)}
