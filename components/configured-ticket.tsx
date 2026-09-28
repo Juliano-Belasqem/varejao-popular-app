@@ -1,7 +1,7 @@
-import type { CSSProperties, ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { TemplateConfig } from "@/lib/template-config";
 
-export function ConfiguredTicket({
+function FitText({children}:{children:ReactNode}) {\n  const ref=useRef<HTMLDivElement>(null);\n  const [scale,setScale]=useState(1);\n  useLayoutEffect(()=>{\n    const el=ref.current;if(!el)return;\n    const fit=()=>{el.style.transform="scale(1)";const sx=el.scrollWidth?el.clientWidth/el.scrollWidth:1;const sy=el.scrollHeight?el.clientHeight/el.scrollHeight:1;setScale(Math.min(1,sx,sy));};\n    fit();const ro=new ResizeObserver(fit);ro.observe(el);return()=>ro.disconnect();\n  },[children]);\n  return <div ref={ref} className="configured-fit-text" style={{transform:`scale(${scale})`}}>{children}</div>;\n}\n\nexport function ConfiguredTicket({
   config,
   values,
   fonts,
