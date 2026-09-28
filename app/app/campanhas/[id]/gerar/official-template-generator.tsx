@@ -254,7 +254,7 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
     let cancelled=false;
     const frame = requestAnimationFrame(() => {
       const target=document.createElement("canvas");
-      void draw(target).then(()=>{if(!cancelled&&canvasRef.current){canvasRef.current.width=target.width;canvasRef.current.height=target.height;canvasRef.current.getContext("2d")?.drawImage(target,0,0)}}).catch(()=>{if(!cancelled)setStatus("Não foi possível montar a prévia.")});
+      void draw(target,2).then(()=>{if(!cancelled&&canvasRef.current){canvasRef.current.width=target.width;canvasRef.current.height=target.height;canvasRef.current.getContext("2d")?.drawImage(target,0,0)}}).catch(()=>{if(!cancelled)setStatus("Não foi possível montar a prévia.")});
     });
     return () => {cancelled=true;cancelAnimationFrame(frame)};
   }, [draw, item, brandReady, template.ready]);
@@ -265,9 +265,9 @@ export default function OfficialTemplateGenerator({ campaign, items }: { campaig
     setStatus(download ? "Preparando PNG..." : "Salvando material...");
     try {
       const output=document.createElement("canvas");
-      await draw(output, 2);
+      await draw(output, 3);
       const blob = await canvasBlob(output);
-      const filename = `${slug(campaign.name)}-${slug(item.name_snapshot || "produto")}-${format}.png`;
+      const filename = `${slug(campaign.name)}-${slug(item.display_name || item.name_snapshot || "produto")}-${format}.png`;
 
       if (download) {
         const url = URL.createObjectURL(blob);
