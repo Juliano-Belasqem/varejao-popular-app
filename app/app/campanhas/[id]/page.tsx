@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { canEdit, requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { addCampaignItem, removeCampaignItem, updateCampaign, updateCampaignItem } from "../actions";
+import { CampaignItemsSpacing } from "@/components/campaign-items-spacing";
 
 function money(value: number | null) {
   if (value == null) return "—";
@@ -83,6 +84,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
           <div><h2 style={{ margin: 0 }}>Produtos da campanha</h2><div className="muted">{items?.length ?? 0} item(ns)</div></div>
         </div>
 
+        <CampaignItemsSpacing>
         {!items?.length ? (
           <div className="empty">Nenhum produto adicionado a esta campanha.</div>
         ) : (
@@ -98,13 +100,13 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
                           <form action={updateCampaignItem} style={{ display: "grid", gridTemplateColumns: "85px 150px minmax(240px,1fr) 145px 150px 150px 140px auto", alignItems: "center" }}>
                             <input type="hidden" name="id" value={item.id} />
                             <input type="hidden" name="campaign_id" value={campaign.id} />
-                            <div style={{ padding: 10 }}><input className="input" style={{ padding: 8 }} type="number" name="sort_order" defaultValue={item.sort_order ?? index} /></div>
-                            <div style={{ padding: 10 }}>{item.ean_snapshot || "—"}</div>
-                            <div style={{ padding: 10 }}><strong>{item.name_snapshot || "Produto"}</strong>{item.brand_snapshot && <div className="muted">{item.brand_snapshot}{item.specification_snapshot ? ` · ${item.specification_snapshot}` : ""}</div>}</div>\n                            <div style={{ padding: 10 }}>{item.product_id ? <><span className="pill">{productsWithImage.has(item.product_id) ? "Com imagem" : "Sem imagem"}</span><div style={{marginTop:6}}><Link className="btn" style={{display:"inline-flex",padding:"7px 9px",whiteSpace:"nowrap"}} href={`/app/produtos/${item.product_id}#imagens-do-produto`}>{productsWithImage.has(item.product_id) ? "Trocar imagem" : "Adicionar imagem"}</Link></div></> : <span className="muted">Produto sem vínculo</span>}</div>
-                            <div style={{ padding: 10 }}><input className="input" style={{ padding: 8 }} name="normal_price" inputMode="decimal" defaultValue={item.normal_price ?? ""} /></div>
-                            <div style={{ padding: 10 }}><input className="input" style={{ padding: 8 }} name="offer_price" inputMode="decimal" defaultValue={item.offer_price ?? ""} /></div>
-                            <div style={{ padding: 10 }}><select className="input" style={{ padding: 8 }} name="highlighted_price" defaultValue={item.highlighted_price}><option value="offer">Oferta</option><option value="normal">Normal</option></select></div>
-                            <div style={{ padding: 10, display: "flex", gap: 8 }}><button className="btn" type="submit">Salvar</button><button className="btn danger" formAction={removeCampaignItem}>Remover</button></div>
+                            <div style={{ padding: "10px var(--campaign-column-gap, 10px)" }}><input className="input" style={{ padding: 8 }} type="number" name="sort_order" defaultValue={item.sort_order ?? index} /></div>
+                            <div style={{ padding: "10px var(--campaign-column-gap, 10px)" }}>{item.ean_snapshot || "—"}</div>
+                            <div style={{ padding: "10px var(--campaign-column-gap, 10px)" }}><strong>{item.name_snapshot || "Produto"}</strong>{item.brand_snapshot && <div className="muted">{item.brand_snapshot}{item.specification_snapshot ? ` · ${item.specification_snapshot}` : ""}</div>}</div>\n                            <div style={{ padding: "10px var(--campaign-column-gap, 10px)" }}>{item.product_id ? <><span className="pill">{productsWithImage.has(item.product_id) ? "Com imagem" : "Sem imagem"}</span><div style={{marginTop:6}}><Link className="btn" style={{display:"inline-flex",padding:"7px 9px",whiteSpace:"nowrap"}} href={`/app/produtos/${item.product_id}#imagens-do-produto`}>{productsWithImage.has(item.product_id) ? "Trocar imagem" : "Adicionar imagem"}</Link></div></> : <span className="muted">Produto sem vínculo</span>}</div>
+                            <div style={{ padding: "10px var(--campaign-column-gap, 10px)" }}><input className="input" style={{ padding: 8 }} name="normal_price" inputMode="decimal" defaultValue={item.normal_price ?? ""} /></div>
+                            <div style={{ padding: "10px var(--campaign-column-gap, 10px)" }}><input className="input" style={{ padding: 8 }} name="offer_price" inputMode="decimal" defaultValue={item.offer_price ?? ""} /></div>
+                            <div style={{ padding: "10px var(--campaign-column-gap, 10px)" }}><select className="input" style={{ padding: 8 }} name="highlighted_price" defaultValue={item.highlighted_price}><option value="offer">Oferta</option><option value="normal">Normal</option></select></div>
+                            <div style={{ padding: "10px var(--campaign-column-gap, 10px)", display: "flex", gap: 8 }}><button className="btn" type="submit">Salvar</button><button className="btn danger" formAction={removeCampaignItem}>Remover</button></div>
                           </form>
                         </td>
                       </>
