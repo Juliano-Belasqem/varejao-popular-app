@@ -97,7 +97,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
                     {editable ? (
                       <>
                         <td colSpan={8} style={{ padding: 0 }}>
-                          <form action={updateCampaignItem} style={{ display: "grid", gridTemplateColumns: "85px 150px minmax(240px,1fr) 145px 150px 150px 140px auto", alignItems: "center" }}>
+                          <form action={updateCampaignItem} style={{ display: "grid", gridTemplateColumns: "var(--campaign-col-order) var(--campaign-col-ean) var(--campaign-col-product) var(--campaign-col-image) var(--campaign-col-normal) var(--campaign-col-offer) var(--campaign-col-highlight) var(--campaign-col-actions)", alignItems: "center" }}>
                             <input type="hidden" name="id" value={item.id} />
                             <input type="hidden" name="campaign_id" value={campaign.id} />
                             <div style={{ padding: "10px var(--campaign-column-gap, 10px)" }}><input className="input" style={{ padding: 8 }} type="number" name="sort_order" defaultValue={item.sort_order ?? index} /></div>
