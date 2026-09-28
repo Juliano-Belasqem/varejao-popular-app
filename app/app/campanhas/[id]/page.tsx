@@ -119,6 +119,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
             </table>
           </div>
         )}
+        </CampaignItemsSpacing>
       </section>
     </>
   );
