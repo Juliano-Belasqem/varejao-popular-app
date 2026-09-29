@@ -9,7 +9,14 @@ type Campaign={id:string;name:string;start_date:string|null;end_date:string|null
 type Item={id:string;product_id:string|null;normal_price:number|string|null;offer_price:number|string|null;highlighted_price:string|null;ean_snapshot:string|null;name_snapshot:string|null;brand_snapshot:string|null;specification_snapshot:string|null;sort_order:number|null};
 type Draft={itemId:string;product:string;brand:string;specification:string;normalPrice:string;offerPrice:string;validity:string;ean:string;unit:string;barcodeWidth:number;barcodeHeight:number};
 
-function splitProduct(item:Item|undefined){if(!item)return{product:"",brand:"",specification:""};let product=(item.name_snapshot??"").trim(),brand=(item.brand_snapshot??"").trim(),specification=(item.specification_snapshot??"").trim();if(!specification){const m=product.match(/(?:\s|^)((?:\d+(?:[.,]\d+)?\s*)?(?:KG|G|MG|L|ML|UN|UND|UNID|UNIDADES|PACOTE|PCT|CX|CAIXA))\s*$/i);if(m){specification=m[1].trim();product=product.slice(0,m.index).trim()}}for(const part of [brand,specification])if(part){const escaped=part.replace(/[.*+?^${}()|[\]\\]/g,"\\function moneyInput(value:number|string|null){");product=product.replace(new RegExp(`(?:^|\\s[-–—·|/]?\\s*)${escaped}(?=\\s|$)`,"ig")," ").replace(/\s{2,}/g," ").trim()}return{product:product||item.name_snapshot||"",brand,specification}}
+function splitProduct(item:Item|undefined){
+ if(!item)return{product:"",brand:"",specification:""};
+ let product=(item.name_snapshot??"").trim(),brand=(item.brand_snapshot??"").trim(),specification=(item.specification_snapshot??"").trim();
+ if(!specification){const m=product.match(/(?:\\s|^)((?:\\d+(?:[.,]\\d+)?\\s*)?(?:KG|G|MG|L|ML|UN|UND|UNID|UNIDADES|PACOTE|PCT|CX|CAIXA))\\s*$/i);if(m){specification=m[1].trim();product=product.slice(0,m.index).trim()}}
+ for(const part of [brand,specification])if(part){product=product.replace(part," ").replace(/\\s{2,}/g," ").trim()}
+ return{product:product||item.name_snapshot||"",brand,specification}
+}
+function moneyInput(value:number|string|null){");product=product.replace(new RegExp(`(?:^|\\s[-–—·|/]?\\s*)${escaped}(?=\\s|$)`,"ig")," ").replace(/\s{2,}/g," ").trim()}return{product:product||item.name_snapshot||"",brand,specification}}
 function moneyInput(value:number|string|null){if(value==null||value==="")return"";const n=Number(value);return Number.isFinite(n)?n.toFixed(2).replace(".",","):String(value)}
 function draftFrom(item:Item|undefined,campaign:Campaign):Draft{const split=splitProduct(item);return{itemId:item?.id??"",product:split.product,brand:split.brand,specification:split.specification,normalPrice:moneyInput(item?.normal_price??null),offerPrice:moneyInput(item?.offer_price??item?.normal_price??null),validity:campaign.end_date??"",ean:item?.ean_snapshot??"",unit:"UN",barcodeWidth:100,barcodeHeight:100}}
 function priceParts(value:string){const clean=value.replace(/[^0-9,]/g,"");const[a="0",b="00"]=clean.split(",");return{major:a||"0",minor:(b+"00").slice(0,2)}}
