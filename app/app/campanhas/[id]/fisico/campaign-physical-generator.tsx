@@ -7,10 +7,18 @@ import { useTemplate } from "@/lib/use-template";
 
 type Campaign={id:string;name:string;start_date:string|null;end_date:string|null;theme:string|null};
 type Item={id:string;product_id:string|null;normal_price:number|string|null;offer_price:number|string|null;highlighted_price:string|null;ean_snapshot:string|null;name_snapshot:string|null;brand_snapshot:string|null;specification_snapshot:string|null;sort_order:number|null};
-type Draft={itemId:string;product:string;brand:string;specification:string;normalPrice:string;offerPrice:string;validity:string;ean:string;unit:string;priceScale:number;barcodeWidth:number;barcodeHeight:number};
+type Draft={itemId:string;product:string;brand:string;specification:string;normalPrice:string;offerPrice:string;validity:string;ean:string;unit:string;barcodeWidth:number;barcodeHeight:number};
 
+function splitProduct(item:Item|undefined){
+ if(!item)return{product:"",brand:"",specification:""};
+ let product=(item.name_snapshot??"").trim(),brand=(item.brand_snapshot??"").trim(),specification=(item.specification_snapshot??"").trim();
+ if(!specification){const m=product.match(/(?:\\s|^)((?:\\d+(?:[.,]\\d+)?\\s*)?(?:KG|G|MG|L|ML|UN|UND|UNID|UNIDADES|PACOTE|PCT|CX|CAIXA))\\s*$/i);if(m){specification=m[1].trim();product=product.slice(0,m.index).trim()}}
+ for(const part of [brand,specification])if(part){product=product.replace(part," ").replace(/\\s{2,}/g," ").trim()}
+ return{product:product||item.name_snapshot||"",brand,specification}
+}
+function moneyInput(value:number|string|null){");product=product.replace(new RegExp(`(?:^|\\s[-–—·|/]?\\s*)${escaped}(?=\\s|$)`,"ig")," ").replace(/\s{2,}/g," ").trim()}return{product:product||item.name_snapshot||"",brand,specification}}
 function moneyInput(value:number|string|null){if(value==null||value==="")return"";const n=Number(value);return Number.isFinite(n)?n.toFixed(2).replace(".",","):String(value)}
-function draftFrom(item:Item|undefined,campaign:Campaign):Draft{return{itemId:item?.id??"",product:item?.name_snapshot??"",brand:item?.brand_snapshot??"",specification:item?.specification_snapshot??"",normalPrice:moneyInput(item?.normal_price??null),offerPrice:moneyInput(item?.offer_price??item?.normal_price??null),validity:campaign.end_date??"",ean:item?.ean_snapshot??"",unit:"UN",priceScale:1,barcodeWidth:100,barcodeHeight:100}}
+function draftFrom(item:Item|undefined,campaign:Campaign):Draft{const split=splitProduct(item);return{itemId:item?.id??"",product:split.product,brand:split.brand,specification:split.specification,normalPrice:moneyInput(item?.normal_price??null),offerPrice:moneyInput(item?.offer_price??item?.normal_price??null),validity:campaign.end_date??"",ean:item?.ean_snapshot??"",unit:"UN",barcodeWidth:100,barcodeHeight:100}}
 function priceParts(value:string){const clean=value.replace(/[^0-9,]/g,"");const[a="0",b="00"]=clean.split(",");return{major:a||"0",minor:(b+"00").slice(0,2)}}
 function dateLabel(v:string|null){if(!v)return"__/__/__";const[y,m,d]=v.split("-");return y&&m&&d?`${d}/${m}/${y.slice(-2)}`:v}
 function validEan13(code:string){const digits=code.replace(/\D/g,"");if(digits.length!==13)return null;const sum=digits.slice(0,12).split("").reduce((acc,d,i)=>acc+Number(d)*(i%2===0?1:3),0);return(10-(sum%10))%10===Number(digits[12])?digits:null}
@@ -32,8 +40,7 @@ export function CampaignPhysicalGenerator({campaign,items}:{campaign:Campaign;it
  function restore(slot:number){const id=drafts[slot]?.itemId;choose(slot,id)}
  function clear(slot:number){setDrafts(old=>old.map((draft,i)=>i===slot?draftFrom(undefined,campaign):draft))}
  function duplicate(slot:number){if(slot>=3)return;setDrafts(old=>old.map((draft,i)=>i===slot+1?{...old[slot]}:draft));if(mode===4&&printCount<slot+2)setPrintCount(slot+2)}
- function price(draft:Draft){const p=priceParts(draft.offerPrice);const fit=p.major.length<=1?1.16:p.major.length===2?.78:p.major.length===3?.64:p.major.length===4?.52:.44;return <div className="physical-price" style={{transform:`scale(${fit*draft.priceScale})`}}><small>R$</small><strong>{p.major}</strong><span>,{p.minor}<small>{draft.unit||"UN"}</small></span></div>}
- function ticket(draft:Draft,key:string){return <ConfiguredTicket key={key} config={template.config} fonts={fieldFonts} logoUrl={logoUrl} values={{title:(campaign.theme||"OFERTA").toUpperCase(),product:(draft.product||"PRODUTO").toUpperCase(),brand:(draft.brand||"MARCA").toUpperCase(),specification:(draft.specification||"").toUpperCase(),validity:`VALIDADE ${dateLabel(draft.validity)}`,price:price(draft),normalPrice:draft.normalPrice||"0,00",code:<Barcode code={draft.ean} width={draft.barcodeWidth} height={draft.barcodeHeight}/>,footer:draft.validity?`Oferta válida até ${dateLabel(draft.validity)}`:"Oferta válida enquanto durarem os estoques"}}/>}
+ function ticket(draft:Draft,key:string){const p=priceParts(draft.offerPrice);return <ConfiguredTicket key={key} config={template.config} fonts={fieldFonts} logoUrl={logoUrl} values={{title:(campaign.theme||"OFERTA").toUpperCase(),product:(draft.product||"PRODUTO").toUpperCase(),brand:(draft.brand||"MARCA").toUpperCase(),specification:(draft.specification||"").toUpperCase(),validity:`VALIDADE ${dateLabel(draft.validity)}`,physicalCurrency:"R$",physicalPriceReais:p.major,physicalPriceCents:`,`+p.minor,physicalUnit:draft.unit||"UN",normalPrice:draft.normalPrice||"0,00",code:<Barcode code={draft.ean} width={draft.barcodeWidth} height={draft.barcodeHeight}/>,footer:draft.validity?`Oferta válida até ${dateLabel(draft.validity)}`:"Oferta válida enquanto durarem os estoques"}}/>}
  return <>
   <section className="card no-print" style={{marginBottom:18}}>
    <div className="section-title-row"><div><small className="eyebrow">MATERIAL FÍSICO DA CAMPANHA</small><h2>{mode===1?"1 produto · folha inteira":`${printCount} ${printCount===1?"produto":"produtos"} · 1/4 de folha`}</h2></div><button className="btn primary" disabled={!template.ready||!ready||!active.some(x=>x.itemId||x.product)} onClick={()=>window.print()}>Imprimir / salvar PDF</button></div>
@@ -56,7 +63,6 @@ export function CampaignPhysicalGenerator({campaign,items}:{campaign:Campaign;it
     </div>
     {draft.ean&&!validEan13(draft.ean)&&<div className="error">EAN inválido. Informe um EAN-13 com dígito verificador correto.</div>}
     <div className="form-grid compact physical-piece-controls">
-     <label className="field"><span>Tamanho do preço · {Math.round(draft.priceScale*100)}%</span><input className="input" type="range" min=".7" max="1.4" step=".05" value={draft.priceScale} onChange={e=>patch(i,{priceScale:Number(e.target.value)})}/></label>
      <label className="field"><span>Largura do EAN · {draft.barcodeWidth}%</span><input className="input" type="range" min="50" max="100" step="5" value={draft.barcodeWidth} onChange={e=>patch(i,{barcodeWidth:Number(e.target.value)})}/></label>
      <label className="field"><span>Altura das barras · {draft.barcodeHeight}%</span><input className="input" type="range" min="50" max="150" step="5" value={draft.barcodeHeight} onChange={e=>patch(i,{barcodeHeight:Number(e.target.value)})}/></label>
     </div>

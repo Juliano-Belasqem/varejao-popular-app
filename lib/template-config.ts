@@ -42,6 +42,10 @@ export type LayoutField = {
   lineHeight?: number;
   fontStyle?: "normal" | "italic";
   textTransform?: "none" | "uppercase" | "lowercase";
+  padding?: number;
+  maxLines?: number;
+  fitMode?: "shrink" | "clip";
+  locked?: boolean;
 };
 export type TemplateConfig = {
   id: TemplateId;
@@ -57,6 +61,10 @@ export const fieldLabels: Record<string, string> = {
   validity: "Validade",
   normalPrice: "Preço normal",
   price: "Preço oferta",
+  physicalCurrency: "Símbolo R$ · físico",
+  physicalPriceReais: "Preço oferta · reais",
+  physicalPriceCents: "Preço oferta · centavos",
+  physicalUnit: "Unidade (UN) · físico",
   code: "Código de barras",
   footer: "Rodapé",
   logo: "Logo",
@@ -116,6 +124,10 @@ const field = (
   lineHeight: 1.05,
   fontStyle: "normal",
   textTransform: "none",
+  padding: 1,
+  maxLines: 1,
+  fitMode: "shrink",
+  locked: false,
 });
 // Coordinates are percentages; font sizes use a 1000-unit-wide design space.
 export function defaultTemplate(id: TemplateId): TemplateConfig {
@@ -142,7 +154,12 @@ export function defaultTemplate(id: TemplateId): TemplateConfig {
             brand: field(7, 27, 86, 10, 140, "#c7192b"),
             specification: field(7, 38, 86, 4, 55),
             validity: { ...field(7, 42, 86, 4, 45, "#c7192b"), weight: 400 },
-            price: field(7, 46, 86, 31, 440),
+            ...(id === "physical-one" || id === "physical-four" ? {
+              physicalCurrency: field(10, 55, 12, 9, 72),
+              physicalPriceReais: field(21, 47, 48, 28, 360),
+              physicalPriceCents: field(68, 50, 17, 11, 120),
+              physicalUnit: field(70, 62, 15, 7, 55),
+            } : { price: field(7, 46, 86, 31, 440) }),
             normalPrice: field(16, 81, 27, 6, 72),
             code: field(56, 81, 35, 6, 25),
             footer: { ...field(25, 91, 46, 7, 22, "#ffffff"), visible: false },
@@ -177,6 +194,8 @@ export function validateLayout(
   const legacyDigital = digital && !!input.product && !input.productLine1 && !input.productLine2 && !input.productLine3 && !input.currency && !input.unit;
   const previousDigital = digital && !!input.productLine1 && !!input.price && !input.priceReais && !input.priceCents;
   const previousProduce = id === "produce" && !!input.producePrice && !input.produceCurrency;
+  const physical = id === "physical-one" || id === "physical-four";
+  const previousPhysical = physical && !!input.price && !input.physicalPriceReais;
   const legacyKeys = new Set(["product", "brand", "specification", "image", "price", "footer", "logo"]);
   const previousKeys = new Set(["productLine1","productLine2","productLine3","brand","specification","image","currency","price","unit","footer","logo"]);
   if (legacyDigital && !Object.keys(input).every((key) => legacyKeys.has(key)))
@@ -184,7 +203,7 @@ export function validateLayout(
   if (previousDigital && !Object.keys(input).every((key) => previousKeys.has(key)))
     throw new Error("Layout digital anterior inválido.");
   for (const key of Object.keys(defaults)) {
-    const f = input[key] ?? (legacyDigital ? (key === "productLine1" ? input.product : defaults[key]) : previousDigital ? (key === "priceReais" ? input.price : key === "priceCents" ? defaults[key] : input[key]) : previousProduce && key === "produceCurrency" ? defaults[key] : undefined);
+    const f = input[key] ?? (legacyDigital ? (key === "productLine1" ? input.product : defaults[key]) : previousDigital ? (key === "priceReais" ? input.price : key === "priceCents" ? defaults[key] : input[key]) : previousProduce && key === "produceCurrency" ? defaults[key] : previousPhysical ? (key === "physicalPriceReais" ? input.price : defaults[key]) : undefined);
     if (
       !f ||
       ["x", "y", "width", "height", "fontSize", "weight"].some(
@@ -221,7 +240,11 @@ export function validateLayout(
       (f.strokeInnerGlowWidth != null && (f.strokeInnerGlowWidth < 0 || f.strokeInnerGlowWidth > 30)) ||
       (f.lineHeight != null && (f.lineHeight < 0.5 || f.lineHeight > 3)) ||
       (f.fontStyle != null && !["normal","italic"].includes(f.fontStyle)) ||
-      (f.textTransform != null && !["none","uppercase","lowercase"].includes(f.textTransform))
+      (f.textTransform != null && !["none","uppercase","lowercase"].includes(f.textTransform)) ||
+      (f.padding != null && (f.padding < 0 || f.padding > 20)) ||
+      (f.maxLines != null && (f.maxLines < 1 || f.maxLines > 5)) ||
+      (f.fitMode != null && !["shrink","clip"].includes(f.fitMode)) ||
+      (f.locked != null && typeof f.locked !== "boolean")
     )
       throw new Error(`Ajuste os limites do campo ${fieldLabels[key]}.`);
     result[key] = {
@@ -258,6 +281,10 @@ export function validateLayout(
       lineHeight: f.lineHeight ?? 1.05,
       fontStyle: f.fontStyle ?? "normal",
       textTransform: f.textTransform ?? "none",
+      padding: f.padding ?? 1,
+      maxLines: f.maxLines ?? 1,
+      fitMode: f.fitMode ?? "shrink",
+      locked: f.locked ?? false,
       ...(typeof f.fontFamily === "string" && f.fontFamily.trim() ? { fontFamily: f.fontFamily.slice(0, 120) } : {}),
     };
   }

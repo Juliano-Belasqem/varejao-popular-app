@@ -98,18 +98,25 @@ export function TemplateEditor({
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [previewZoom, setPreviewZoom] = useState(1);
+  const [history,setHistory]=useState<TemplateConfig[]>([]);
+  const [future,setFuture]=useState<TemplateConfig[]>([]);
   const visualRef = useRef<HTMLDivElement>(null);
   const key =
     selected in config.layout ? selected : Object.keys(config.layout)[0];
   const field = config.layout[key];
+  function commit(next:TemplateConfig){setHistory(h=>[...h.slice(-39),config]);setFuture([]);onChange(next)}
   function patch(values: Partial<LayoutField>) {
-    onChange({
+    commit({
       ...config,
       layout: { ...config.layout, [key]: { ...field, ...values } },
     });
   }
+  function undo(){const previous=history.at(-1);if(!previous)return;setHistory(h=>h.slice(0,-1));setFuture(f=>[config,...f]);onChange(previous)}
+  function redo(){const next=future[0];if(!next)return;setFuture(f=>f.slice(1));setHistory(h=>[...h,config]);onChange(next)}
+  function nudge(dx:number,dy:number){if(field.locked)return;patch({x:Math.max(0,Math.min(100-field.width,Number((field.x+dx).toFixed(2)))),y:Math.max(0,Math.min(100-field.height,Number((field.y+dy).toFixed(2))))})}
+  function restoreField(){const original=defaultTemplate(config.id).layout[key];if(original)onChange({...config,layout:{...config.layout,[key]:original}})}
   function startDrag(event: React.PointerEvent<HTMLElement>, dragKey: string, resize = false) {
-    if (!canEdit || !ready) return;
+    if (!canEdit || !ready || config.layout[dragKey].locked) return;
     event.preventDefault();
     setSelected(dragKey);
     const startX = event.clientX;
@@ -133,6 +140,7 @@ export function TemplateEditor({
       }
     };
     const end = () => {
+      setHistory(h=>[...h.slice(-39),config]);setFuture([]);
       target.removeEventListener("pointermove", move);
       target.removeEventListener("pointerup", end);
       target.removeEventListener("pointercancel", end);
@@ -226,7 +234,7 @@ export function TemplateEditor({
             <button className="btn" type="button" aria-label="Diminuir zoom" onClick={() => setPreviewZoom((value) => Math.max(0.5, Number((value - 0.1).toFixed(1))))}>−</button>
             <span className="pill" aria-live="polite">{Math.round(previewZoom * 100)}%</span>
             <button className="btn" type="button" aria-label="Aumentar zoom" onClick={() => setPreviewZoom((value) => Math.min(2, Number((value + 0.1).toFixed(1))))}>+</button>
-            <button className="btn" type="button" onClick={() => setPreviewZoom(1)}>100%</button>
+            <button className="btn" type="button" onClick={() => setPreviewZoom(1)}>100%</button><button className="btn" type="button" disabled={!history.length} onClick={undo}>↶ Desfazer</button><button className="btn" type="button" disabled={!future.length} onClick={redo}>↷ Refazer</button>
           </div>
           <div style={{ overflow: "auto", maxHeight: "72vh", padding: previewZoom > 1 ? 8 : 0 }}>
 <div
@@ -234,12 +242,14 @@ export function TemplateEditor({
           aria-label="Editor visual do template mestre"
           style={{
             position: "relative", width: previewZoom <= 1 ? "100%" : `${previewZoom * 100}%`, maxWidth: 720, margin: "18px auto",
-            aspectRatio: config.id === "digital-story" ? "9 / 16" : config.id === "produce" || config.id === "validity" ? "1 / 1.414" : "1 / 1",
+            aspectRatio: config.id === "digital-story" ? "9 / 16" : config.id === "produce" || config.id === "validity" || config.id === "physical-one" || config.id === "physical-four" ? "1 / 1.414" : "1 / 1",
             overflow: "hidden", borderRadius: 12, border: "1px solid var(--line)",
             background: config.backgroundUrl ? `url("${config.backgroundUrl}") center/cover no-repeat` : "rgba(255,255,255,.04)",
             touchAction: "none",
           }}
         >
+          <span aria-hidden style={{position:"absolute",left:"50%",top:0,bottom:0,borderLeft:"1px dashed rgba(255,255,255,.45)",pointerEvents:"none",zIndex:999}}/>
+          <span aria-hidden style={{position:"absolute",top:"50%",left:0,right:0,borderTop:"1px dashed rgba(255,255,255,.45)",pointerEvents:"none",zIndex:999}}/>
           {Object.entries(config.layout).filter(([, item]) => item.visible).map(([name, item]) => (
             <div
               key={name}
@@ -250,7 +260,7 @@ export function TemplateEditor({
                 position: "absolute", left: `${item.x}%`, top: `${item.y}%`,
                 width: `${item.width}%`, height: `${item.height}%`,
                 border: name === key ? "2px solid currentColor" : "1px dashed currentColor",
-                display: "grid", placeItems: "center", cursor: canEdit ? "move" : "default",
+                display: "grid", placeItems: "center", cursor: item.locked ? "not-allowed" : canEdit ? "move" : "default",
                 opacity: item.opacity ?? 1, transform: `rotate(${item.rotation ?? 0}deg)`,
                 zIndex: item.layer ?? 1, color: item.color, fontWeight: item.weight,
                 fontSize: "clamp(10px, 2vw, 18px)", textAlign: item.align,
@@ -262,8 +272,10 @@ export function TemplateEditor({
                 userSelect: "none",
               }}
             >
-              {fieldLabels[name]}
-              {name === key && canEdit ? (
+              <span style={{padding:`${item.padding??1}%`,overflow:"hidden",maxWidth:"100%",maxHeight:"100%"}}>{({
+                product:"ARROZ PARBOILIZADO",brand:"TIO JOÃO",specification:"5KG",normalPrice:"29,99",physicalCurrency:"R$",physicalPriceReais:"24",physicalPriceCents:",99",physicalUnit:"UN",validity:"VALIDADE 30/09/26",code:"7891234567895",footer:"Oferta válida enquanto durarem os estoques",title:"OFERTA"
+              } as Record<string,string>)[name]??fieldLabels[name]}</span>
+              {name === key && canEdit && !item.locked ? (
                 <span
                   aria-label="Redimensionar elemento"
                   onPointerDown={(event) => { event.stopPropagation(); startDrag(event, name, true); }}
@@ -279,7 +291,7 @@ export function TemplateEditor({
         <aside className="template-editor-controls template-inspector">
           <div className="inspector-head">
             <div><small className="eyebrow">ELEMENTO SELECIONADO</small><strong>{fieldLabels[key]}</strong></div>
-            <label className="inspector-visible"><input type="checkbox" checked={field.visible} onChange={(e)=>patch({visible:e.target.checked})}/> Visível</label>
+            <div><label className="inspector-visible"><input type="checkbox" checked={field.visible} onChange={(e)=>patch({visible:e.target.checked})}/> Visível</label><label className="inspector-visible"><input type="checkbox" checked={field.locked??false} onChange={(e)=>patch({locked:e.target.checked})}/> Bloqueado</label></div>
           </div>
           <label className="field">Elemento<select aria-label="Campo" className="input" value={key} onChange={(e)=>setSelected(e.target.value)}>{Object.keys(config.layout).map((name)=><option key={name} value={name}>{fieldLabels[name]}</option>)}</select></label>
 
@@ -287,24 +299,28 @@ export function TemplateEditor({
             <summary>Tipografia</summary>
             <div className="inspector-grid">
               <label className="field inspector-wide">Fonte<select className="input" value={field.fontFamily??""} onChange={(e)=>patch({fontFamily:e.target.value||undefined})}><option value="">Kit da Marca / padrão</option><option value="Arial">Arial</option><option value="Arial Black">Arial Black</option><option value="Helvetica">Helvetica</option><option value="Verdana">Verdana</option><option value="Trebuchet MS">Trebuchet MS</option><option value="Georgia">Georgia</option><option value="Impact">Impact</option>{brandFonts.length?<optgroup label="Biblioteca tipográfica">{brandFonts.map(font=><option key={font.id} value={font.family}>{font.name}</option>)}</optgroup>:null}</select></label>
-              <label className="field">Tamanho<input className="input" type="number" min="8" max="500" step=".5" value={field.fontSize} onChange={(e)=>patch({fontSize:Number(e.target.value)})}/></label>
+              <label className="field">Tamanho<input className="input" type="number" min="8" max="500" step=".1" value={field.fontSize} onChange={(e)=>patch({fontSize:Number(e.target.value)})}/></label>
               <label className="field">Peso<select className="input" value={field.weight} onChange={(e)=>patch({weight:Number(e.target.value)})}>{[400,500,600,700,800,900].map(n=><option key={n}>{n}</option>)}</select></label>
               <label className="field">Cor<input type="color" value={field.color} onChange={(e)=>patch({color:e.target.value})}/></label>
               <label className="field">Alinhamento<select className="input" value={field.align} onChange={(e)=>patch({align:e.target.value as LayoutField["align"]})}><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select></label>
               <label className="field">Kerning<input className="input" type="number" min="-20" max="100" step=".5" value={field.letterSpacing??0} onChange={(e)=>patch({letterSpacing:Number(e.target.value)})}/></label>
-              <label className="field">Altura de linha<input className="input" type="number" min=".5" max="3" step=".05" value={field.lineHeight??1.05} onChange={(e)=>patch({lineHeight:Number(e.target.value)})}/></label>
+              <label className="field">Altura de linha<input className="input" type="number" min=".5" max="3" step=".01" value={field.lineHeight??1.05} onChange={(e)=>patch({lineHeight:Number(e.target.value)})}/></label>
               <label className="field">Estilo<select className="input" value={field.fontStyle??"normal"} onChange={(e)=>patch({fontStyle:e.target.value as LayoutField["fontStyle"]})}><option value="normal">Normal</option><option value="italic">Itálico</option></select></label>
               <label className="field">Caixa<select className="input" value={field.textTransform??"none"} onChange={(e)=>patch({textTransform:e.target.value as LayoutField["textTransform"]})}><option value="none">Como digitado</option><option value="uppercase">MAIÚSCULAS</option><option value="lowercase">minúsculas</option></select></label>
+              <label className="field">Padding interno (%)<input className="input" type="number" min="0" max="20" step=".1" value={field.padding??1} onChange={(e)=>patch({padding:Number(e.target.value)})}/></label>
+              <label className="field">Máximo de linhas<input className="input" type="number" min="1" max="5" step="1" value={field.maxLines??1} onChange={(e)=>patch({maxLines:Number(e.target.value)})}/></label>
+              <label className="field inspector-wide">Ajuste do texto<select className="input" value={field.fitMode??"shrink"} onChange={(e)=>patch({fitMode:e.target.value as LayoutField["fitMode"]})}><option value="shrink">Reduzir para caber</option><option value="clip">Manter tamanho / cortar excesso</option></select></label>
             </div>
           </details>
 
           <details className="inspector-section">
             <summary>Posição e tamanho</summary>
             <div className="inspector-grid">
-              {([["x","X (%)"],["y","Y (%)"],["width","Largura (%)"],["height","Altura (%)"]] as const).map(([name,label])=><label className="field" key={name}>{label}<input className="input" type="number" min="0" max="100" step=".5" value={field[name]} onChange={(e)=>patch({[name]:Number(e.target.value)})}/></label>)}
+              {([["x","X (%)"],["y","Y (%)"],["width","Largura (%)"],["height","Altura (%)"]] as const).map(([name,label])=><label className="field" key={name}>{label}<input className="input" type="number" min="0" max="100" step=".1" value={field[name]} onChange={(e)=>patch({[name]:Number(e.target.value)})}/></label>)}
               <label className="field">Rotação (°)<input className="input" type="number" min="-180" max="180" value={field.rotation??0} onChange={(e)=>patch({rotation:Number(e.target.value)})}/></label>
               <label className="field">Camada<input className="input" type="number" min="0" max="100" value={field.layer??1} onChange={(e)=>patch({layer:Number(e.target.value)})}/></label>
               <label className="field">Opacidade<input className="input" type="number" min="0" max="1" step=".05" value={field.opacity??1} onChange={(e)=>patch({opacity:Number(e.target.value)})}/></label>
+              <div className="inspector-wide"><small className="muted">Microajuste · 0,1% por clique</small><div className="preview-actions"><button className="btn" type="button" disabled={field.locked} onClick={()=>nudge(0,-.1)}>↑</button><button className="btn" type="button" disabled={field.locked} onClick={()=>nudge(-.1,0)}>←</button><button className="btn" type="button" disabled={field.locked} onClick={()=>nudge(.1,0)}>→</button><button className="btn" type="button" disabled={field.locked} onClick={()=>nudge(0,.1)}>↓</button><button className="btn" type="button" disabled={field.locked} onClick={()=>patch({width:Math.max(2,field.width-.1)})}>L−</button><button className="btn" type="button" disabled={field.locked} onClick={()=>patch({width:Math.min(100-field.x,field.width+.1)})}>L+</button><button className="btn" type="button" disabled={field.locked} onClick={()=>patch({height:Math.max(2,field.height-.1)})}>A−</button><button className="btn" type="button" disabled={field.locked} onClick={()=>patch({height:Math.min(100-field.y,field.height+.1)})}>A+</button><button className="btn" type="button" onClick={restoreField}>Restaurar este elemento</button></div><div className="preview-actions"><button className="btn" type="button" disabled={field.locked} onClick={()=>patch({x:0})}>← borda</button><button className="btn" type="button" disabled={field.locked} onClick={()=>patch({x:Number(((100-field.width)/2).toFixed(2))})}>Centro H</button><button className="btn" type="button" disabled={field.locked} onClick={()=>patch({x:Number((100-field.width).toFixed(2))})}>borda →</button><button className="btn" type="button" disabled={field.locked} onClick={()=>patch({y:0})}>↑ topo</button><button className="btn" type="button" disabled={field.locked} onClick={()=>patch({y:Number(((100-field.height)/2).toFixed(2))})}>Centro V</button><button className="btn" type="button" disabled={field.locked} onClick={()=>patch({y:Number((100-field.height).toFixed(2))})}>base ↓</button></div></div>
             </div>
           </details>
 
