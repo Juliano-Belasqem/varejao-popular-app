@@ -11,13 +11,23 @@ type Draft={itemId:string;product:string;brand:string;specification:string;norma
 
 function splitProduct(item:Item|undefined){
  if(!item)return{product:"",brand:"",specification:""};
- let product=(item.name_snapshot??"").trim(),brand=(item.brand_snapshot??"").trim(),specification=(item.specification_snapshot??"").trim();
- if(!specification){const m=product.match(/(?:\\s|^)((?:\\d+(?:[.,]\\d+)?\\s*)?(?:KG|G|MG|L|ML|UN|UND|UNID|UNIDADES|PACOTE|PCT|CX|CAIXA))\\s*$/i);if(m){specification=m[1].trim();product=product.slice(0,m.index).trim()}}
- for(const part of [brand,specification])if(part){product=product.replace(part," ").replace(/\\s{2,}/g," ").trim()}
- return{product:product||item.name_snapshot||"",brand,specification}
+ let product=(item.name_snapshot??"").trim();
+ const brand=(item.brand_snapshot??"").trim();
+ let specification=(item.specification_snapshot??"").trim();
+ if(!specification){
+  const match=product.match(/(?:\s|^)((?:\d+(?:[.,]\d+)?\s*)?(?:KG|G|MG|L|ML|UN|UND|UNID|UNIDADES|PACOTE|PCT|CX|CAIXA))\s*$/i);
+  if(match){specification=match[1].trim();product=product.slice(0,match.index).trim()}
+ }
+ for(const part of [brand,specification]){
+  if(part)product=product.replace(part," ").replace(/\s{2,}/g," ").trim();
+ }
+ return{product:product||item.name_snapshot||"",brand,specification};
 }
-function moneyInput(value:number|string|null){");product=product.replace(new RegExp(`(?:^|\\s[-–—·|/]?\\s*)${escaped}(?=\\s|$)`,"ig")," ").replace(/\s{2,}/g," ").trim()}return{product:product||item.name_snapshot||"",brand,specification}}
-function moneyInput(value:number|string|null){if(value==null||value==="")return"";const n=Number(value);return Number.isFinite(n)?n.toFixed(2).replace(".",","):String(value)}
+function moneyInput(value:number|string|null){
+ if(value==null||value==="")return"";
+ const n=Number(value);
+ return Number.isFinite(n)?n.toFixed(2).replace(".",","):String(value);
+}
 function draftFrom(item:Item|undefined,campaign:Campaign):Draft{const split=splitProduct(item);return{itemId:item?.id??"",product:split.product,brand:split.brand,specification:split.specification,normalPrice:moneyInput(item?.normal_price??null),offerPrice:moneyInput(item?.offer_price??item?.normal_price??null),validity:campaign.end_date??"",ean:item?.ean_snapshot??"",unit:"UN",barcodeWidth:100,barcodeHeight:100}}
 function priceParts(value:string){const clean=value.replace(/[^0-9,]/g,"");const[a="0",b="00"]=clean.split(",");return{major:a||"0",minor:(b+"00").slice(0,2)}}
 function dateLabel(v:string|null){if(!v)return"__/__/__";const[y,m,d]=v.split("-");return y&&m&&d?`${d}/${m}/${y.slice(-2)}`:v}
