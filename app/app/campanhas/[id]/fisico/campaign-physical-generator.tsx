@@ -7,10 +7,10 @@ import { useTemplate } from "@/lib/use-template";
 
 type Campaign={id:string;name:string;start_date:string|null;end_date:string|null;theme:string|null};
 type Item={id:string;product_id:string|null;normal_price:number|string|null;offer_price:number|string|null;highlighted_price:string|null;ean_snapshot:string|null;name_snapshot:string|null;brand_snapshot:string|null;specification_snapshot:string|null;sort_order:number|null};
-type Draft={itemId:string;product:string;brand:string;specification:string;normalPrice:string;offerPrice:string;validity:string;ean:string;unit:string};
+type Draft={itemId:string;product:string;brand:string;specification:string;normalPrice:string;offerPrice:string;validity:string;ean:string;unit:string;priceScale:number;barcodeWidth:number;barcodeHeight:number};
 
 function moneyInput(value:number|string|null){if(value==null||value==="")return"";const n=Number(value);return Number.isFinite(n)?n.toFixed(2).replace(".",","):String(value)}
-function draftFrom(item:Item|undefined,campaign:Campaign):Draft{return{itemId:item?.id??"",product:item?.name_snapshot??"",brand:item?.brand_snapshot??"",specification:item?.specification_snapshot??"",normalPrice:moneyInput(item?.normal_price??null),offerPrice:moneyInput(item?.offer_price??item?.normal_price??null),validity:campaign.end_date??"",ean:item?.ean_snapshot??"",unit:"UN"}}
+function draftFrom(item:Item|undefined,campaign:Campaign):Draft{return{itemId:item?.id??"",product:item?.name_snapshot??"",brand:item?.brand_snapshot??"",specification:item?.specification_snapshot??"",normalPrice:moneyInput(item?.normal_price??null),offerPrice:moneyInput(item?.offer_price??item?.normal_price??null),validity:campaign.end_date??"",ean:item?.ean_snapshot??"",unit:"UN",priceScale:1,barcodeWidth:100,barcodeHeight:100}}
 function priceParts(value:string){const clean=value.replace(/[^0-9,]/g,"");const[a="0",b="00"]=clean.split(",");return{major:a||"0",minor:(b+"00").slice(0,2)}}
 function dateLabel(v:string|null){if(!v)return"__/__/__";const[y,m,d]=v.split("-");return y&&m&&d?`${d}/${m}/${y.slice(-2)}`:v}
 function validEan13(code:string){const digits=code.replace(/\D/g,"");if(digits.length!==13)return null;const sum=digits.slice(0,12).split("").reduce((acc,d,i)=>acc+Number(d)*(i%2===0?1:3),0);return(10-(sum%10))%10===Number(digits[12])?digits:null}
@@ -22,15 +22,18 @@ export function CampaignPhysicalGenerator({campaign,items}:{campaign:Campaign;it
  const {logoUrl,fieldFonts,ready}=useBrandKit("validity");
  const [mode,setMode]=useState<1|4>(4),[printCount,setPrintCount]=useState(4);
  const [drafts,setDrafts]=useState<Draft[]>(()=>Array.from({length:4},(_,i)=>draftFrom(items[i],campaign)));
- const [priceScale,setPriceScale]=useState(1),[barcodeWidth,setBarcodeWidth]=useState(100),[barcodeHeight,setBarcodeHeight]=useState(100);
+
  const template=mode===1?templateOne:templateFour;
  const activeCount=mode===1?1:printCount;
  const active=drafts.slice(0,activeCount);
  const options=useMemo(()=>items.map(item=>({id:item.id,label:[item.name_snapshot,item.brand_snapshot,item.specification_snapshot].filter(Boolean).join(" · ")})),[items]);
  function patch(slot:number,values:Partial<Draft>){setDrafts(old=>old.map((draft,i)=>i===slot?{...draft,...values}:draft))}
  function choose(slot:number,id:string){const item=items.find(x=>x.id===id);setDrafts(old=>old.map((draft,i)=>i===slot?draftFrom(item,campaign):draft))}
- function price(draft:Draft){const p=priceParts(draft.offerPrice);const auto=(p.major.length<=1?1.22:p.major.length===2?.76:p.major.length===3?.68:.58)*priceScale;return <div className="physical-price" style={{transform:`scale(${auto})`}}><small>R$</small><strong>{p.major}</strong><span>,{p.minor}<small>{draft.unit||"UN"}</small></span></div>}
- function ticket(draft:Draft,key:string){return <ConfiguredTicket key={key} config={template.config} fonts={fieldFonts} logoUrl={logoUrl} values={{title:(campaign.theme||"OFERTA").toUpperCase(),product:(draft.product||"PRODUTO").toUpperCase(),brand:(draft.brand||"MARCA").toUpperCase(),specification:(draft.specification||"").toUpperCase(),validity:`VALIDADE ${dateLabel(draft.validity)}`,price:price(draft),normalPrice:draft.normalPrice||"0,00",code:<Barcode code={draft.ean} width={barcodeWidth} height={barcodeHeight}/>,footer:draft.validity?`Oferta válida até ${dateLabel(draft.validity)}`:"Oferta válida enquanto durarem os estoques"}}/>}
+ function restore(slot:number){const id=drafts[slot]?.itemId;choose(slot,id)}
+ function clear(slot:number){setDrafts(old=>old.map((draft,i)=>i===slot?draftFrom(undefined,campaign):draft))}
+ function duplicate(slot:number){if(slot>=3)return;setDrafts(old=>old.map((draft,i)=>i===slot+1?{...old[slot]}:draft));if(mode===4&&printCount<slot+2)setPrintCount(slot+2)}
+ function price(draft:Draft){const p=priceParts(draft.offerPrice);const fit=p.major.length<=1?1.16:p.major.length===2?.78:p.major.length===3?.64:p.major.length===4?.52:.44;return <div className="physical-price" style={{transform:`scale(${fit*draft.priceScale})`}}><small>R$</small><strong>{p.major}</strong><span>,{p.minor}<small>{draft.unit||"UN"}</small></span></div>}
+ function ticket(draft:Draft,key:string){return <ConfiguredTicket key={key} config={template.config} fonts={fieldFonts} logoUrl={logoUrl} values={{title:(campaign.theme||"OFERTA").toUpperCase(),product:(draft.product||"PRODUTO").toUpperCase(),brand:(draft.brand||"MARCA").toUpperCase(),specification:(draft.specification||"").toUpperCase(),validity:`VALIDADE ${dateLabel(draft.validity)}`,price:price(draft),normalPrice:draft.normalPrice||"0,00",code:<Barcode code={draft.ean} width={draft.barcodeWidth} height={draft.barcodeHeight}/>,footer:draft.validity?`Oferta válida até ${dateLabel(draft.validity)}`:"Oferta válida enquanto durarem os estoques"}}/>}
  return <>
   <section className="card no-print" style={{marginBottom:18}}>
    <div className="section-title-row"><div><small className="eyebrow">MATERIAL FÍSICO DA CAMPANHA</small><h2>{mode===1?"1 produto · folha inteira":`${printCount} ${printCount===1?"produto":"produtos"} · 1/4 de folha`}</h2></div><button className="btn primary" disabled={!template.ready||!ready||!active.some(x=>x.itemId||x.product)} onClick={()=>window.print()}>Imprimir / salvar PDF</button></div>
@@ -38,11 +41,8 @@ export function CampaignPhysicalGenerator({campaign,items}:{campaign:Campaign;it
    <div className="form-grid compact" style={{marginTop:14}}>
     <label className="field"><span>Formato da folha</span><select className="input" value={mode} onChange={e=>setMode(Number(e.target.value) as 1|4)}><option value="1">1 produto · folha inteira</option><option value="4">1/4 de folha · até 4 produtos</option></select></label>
     {mode===4&&<label className="field"><span>Quantidade para imprimir</span><select className="input" value={printCount} onChange={e=>setPrintCount(Number(e.target.value))}>{[1,2,3,4].map(n=><option key={n} value={n}>{n} {n===1?"produto":"produtos"}</option>)}</select></label>}
-    <label className="field"><span>Tamanho do preço · {Math.round(priceScale*100)}%</span><input className="input" type="range" min=".7" max="1.4" step=".05" value={priceScale} onChange={e=>setPriceScale(Number(e.target.value))}/></label>
-    <label className="field"><span>Largura do código de barras · {barcodeWidth}%</span><input className="input" type="range" min="50" max="100" step="5" value={barcodeWidth} onChange={e=>setBarcodeWidth(Number(e.target.value))}/></label>
-    <label className="field"><span>Altura das barras · {barcodeHeight}%</span><input className="input" type="range" min="50" max="150" step="5" value={barcodeHeight} onChange={e=>setBarcodeHeight(Number(e.target.value))}/></label>
    </div>
-   <div className="validity-editor-grid physical-item-editors" style={{marginTop:14}}>{active.map((draft,i)=><div className="validity-editor" key={i}><strong>Peça {i+1}</strong>
+   <div className="physical-item-editors" style={{marginTop:14}}>{active.map((draft,i)=><details className="validity-editor physical-item-editor" key={i} open={i===0}><summary><strong>Peça {i+1}</strong><span className="muted">{[draft.product,draft.brand,draft.specification].filter(Boolean).join(" · ")||"Sem produto"}</span></summary>
     <label className="field"><span>Produto da campanha</span><select className="input" value={draft.itemId} onChange={e=>choose(i,e.target.value)}><option value="">Preencher manualmente</option>{options.map(o=><option key={o.id} value={o.id}>{o.label||"Produto"}</option>)}</select></label>
     <div className="form-grid compact">
      <label className="field"><span>Produto</span><input className="input" value={draft.product} onChange={e=>patch(i,{product:e.target.value})}/></label>
@@ -54,7 +54,14 @@ export function CampaignPhysicalGenerator({campaign,items}:{campaign:Campaign;it
      <label className="field"><span>Código de barras</span><input className="input" inputMode="numeric" value={draft.ean} onChange={e=>patch(i,{ean:e.target.value})}/></label>
      <label className="field"><span>Unidade</span><input className="input" value={draft.unit} onChange={e=>patch(i,{unit:e.target.value})}/></label>
     </div>
-   </div>)}</div>
+    {draft.ean&&!validEan13(draft.ean)&&<div className="error">EAN inválido. Informe um EAN-13 com dígito verificador correto.</div>}
+    <div className="form-grid compact physical-piece-controls">
+     <label className="field"><span>Tamanho do preço · {Math.round(draft.priceScale*100)}%</span><input className="input" type="range" min=".7" max="1.4" step=".05" value={draft.priceScale} onChange={e=>patch(i,{priceScale:Number(e.target.value)})}/></label>
+     <label className="field"><span>Largura do EAN · {draft.barcodeWidth}%</span><input className="input" type="range" min="50" max="100" step="5" value={draft.barcodeWidth} onChange={e=>patch(i,{barcodeWidth:Number(e.target.value)})}/></label>
+     <label className="field"><span>Altura das barras · {draft.barcodeHeight}%</span><input className="input" type="range" min="50" max="150" step="5" value={draft.barcodeHeight} onChange={e=>patch(i,{barcodeHeight:Number(e.target.value)})}/></label>
+    </div>
+    <div className="preview-actions"><button className="btn" type="button" onClick={()=>restore(i)} disabled={!draft.itemId}>Restaurar dados da campanha</button>{i<3&&<button className="btn" type="button" onClick={()=>duplicate(i)}>Duplicar na próxima peça</button>}<button className="btn danger" type="button" onClick={()=>clear(i)}>Limpar peça</button></div>
+   </details>)}</div>
   </section>
   {!active.some(x=>x.itemId||x.product)?<div className="empty">Adicione produtos à campanha para gerar o material físico.</div>:<div className="validity-sheet-wrap"><div className={`validity-sheet physical-sheet ${mode===1?"physical-sheet-one":"physical-sheet-four"}`}>{Array.from({length:mode===1?1:4},(_,i)=>i<activeCount&&active[i]?(active[i].itemId||active[i].product?ticket(active[i],`slot-${i}`):<div key={i}/>):<div key={i} className="print-empty-slot"/>)}</div></div>}
   <div className="no-print physical-template-editors" style={{marginTop:18}}>
