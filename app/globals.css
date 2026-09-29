@@ -126,3 +126,16 @@
 .campaign-column-resizer{margin:8px 0 14px;border:1px solid var(--line);border-radius:10px;padding:8px 10px}.campaign-column-resizer>summary{cursor:pointer;font-weight:750}.campaign-column-resizer-grid{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:10px;margin-top:10px}.campaign-column-resizer input[type=range]{width:100%}
 @media(max-width:900px){.campaign-column-resizer-grid{grid-template-columns:repeat(2,minmax(140px,1fr))}}
 @media(max-width:560px){.campaign-column-resizer-grid{grid-template-columns:1fr}}
+
+
+/* Campaign physical generator: keep 1/4 pieces at their real printable size and never let barcode internals force overflow. */
+.physical-sheet{background:#fff!important;box-sizing:border-box}
+.physical-sheet-four{padding:3mm!important;gap:1mm!important}
+.physical-sheet-one{grid-template-columns:1fr!important;grid-template-rows:1fr!important;padding:6mm!important;gap:0!important}
+.physical-sheet>.configured-ticket{min-width:0;min-height:0}
+.physical-barcode{width:100%;height:100%;min-width:0;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;background:#fff;padding:1% 2%;box-sizing:border-box}
+.physical-barcode .barcode-svg{display:block;min-width:0;min-height:0;max-width:100%;margin:0 auto!important}
+.physical-barcode .barcode-number{flex:0 0 auto;white-space:nowrap;text-align:center;max-width:100%;overflow:hidden}
+.physical-price{display:flex;align-items:flex-start;justify-content:center;width:100%;height:100%;line-height:.9;transform-origin:center center;box-sizing:border-box}
+.physical-price>small{font-size:.2em;margin-top:.15em}.physical-price>strong{font-size:1em}.physical-price>span{font-size:.4em}.physical-price>span>small{display:block;font-size:.55em}
+@media print{.physical-sheet-four{padding:3mm!important;gap:1mm!important}.physical-sheet-one{padding:6mm!important;gap:0!important}}
