@@ -108,6 +108,8 @@ export function TemplateEditor({
       layout: { ...config.layout, [key]: { ...field, ...values } },
     });
   }
+  function nudge(dx:number,dy:number){patch({x:Math.max(0,Math.min(100-field.width,Number((field.x+dx).toFixed(2)))),y:Math.max(0,Math.min(100-field.height,Number((field.y+dy).toFixed(2))))})}
+  function restoreField(){const original=defaultTemplate(config.id).layout[key];if(original)onChange({...config,layout:{...config.layout,[key]:original}})}
   function startDrag(event: React.PointerEvent<HTMLElement>, dragKey: string, resize = false) {
     if (!canEdit || !ready) return;
     event.preventDefault();
@@ -240,6 +242,8 @@ export function TemplateEditor({
             touchAction: "none",
           }}
         >
+          <span aria-hidden style={{position:"absolute",left:"50%",top:0,bottom:0,borderLeft:"1px dashed rgba(255,255,255,.45)",pointerEvents:"none",zIndex:999}}/>
+          <span aria-hidden style={{position:"absolute",top:"50%",left:0,right:0,borderTop:"1px dashed rgba(255,255,255,.45)",pointerEvents:"none",zIndex:999}}/>
           {Object.entries(config.layout).filter(([, item]) => item.visible).map(([name, item]) => (
             <div
               key={name}
@@ -262,7 +266,9 @@ export function TemplateEditor({
                 userSelect: "none",
               }}
             >
-              {fieldLabels[name]}
+              <span style={{padding:`${item.padding??1}%`,overflow:"hidden",maxWidth:"100%",maxHeight:"100%"}}>{({
+                product:"ARROZ PARBOILIZADO",brand:"TIO JOÃO",specification:"5KG",normalPrice:"29,99",physicalCurrency:"R$",physicalPriceReais:"24",physicalPriceCents:",99",physicalUnit:"UN",validity:"VALIDADE 30/09/26",code:"7891234567895",footer:"Oferta válida enquanto durarem os estoques",title:"OFERTA"
+              } as Record<string,string>)[name]??fieldLabels[name]}</span>
               {name === key && canEdit ? (
                 <span
                   aria-label="Redimensionar elemento"
@@ -295,6 +301,9 @@ export function TemplateEditor({
               <label className="field">Altura de linha<input className="input" type="number" min=".5" max="3" step=".01" value={field.lineHeight??1.05} onChange={(e)=>patch({lineHeight:Number(e.target.value)})}/></label>
               <label className="field">Estilo<select className="input" value={field.fontStyle??"normal"} onChange={(e)=>patch({fontStyle:e.target.value as LayoutField["fontStyle"]})}><option value="normal">Normal</option><option value="italic">Itálico</option></select></label>
               <label className="field">Caixa<select className="input" value={field.textTransform??"none"} onChange={(e)=>patch({textTransform:e.target.value as LayoutField["textTransform"]})}><option value="none">Como digitado</option><option value="uppercase">MAIÚSCULAS</option><option value="lowercase">minúsculas</option></select></label>
+              <label className="field">Padding interno (%)<input className="input" type="number" min="0" max="20" step=".1" value={field.padding??1} onChange={(e)=>patch({padding:Number(e.target.value)})}/></label>
+              <label className="field">Máximo de linhas<input className="input" type="number" min="1" max="5" step="1" value={field.maxLines??1} onChange={(e)=>patch({maxLines:Number(e.target.value)})}/></label>
+              <label className="field inspector-wide">Ajuste do texto<select className="input" value={field.fitMode??"shrink"} onChange={(e)=>patch({fitMode:e.target.value as LayoutField["fitMode"]})}><option value="shrink">Reduzir para caber</option><option value="clip">Manter tamanho / cortar excesso</option></select></label>
             </div>
           </details>
 
@@ -305,6 +314,7 @@ export function TemplateEditor({
               <label className="field">Rotação (°)<input className="input" type="number" min="-180" max="180" value={field.rotation??0} onChange={(e)=>patch({rotation:Number(e.target.value)})}/></label>
               <label className="field">Camada<input className="input" type="number" min="0" max="100" value={field.layer??1} onChange={(e)=>patch({layer:Number(e.target.value)})}/></label>
               <label className="field">Opacidade<input className="input" type="number" min="0" max="1" step=".05" value={field.opacity??1} onChange={(e)=>patch({opacity:Number(e.target.value)})}/></label>
+              <div className="inspector-wide"><small className="muted">Microajuste · 0,1% por clique</small><div className="preview-actions"><button className="btn" type="button" onClick={()=>nudge(0,-.1)}>↑</button><button className="btn" type="button" onClick={()=>nudge(-.1,0)}>←</button><button className="btn" type="button" onClick={()=>nudge(.1,0)}>→</button><button className="btn" type="button" onClick={()=>nudge(0,.1)}>↓</button><button className="btn" type="button" onClick={restoreField}>Restaurar este elemento</button></div></div>
             </div>
           </details>
 
