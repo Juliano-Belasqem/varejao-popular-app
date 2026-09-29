@@ -45,6 +45,7 @@ export type LayoutField = {
   padding?: number;
   maxLines?: number;
   fitMode?: "shrink" | "clip";
+  locked?: boolean;
 };
 export type TemplateConfig = {
   id: TemplateId;
@@ -126,6 +127,7 @@ const field = (
   padding: 1,
   maxLines: 1,
   fitMode: "shrink",
+  locked: false,
 });
 // Coordinates are percentages; font sizes use a 1000-unit-wide design space.
 export function defaultTemplate(id: TemplateId): TemplateConfig {
@@ -241,7 +243,8 @@ export function validateLayout(
       (f.textTransform != null && !["none","uppercase","lowercase"].includes(f.textTransform)) ||
       (f.padding != null && (f.padding < 0 || f.padding > 20)) ||
       (f.maxLines != null && (f.maxLines < 1 || f.maxLines > 5)) ||
-      (f.fitMode != null && !["shrink","clip"].includes(f.fitMode))
+      (f.fitMode != null && !["shrink","clip"].includes(f.fitMode)) ||
+      (f.locked != null && typeof f.locked !== "boolean")
     )
       throw new Error(`Ajuste os limites do campo ${fieldLabels[key]}.`);
     result[key] = {
@@ -281,6 +284,7 @@ export function validateLayout(
       padding: f.padding ?? 1,
       maxLines: f.maxLines ?? 1,
       fitMode: f.fitMode ?? "shrink",
+      locked: f.locked ?? false,
       ...(typeof f.fontFamily === "string" && f.fontFamily.trim() ? { fontFamily: f.fontFamily.slice(0, 120) } : {}),
     };
   }
