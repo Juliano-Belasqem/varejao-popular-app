@@ -9,7 +9,7 @@ function FitText({children}:{children:ReactNode}) {
     const fit=()=>{el.style.transform="scale(1)";const sx=el.scrollWidth?el.clientWidth/el.scrollWidth:1;const sy=el.scrollHeight?el.clientHeight/el.scrollHeight:1;setScale(Math.min(1,sx,sy));};
     fit();const ro=new ResizeObserver(fit);ro.observe(el);return()=>ro.disconnect();
   },[children]);
-  return <div ref={ref} className="configured-fit-text" style={{transform:`scale(${scale})`}}>{children}</div>;
+  return <div ref={ref} className="configured-fit-text" style={{transform:`scale(${scale})`,transformOrigin:"center center",width:"100%",height:"100%",boxSizing:"border-box",paddingBlock:"0.08em",display:"flex",alignItems:"center",justifyContent:"inherit"}}>{children}</div>;
 }
 
 export function ConfiguredTicket({
