@@ -42,6 +42,9 @@ export type LayoutField = {
   lineHeight?: number;
   fontStyle?: "normal" | "italic";
   textTransform?: "none" | "uppercase" | "lowercase";
+  padding?: number;
+  maxLines?: number;
+  fitMode?: "shrink" | "clip";
 };
 export type TemplateConfig = {
   id: TemplateId;
@@ -120,6 +123,9 @@ const field = (
   lineHeight: 1.05,
   fontStyle: "normal",
   textTransform: "none",
+  padding: 1,
+  maxLines: 1,
+  fitMode: "shrink",
 });
 // Coordinates are percentages; font sizes use a 1000-unit-wide design space.
 export function defaultTemplate(id: TemplateId): TemplateConfig {
@@ -232,7 +238,10 @@ export function validateLayout(
       (f.strokeInnerGlowWidth != null && (f.strokeInnerGlowWidth < 0 || f.strokeInnerGlowWidth > 30)) ||
       (f.lineHeight != null && (f.lineHeight < 0.5 || f.lineHeight > 3)) ||
       (f.fontStyle != null && !["normal","italic"].includes(f.fontStyle)) ||
-      (f.textTransform != null && !["none","uppercase","lowercase"].includes(f.textTransform))
+      (f.textTransform != null && !["none","uppercase","lowercase"].includes(f.textTransform)) ||
+      (f.padding != null && (f.padding < 0 || f.padding > 20)) ||
+      (f.maxLines != null && (f.maxLines < 1 || f.maxLines > 5)) ||
+      (f.fitMode != null && !["shrink","clip"].includes(f.fitMode))
     )
       throw new Error(`Ajuste os limites do campo ${fieldLabels[key]}.`);
     result[key] = {
@@ -269,6 +278,9 @@ export function validateLayout(
       lineHeight: f.lineHeight ?? 1.05,
       fontStyle: f.fontStyle ?? "normal",
       textTransform: f.textTransform ?? "none",
+      padding: f.padding ?? 1,
+      maxLines: f.maxLines ?? 1,
+      fitMode: f.fitMode ?? "shrink",
       ...(typeof f.fontFamily === "string" && f.fontFamily.trim() ? { fontFamily: f.fontFamily.slice(0, 120) } : {}),
     };
   }
