@@ -234,7 +234,7 @@ export function TemplateEditor({
           aria-label="Editor visual do template mestre"
           style={{
             position: "relative", width: previewZoom <= 1 ? "100%" : `${previewZoom * 100}%`, maxWidth: 720, margin: "18px auto",
-            aspectRatio: config.id === "digital-story" ? "9 / 16" : config.id === "produce" || config.id === "validity" ? "1 / 1.414" : "1 / 1",
+            aspectRatio: config.id === "digital-story" ? "9 / 16" : config.id === "produce" || config.id === "validity" || config.id === "physical-one" || config.id === "physical-four" ? "1 / 1.414" : "1 / 1",
             overflow: "hidden", borderRadius: 12, border: "1px solid var(--line)",
             background: config.backgroundUrl ? `url("${config.backgroundUrl}") center/cover no-repeat` : "rgba(255,255,255,.04)",
             touchAction: "none",
@@ -287,12 +287,12 @@ export function TemplateEditor({
             <summary>Tipografia</summary>
             <div className="inspector-grid">
               <label className="field inspector-wide">Fonte<select className="input" value={field.fontFamily??""} onChange={(e)=>patch({fontFamily:e.target.value||undefined})}><option value="">Kit da Marca / padrão</option><option value="Arial">Arial</option><option value="Arial Black">Arial Black</option><option value="Helvetica">Helvetica</option><option value="Verdana">Verdana</option><option value="Trebuchet MS">Trebuchet MS</option><option value="Georgia">Georgia</option><option value="Impact">Impact</option>{brandFonts.length?<optgroup label="Biblioteca tipográfica">{brandFonts.map(font=><option key={font.id} value={font.family}>{font.name}</option>)}</optgroup>:null}</select></label>
-              <label className="field">Tamanho<input className="input" type="number" min="8" max="500" step=".5" value={field.fontSize} onChange={(e)=>patch({fontSize:Number(e.target.value)})}/></label>
+              <label className="field">Tamanho<input className="input" type="number" min="8" max="500" step=".1" value={field.fontSize} onChange={(e)=>patch({fontSize:Number(e.target.value)})}/></label>
               <label className="field">Peso<select className="input" value={field.weight} onChange={(e)=>patch({weight:Number(e.target.value)})}>{[400,500,600,700,800,900].map(n=><option key={n}>{n}</option>)}</select></label>
               <label className="field">Cor<input type="color" value={field.color} onChange={(e)=>patch({color:e.target.value})}/></label>
               <label className="field">Alinhamento<select className="input" value={field.align} onChange={(e)=>patch({align:e.target.value as LayoutField["align"]})}><option value="left">Esquerda</option><option value="center">Centro</option><option value="right">Direita</option></select></label>
               <label className="field">Kerning<input className="input" type="number" min="-20" max="100" step=".5" value={field.letterSpacing??0} onChange={(e)=>patch({letterSpacing:Number(e.target.value)})}/></label>
-              <label className="field">Altura de linha<input className="input" type="number" min=".5" max="3" step=".05" value={field.lineHeight??1.05} onChange={(e)=>patch({lineHeight:Number(e.target.value)})}/></label>
+              <label className="field">Altura de linha<input className="input" type="number" min=".5" max="3" step=".01" value={field.lineHeight??1.05} onChange={(e)=>patch({lineHeight:Number(e.target.value)})}/></label>
               <label className="field">Estilo<select className="input" value={field.fontStyle??"normal"} onChange={(e)=>patch({fontStyle:e.target.value as LayoutField["fontStyle"]})}><option value="normal">Normal</option><option value="italic">Itálico</option></select></label>
               <label className="field">Caixa<select className="input" value={field.textTransform??"none"} onChange={(e)=>patch({textTransform:e.target.value as LayoutField["textTransform"]})}><option value="none">Como digitado</option><option value="uppercase">MAIÚSCULAS</option><option value="lowercase">minúsculas</option></select></label>
             </div>
@@ -301,7 +301,7 @@ export function TemplateEditor({
           <details className="inspector-section">
             <summary>Posição e tamanho</summary>
             <div className="inspector-grid">
-              {([["x","X (%)"],["y","Y (%)"],["width","Largura (%)"],["height","Altura (%)"]] as const).map(([name,label])=><label className="field" key={name}>{label}<input className="input" type="number" min="0" max="100" step=".5" value={field[name]} onChange={(e)=>patch({[name]:Number(e.target.value)})}/></label>)}
+              {([["x","X (%)"],["y","Y (%)"],["width","Largura (%)"],["height","Altura (%)"]] as const).map(([name,label])=><label className="field" key={name}>{label}<input className="input" type="number" min="0" max="100" step=".1" value={field[name]} onChange={(e)=>patch({[name]:Number(e.target.value)})}/></label>)}
               <label className="field">Rotação (°)<input className="input" type="number" min="-180" max="180" value={field.rotation??0} onChange={(e)=>patch({rotation:Number(e.target.value)})}/></label>
               <label className="field">Camada<input className="input" type="number" min="0" max="100" value={field.layer??1} onChange={(e)=>patch({layer:Number(e.target.value)})}/></label>
               <label className="field">Opacidade<input className="input" type="number" min="0" max="1" step=".05" value={field.opacity??1} onChange={(e)=>patch({opacity:Number(e.target.value)})}/></label>
