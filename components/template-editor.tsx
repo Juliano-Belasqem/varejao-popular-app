@@ -98,20 +98,25 @@ export function TemplateEditor({
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [previewZoom, setPreviewZoom] = useState(1);
+  const [history,setHistory]=useState<TemplateConfig[]>([]);
+  const [future,setFuture]=useState<TemplateConfig[]>([]);
   const visualRef = useRef<HTMLDivElement>(null);
   const key =
     selected in config.layout ? selected : Object.keys(config.layout)[0];
   const field = config.layout[key];
+  function commit(next:TemplateConfig){setHistory(h=>[...h.slice(-39),config]);setFuture([]);onChange(next)}
   function patch(values: Partial<LayoutField>) {
-    onChange({
+    commit({
       ...config,
       layout: { ...config.layout, [key]: { ...field, ...values } },
     });
   }
-  function nudge(dx:number,dy:number){patch({x:Math.max(0,Math.min(100-field.width,Number((field.x+dx).toFixed(2)))),y:Math.max(0,Math.min(100-field.height,Number((field.y+dy).toFixed(2))))})}
+  function undo(){const previous=history.at(-1);if(!previous)return;setHistory(h=>h.slice(0,-1));setFuture(f=>[config,...f]);onChange(previous)}
+  function redo(){const next=future[0];if(!next)return;setFuture(f=>f.slice(1));setHistory(h=>[...h,config]);onChange(next)}
+  function nudge(dx:number,dy:number){if(field.locked)return;patch({x:Math.max(0,Math.min(100-field.width,Number((field.x+dx).toFixed(2)))),y:Math.max(0,Math.min(100-field.height,Number((field.y+dy).toFixed(2))))})}
   function restoreField(){const original=defaultTemplate(config.id).layout[key];if(original)onChange({...config,layout:{...config.layout,[key]:original}})}
   function startDrag(event: React.PointerEvent<HTMLElement>, dragKey: string, resize = false) {
-    if (!canEdit || !ready) return;
+    if (!canEdit || !ready || config.layout[dragKey].locked) return;
     event.preventDefault();
     setSelected(dragKey);
     const startX = event.clientX;
@@ -135,6 +140,7 @@ export function TemplateEditor({
       }
     };
     const end = () => {
+      setHistory(h=>[...h.slice(-39),config]);setFuture([]);
       target.removeEventListener("pointermove", move);
       target.removeEventListener("pointerup", end);
       target.removeEventListener("pointercancel", end);
@@ -228,7 +234,7 @@ export function TemplateEditor({
             <button className="btn" type="button" aria-label="Diminuir zoom" onClick={() => setPreviewZoom((value) => Math.max(0.5, Number((value - 0.1).toFixed(1))))}>−</button>
             <span className="pill" aria-live="polite">{Math.round(previewZoom * 100)}%</span>
             <button className="btn" type="button" aria-label="Aumentar zoom" onClick={() => setPreviewZoom((value) => Math.min(2, Number((value + 0.1).toFixed(1))))}>+</button>
-            <button className="btn" type="button" onClick={() => setPreviewZoom(1)}>100%</button>
+            <button className="btn" type="button" onClick={() => setPreviewZoom(1)}>100%</button><button className="btn" type="button" disabled={!history.length} onClick={undo}>↶ Desfazer</button><button className="btn" type="button" disabled={!future.length} onClick={redo}>↷ Refazer</button>
           </div>
           <div style={{ overflow: "auto", maxHeight: "72vh", padding: previewZoom > 1 ? 8 : 0 }}>
 <div
@@ -254,7 +260,7 @@ export function TemplateEditor({
                 position: "absolute", left: `${item.x}%`, top: `${item.y}%`,
                 width: `${item.width}%`, height: `${item.height}%`,
                 border: name === key ? "2px solid currentColor" : "1px dashed currentColor",
-                display: "grid", placeItems: "center", cursor: canEdit ? "move" : "default",
+                display: "grid", placeItems: "center", cursor: item.locked ? "not-allowed" : canEdit ? "move" : "default",
                 opacity: item.opacity ?? 1, transform: `rotate(${item.rotation ?? 0}deg)`,
                 zIndex: item.layer ?? 1, color: item.color, fontWeight: item.weight,
                 fontSize: "clamp(10px, 2vw, 18px)", textAlign: item.align,
@@ -269,7 +275,7 @@ export function TemplateEditor({
               <span style={{padding:`${item.padding??1}%`,overflow:"hidden",maxWidth:"100%",maxHeight:"100%"}}>{({
                 product:"ARROZ PARBOILIZADO",brand:"TIO JOÃO",specification:"5KG",normalPrice:"29,99",physicalCurrency:"R$",physicalPriceReais:"24",physicalPriceCents:",99",physicalUnit:"UN",validity:"VALIDADE 30/09/26",code:"7891234567895",footer:"Oferta válida enquanto durarem os estoques",title:"OFERTA"
               } as Record<string,string>)[name]??fieldLabels[name]}</span>
-              {name === key && canEdit ? (
+              {name === key && canEdit && !item.locked ? (
                 <span
                   aria-label="Redimensionar elemento"
                   onPointerDown={(event) => { event.stopPropagation(); startDrag(event, name, true); }}
@@ -285,7 +291,7 @@ export function TemplateEditor({
         <aside className="template-editor-controls template-inspector">
           <div className="inspector-head">
             <div><small className="eyebrow">ELEMENTO SELECIONADO</small><strong>{fieldLabels[key]}</strong></div>
-            <label className="inspector-visible"><input type="checkbox" checked={field.visible} onChange={(e)=>patch({visible:e.target.checked})}/> Visível</label>
+            <div><label className="inspector-visible"><input type="checkbox" checked={field.visible} onChange={(e)=>patch({visible:e.target.checked})}/> Visível</label><label className="inspector-visible"><input type="checkbox" checked={field.locked??false} onChange={(e)=>patch({locked:e.target.checked})}/> Bloqueado</label></div>
           </div>
           <label className="field">Elemento<select aria-label="Campo" className="input" value={key} onChange={(e)=>setSelected(e.target.value)}>{Object.keys(config.layout).map((name)=><option key={name} value={name}>{fieldLabels[name]}</option>)}</select></label>
 
@@ -314,7 +320,7 @@ export function TemplateEditor({
               <label className="field">Rotação (°)<input className="input" type="number" min="-180" max="180" value={field.rotation??0} onChange={(e)=>patch({rotation:Number(e.target.value)})}/></label>
               <label className="field">Camada<input className="input" type="number" min="0" max="100" value={field.layer??1} onChange={(e)=>patch({layer:Number(e.target.value)})}/></label>
               <label className="field">Opacidade<input className="input" type="number" min="0" max="1" step=".05" value={field.opacity??1} onChange={(e)=>patch({opacity:Number(e.target.value)})}/></label>
-              <div className="inspector-wide"><small className="muted">Microajuste · 0,1% por clique</small><div className="preview-actions"><button className="btn" type="button" onClick={()=>nudge(0,-.1)}>↑</button><button className="btn" type="button" onClick={()=>nudge(-.1,0)}>←</button><button className="btn" type="button" onClick={()=>nudge(.1,0)}>→</button><button className="btn" type="button" onClick={()=>nudge(0,.1)}>↓</button><button className="btn" type="button" onClick={restoreField}>Restaurar este elemento</button></div></div>
+              <div className="inspector-wide"><small className="muted">Microajuste · 0,1% por clique</small><div className="preview-actions"><button className="btn" type="button" disabled={field.locked} onClick={()=>nudge(0,-.1)}>↑</button><button className="btn" type="button" disabled={field.locked} onClick={()=>nudge(-.1,0)}>←</button><button className="btn" type="button" disabled={field.locked} onClick={()=>nudge(.1,0)}>→</button><button className="btn" type="button" disabled={field.locked} onClick={()=>nudge(0,.1)}>↓</button><button className="btn" type="button" disabled={field.locked} onClick={()=>patch({width:Math.max(2,field.width-.1)})}>L−</button><button className="btn" type="button" disabled={field.locked} onClick={()=>patch({width:Math.min(100-field.x,field.width+.1)})}>L+</button><button className="btn" type="button" disabled={field.locked} onClick={()=>patch({height:Math.max(2,field.height-.1)})}>A−</button><button className="btn" type="button" disabled={field.locked} onClick={()=>patch({height:Math.min(100-field.y,field.height+.1)})}>A+</button><button className="btn" type="button" onClick={restoreField}>Restaurar este elemento</button></div><div className="preview-actions"><button className="btn" type="button" disabled={field.locked} onClick={()=>patch({x:0})}>← borda</button><button className="btn" type="button" disabled={field.locked} onClick={()=>patch({x:Number(((100-field.width)/2).toFixed(2))})}>Centro H</button><button className="btn" type="button" disabled={field.locked} onClick={()=>patch({x:Number((100-field.width).toFixed(2))})}>borda →</button><button className="btn" type="button" disabled={field.locked} onClick={()=>patch({y:0})}>↑ topo</button><button className="btn" type="button" disabled={field.locked} onClick={()=>patch({y:Number(((100-field.height)/2).toFixed(2))})}>Centro V</button><button className="btn" type="button" disabled={field.locked} onClick={()=>patch({y:Number((100-field.height).toFixed(2))})}>base ↓</button></div></div>
             </div>
           </details>
 
