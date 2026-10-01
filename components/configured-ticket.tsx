@@ -4,13 +4,16 @@ import type { TemplateConfig } from "@/lib/template-config";
 function FitText({children,padding=1,maxLines=1,fit=true}:{children:ReactNode;padding?:number;maxLines?:number;fit?:boolean}) {
  const frame=useRef<HTMLDivElement>(null),content=useRef<HTMLDivElement>(null);
  const [scale,setScale]=useState(1);
+ const [tooLong,setTooLong]=useState(false);
  useLayoutEffect(()=>{
   const box=frame.current,inner=content.current;if(!box||!inner)return;
   const measure=()=>{
-   if(!fit){setScale(1);return}
+   if(!fit){setScale(1);setTooLong(false);return}
    const sx=box.clientWidth/Math.max(1,inner.scrollWidth);
    const sy=box.clientHeight/Math.max(1,inner.scrollHeight);
-   const next=Math.max(.15,Math.min(1,sx,sy));
+   const raw=Math.min(1,sx,sy);
+   const next=Math.max(.55,raw);
+   setTooLong(raw<.55);
    setScale(previous=>Math.abs(previous-next)>.005?next:previous);
   };
   measure();
@@ -20,8 +23,9 @@ function FitText({children,padding=1,maxLines=1,fit=true}:{children:ReactNode;pa
   window.addEventListener("beforeprint",measure);
   return()=>{observer.disconnect();window.removeEventListener("beforeprint",measure)};
  },[children,fit,maxLines,padding]);
- return <div ref={frame} className="configured-fit-text" style={{width:"100%",height:"100%",minWidth:0,minHeight:0,boxSizing:"border-box",padding:padding+"%",overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center"}}>
+ return <div ref={frame} className="configured-fit-text" title={tooLong?"Texto excede a área disponível; reduza o conteúdo ou aumente o campo.":scale<.995?"Fonte reduzida automaticamente para caber no campo.":undefined} style={{position:"relative",width:"100%",height:"100%",minWidth:0,minHeight:0,boxSizing:"border-box",padding:padding+"%",overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center"}}>
   <div ref={content} style={{display:"block",width:maxLines===1?"max-content":"100%",maxWidth:"none",flex:"0 0 auto",whiteSpace:maxLines===1?"nowrap":"normal",overflowWrap:"normal",textAlign:"center",lineHeight:"inherit",transform:"scale("+scale+")",transformOrigin:"center center"}}>{children}</div>
+  {(tooLong||scale<.995)&&<span aria-hidden="true" className={"configured-fit-indicator"+(tooLong?" configured-fit-warning":"")} title={tooLong?"Texto longo demais para leitura confortável":"Fonte ajustada automaticamente"}>{tooLong?"!":"↘"}</span>}
  </div>;
 }
 
