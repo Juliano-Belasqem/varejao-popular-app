@@ -13,7 +13,7 @@ type Slot={productId:string;productQuery:string;price:string;priceScale:number;p
 const empty=():Slot=>({productId:"",productQuery:"",price:"",priceScale:1,priceX:50,priceY:70});
 
 function splitPrice(value:string){const clean=value.replace(/[^0-9,]/g,"");const[a="0",b="00"]=clean.split(",");return{major:a||"0",minor:(b+"00").slice(0,2)}}
-function ProducePrice({value,manualScale=1}:{value:string;manualScale?:number}){const p=splitPrice(value);const scale=(p.major.length<=1?1.22:p.major.length===2?.76:p.major.length===3?.68:.58)*manualScale;return <div className="produce-price" style={{transform:"scale("+scale+")",transformOrigin:"center center",paddingTop:".12em",boxSizing:"border-box",width:"100%",height:"100%"}}><strong>{p.major}</strong><span>,{p.minor}</span></div>}
+function ProducePrice({value,manualScale=1}:{value:string;manualScale?:number}){const p=splitPrice(value);const scale=(p.major.length<=1?1.22:p.major.length===2?.95:p.major.length===3?.76:.60)*manualScale;return <div className="produce-price" style={{transform:"scale("+scale+")",transformOrigin:"center center",paddingTop:".12em",boxSizing:"border-box",width:"100%",height:"100%"}}><strong>{p.major}</strong><span>,{p.minor}</span></div>}
 
 
 /** Render the first page of the private PDF as the actual ticket artwork, on screen and on paper. */
