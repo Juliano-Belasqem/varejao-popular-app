@@ -106,6 +106,7 @@ export function TemplateEditor({
   const field = config.layout[key];
   function commit(next:TemplateConfig){setHistory(h=>[...h.slice(-39),config]);setFuture([]);onChange(next)}
   function patch(values: Partial<LayoutField>) {
+    for(const name of ["x","y","width","height"] as const){if(typeof values[name]==="number")values[name]=Number(values[name]!.toFixed(2))}
     commit({
       ...config,
       layout: { ...config.layout, [key]: { ...field, ...values } },
@@ -130,12 +131,12 @@ export function TemplateEditor({
       const dx = ((moveEvent.clientX - startX) / rect.width) * 100;
       const dy = ((moveEvent.clientY - startY) / rect.height) * 100;
       if (resize) {
-        const width = Math.max(2, Math.min(100 - start.x, start.width + dx));
-        const height = Math.max(2, Math.min(100 - start.y, start.height + dy));
+        const width = Number(Math.max(2, Math.min(100 - start.x, start.width + dx)).toFixed(2));
+        const height = Number(Math.max(2, Math.min(100 - start.y, start.height + dy)).toFixed(2));
         onChange({ ...config, layout: { ...config.layout, [dragKey]: { ...start, width, height } } });
       } else {
-        const x = Math.max(0, Math.min(100 - start.width, start.x + dx));
-        const y = Math.max(0, Math.min(100 - start.height, start.y + dy));
+        const x = Number(Math.max(0, Math.min(100 - start.width, start.x + dx)).toFixed(2));
+        const y = Number(Math.max(0, Math.min(100 - start.height, start.y + dy)).toFixed(2));
         onChange({ ...config, layout: { ...config.layout, [dragKey]: { ...start, x, y } } });
       }
     };
