@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { TemplateConfig } from "@/lib/template-config";
 
-function FitText({children,padding=1,maxLines=1,fit=true}:{children:ReactNode;padding?:number;maxLines?:number;fit?:boolean}) {
+function FitText({children,padding=1,maxLines=1,fit=true,inkSafe=false}:{children:ReactNode;padding?:number;maxLines?:number;fit?:boolean;inkSafe?:boolean}) {
  const frame=useRef<HTMLDivElement>(null),content=useRef<HTMLDivElement>(null);
  const [scale,setScale]=useState(1);
  const [tooLong,setTooLong]=useState(false);
@@ -23,8 +23,8 @@ function FitText({children,padding=1,maxLines=1,fit=true}:{children:ReactNode;pa
   window.addEventListener("beforeprint",measure);
   return()=>{observer.disconnect();window.removeEventListener("beforeprint",measure)};
  },[children,fit,maxLines,padding]);
- return <div ref={frame} className="configured-fit-text" title={tooLong?"Texto excede a área disponível; reduza o conteúdo ou aumente o campo.":scale<.995?"Fonte reduzida automaticamente para caber no campo.":undefined} style={{position:"relative",width:"100%",height:"100%",minWidth:0,minHeight:0,boxSizing:"border-box",padding:padding+"%",overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center"}}>
-  <div ref={content} style={{display:"block",width:maxLines===1?"max-content":"100%",maxWidth:"none",flex:"0 0 auto",whiteSpace:maxLines===1?"nowrap":"normal",overflowWrap:"normal",textAlign:"center",lineHeight:"inherit",transform:"scale("+scale+")",transformOrigin:"center center"}}>{children}</div>
+ return <div ref={frame} className="configured-fit-text" title={tooLong?"Texto excede a área disponível; reduza o conteúdo ou aumente o campo.":scale<.995?"Fonte reduzida automaticamente para caber no campo.":undefined} style={{position:"relative",width:"100%",height:"100%",minWidth:0,minHeight:0,boxSizing:"border-box",padding:padding+"%",overflow:inkSafe?"visible":"hidden",display:"flex",alignItems:"center",justifyContent:"center"}}>
+  <div ref={content} style={{display:"block",width:maxLines===1?"max-content":"100%",maxWidth:"none",flex:"0 0 auto",whiteSpace:maxLines===1?"nowrap":"normal",overflowWrap:"normal",textAlign:"center",lineHeight:inkSafe?1.25:"inherit",paddingBlock:inkSafe?".12em":0,boxSizing:"border-box",transform:"scale("+scale+")",transformOrigin:"center center"}}>{children}</div>
   {(tooLong||scale<.995)&&<span aria-hidden="true" className={"configured-fit-indicator"+(tooLong?" configured-fit-warning":"")} title={tooLong?"Texto longo demais para leitura confortável":"Fonte ajustada automaticamente"}>{tooLong?"!":"↘"}</span>}
  </div>;
 }
@@ -71,7 +71,7 @@ export function ConfiguredTicket({
             zIndex: field.layer ?? 1,
             lineHeight: field.lineHeight ?? 1.05,
             letterSpacing: `${field.letterSpacing ?? 0}px`,
-            overflow: key === "offerPrice" || key === "producePrice" || pairedPrice ? "visible" : "hidden",
+            overflow: key.startsWith("productLine") || key === "offerPrice" || key === "producePrice" || pairedPrice ? "visible" : "hidden",
             overflowWrap: "anywhere",
             display: "flex",
             flexDirection: "column",
@@ -95,7 +95,7 @@ export function ConfiguredTicket({
                   />
                 ) : null
               ) : (
-                key === "price" || key === "producePrice" || key === "code" || pairedPrice ? values[key] : <FitText padding={field.padding} maxLines={field.maxLines} fit={field.fitMode!=="clip"}>{values[key]}</FitText>
+                key === "price" || key === "producePrice" || key === "code" || pairedPrice ? values[key] : <FitText padding={field.padding} maxLines={field.maxLines} fit={field.fitMode!=="clip"} inkSafe={key.startsWith("productLine")}>{values[key]}</FitText>
               )}
             </div>
           );
