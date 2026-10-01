@@ -47,6 +47,8 @@ export async function uploadProducePdf(formData: FormData) {
   const file = formData.get("pdf");
   if (!id || !(file instanceof File) || file.type !== "application/pdf" || file.size < 5 || file.size > 10*1024*1024)
     throw new Error("Selecione um PDF válido de até 10 MB.");
+  const header = new Uint8Array(await file.slice(0,5).arrayBuffer());
+  if (String.fromCharCode(...header) !== "%PDF-") throw new Error("O arquivo enviado não possui uma assinatura PDF válida.");
   const supabase = await createClient();
   const { data: product, error: lookupError } = await supabase.from("produce_template_products").select("id,pdf_path").eq("id",id).single();
   if (lookupError || !product) throw new Error("Produto não encontrado.");
