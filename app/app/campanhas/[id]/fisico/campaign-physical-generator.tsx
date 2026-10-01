@@ -13,18 +13,18 @@ function splitProduct(item:Item|undefined){
  if(!item)return{product:"",brand:"",specification:""};
  const full=(item.display_name?.trim()||item.full_name?.trim()||item.name_snapshot||"").trim();
  let product=full;
- let brand=(item.product_brand||item.brand_snapshot||"").trim();
+ const brand=(item.product_brand||item.brand_snapshot||"").trim();
  let specification=(item.product_specification||item.specification_snapshot||"").trim();
- const match=product.match(/(?:\\s|^)((?:\\d+(?:[.,]\\d+)?\\s*)?(?:KG|G|MG|L|ML|UN|UND|UNID|UNIDADES|PACOTE|PCT|CX|CAIXA|LT|LITROS?|GR|GRAMAS?))\\s*$/i);
+ const match=product.match(/(?:\s|^)((?:\d+(?:[.,]\d+)?\s*)?(?:KG|G|MG|L|ML|UN|UND|UNID|UNIDADES|PACOTE|PCT|CX|CAIXA|LT|LITROS?|GR|GRAMAS?))\s*$/i);
  if(match){
   if(!specification)specification=match[1].trim();
   product=product.slice(0,match.index).trim();
  }
- if(brand){
-  const escaped=brand.replace(/[.*+?^$\\{\\}()|[\\]\\\\]/g,"\\$&");
-  product=product.replace(new RegExp("(?:^|\\\\s)"+escaped+"(?:$|\\\\s)","i")," ").replace(/\\s+/g," ").trim();
+ for(const part of [brand,specification]){
+  if(!part)continue;
+  const pos=product.toLocaleLowerCase("pt-BR").indexOf(part.toLocaleLowerCase("pt-BR"));
+  if(pos>=0)product=(product.slice(0,pos)+" "+product.slice(pos+part.length)).replace(/\s+/g," ").trim();
  }
- if(specification)product=product.replace(specification," ").replace(/\\s+/g," ").trim();
  return{product:product||full,brand,specification};
 }
 function moneyInput(value:number|string|null){
@@ -34,7 +34,7 @@ function moneyInput(value:number|string|null){
 }
 function draftFrom(item:Item|undefined,campaign:Campaign):Draft{const split=splitProduct(item);return{itemId:item?.id??"",product:split.product,brand:split.brand,specification:split.specification,normalPrice:moneyInput(item?.normal_price??null),offerPrice:moneyInput(item?.offer_price??item?.normal_price??null),validity:campaign.end_date??"",ean:item?.ean_snapshot??"",unit:"UN",barcodeWidth:100,barcodeHeight:100}}
 function priceParts(value:string){const clean=value.replace(/[^0-9,]/g,"");const[a="0",b="00"]=clean.split(",");return{major:a||"0",minor:(b+"00").slice(0,2)}}
-function majorPriceScale(major:string){const digits=major.replace(/\\D/g,"").length;return digits<=1?1:digits===2?.78:digits===3?.62:.5}
+function majorPriceScale(major:string){const digits=major.replace(/\D/g,"").length;return digits<=1?1:digits===2?.78:digits===3?.62:.5}
 function PhysicalPrice({major,minor,scale}:{major:string;minor:string;scale:number}){return <span className="physical-responsive-price" style={{fontSize:(scale*100)+"%"}}><strong>{major}</strong><span className="physical-responsive-cents">,{minor}</span></span>}
 function dateLabel(v:string|null){if(!v)return"__/__/__";const[y,m,d]=v.split("-");return y&&m&&d?`${d}/${m}/${y.slice(-2)}`:v}
 function validEan13(code:string){const digits=code.replace(/\D/g,"");if(digits.length!==13)return null;const sum=digits.slice(0,12).split("").reduce((acc,d,i)=>acc+Number(d)*(i%2===0?1:3),0);return(10-(sum%10))%10===Number(digits[12])?digits:null}
