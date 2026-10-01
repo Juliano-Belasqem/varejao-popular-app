@@ -144,7 +144,7 @@
 
 /* Imported produce PDF is the artwork itself; the application only overlays the price. */
 .produce-uploaded-ticket{position:relative;container-type:inline-size;width:100%;height:100%;background:#fff;overflow:hidden;print-color-adjust:exact;-webkit-print-color-adjust:exact}
-.produce-uploaded-ticket>img{display:block;width:100%;height:100%;object-fit:fill}
+.produce-uploaded-ticket>img{display:block;width:100%;height:100%;object-fit:contain;object-position:center center}
 .produce-pdf-loading{display:grid;place-items:center;height:100%;padding:15px;text-align:center;color:#333;background:#f1f1f1}
 .produce-pdf-price{position:absolute;transform:translate(-50%,-50%);font-family:Arial,Helvetica,sans-serif;font-weight:900;white-space:nowrap;color:#111;line-height:1;letter-spacing:-.04em;text-shadow:0 0 2px #fff}
 
