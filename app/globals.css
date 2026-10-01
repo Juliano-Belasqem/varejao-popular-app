@@ -141,3 +141,9 @@
 @media print{.physical-sheet-four{padding:3mm!important;gap:1mm!important}.physical-sheet-one{padding:6mm!important;gap:0!important}}
 
 .physical-item-editors{display:grid;gap:12px}.physical-item-editor{padding:0;overflow:hidden}.physical-item-editor>summary{cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px}.physical-item-editor>summary::-webkit-details-marker{display:none}.physical-item-editor>summary:after{content:"▾";color:var(--muted)}.physical-item-editor:not([open])>summary:after{content:"›"}.physical-item-editor>summary+.field,.physical-item-editor>summary~.field,.physical-item-editor>summary~.form-grid,.physical-item-editor>summary~.error,.physical-item-editor>summary~.preview-actions{margin-left:14px;margin-right:14px}.physical-item-editor>summary~.preview-actions{margin-bottom:14px}.physical-item-editor>summary~.field,.physical-item-editor>summary~.form-grid,.physical-item-editor>summary~.error{margin-bottom:12px}
+
+/* Imported produce PDF is the artwork itself; the application only overlays the price. */
+.produce-uploaded-ticket{position:relative;container-type:inline-size;width:100%;height:100%;background:#fff;overflow:hidden;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+.produce-uploaded-ticket>img{display:block;width:100%;height:100%;object-fit:fill}
+.produce-pdf-loading{display:grid;place-items:center;height:100%;padding:15px;text-align:center;color:#333;background:#f1f1f1}
+.produce-pdf-price{position:absolute;transform:translate(-50%,-50%);font-family:Arial,Helvetica,sans-serif;font-weight:900;white-space:nowrap;color:#111;line-height:1;letter-spacing:-.04em;text-shadow:0 0 2px #fff}
