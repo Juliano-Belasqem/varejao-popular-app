@@ -15,16 +15,23 @@ const empty=():Slot=>({productId:"",productQuery:"",price:"",priceScale:1});
 function splitPrice(value:string){const clean=value.replace(/[^0-9,]/g,"");const[a="0",b="00"]=clean.split(",");return{major:a||"0",minor:(b+"00").slice(0,2)}}
 function ProducePrice({value,manualScale=1}:{value:string;manualScale?:number}){const p=splitPrice(value);const scale=(p.major.length<=1?1.22:p.major.length===2?.76:p.major.length===3?.68:.58)*manualScale;return <div className="produce-price" style={{transform:"scale("+scale+")",transformOrigin:"center center",paddingTop:".12em",boxSizing:"border-box",width:"100%",height:"100%"}}><strong>{p.major}</strong><span>,{p.minor}</span></div>}
 
+function sortedProducts(products:Product[],search:string,onlyPdf:boolean){const q=search.trim().normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR");return [...products].filter(p=>(!onlyPdf||!!p.pdf_path)&&[p.name,p.specification,p.code,p.unit].join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR").includes(q)).sort((a,b)=>a.name.localeCompare(b.name,"pt-BR"))}
+
 export function ProduceTemplateGenerator({products}:{products:Product[]}){
   const template=useTemplate("produce");
   const {fieldFonts}=useBrandKit("validity");
   const [slots,setSlots]=useState<Slot[]>(()=>[empty(),empty(),empty(),empty()]);
   const [editing,setEditing]=useState<Product|null>(null);
   const [pdfError,setPdfError]=useState("");
+  const [search,setSearch]=useState("");
+  const [onlyPdf,setOnlyPdf]=useState(false);
+  const [uploading,setUploading]=useState<string|null>(null);
+  const filtered=useMemo(()=>sortedProducts(products,search,onlyPdf),[products,search,onlyPdf]);
   async function previewPdf(product:Product){if(!product.pdf_path)return;const {data,error}=await createClient().storage.from("produce-pdfs").createSignedUrl(product.pdf_path,120);if(error||!data?.signedUrl){setPdfError(error?.message??"Não foi possível abrir o PDF.");return}window.open(data.signedUrl,"_blank","noopener,noreferrer")}
 
   const [printCount,setPrintCount]=useState(4);
   const sorted=useMemo(()=>[...products].sort((a,b)=>a.name.localeCompare(b.name,"pt-BR")),[products]);
+  const duplicate=(index:number)=>setSlots(old=>old.map((s,i)=>i===index+1?{...old[index]}:s));
   const patch=(index:number,values:Partial<Slot>)=>setSlots(old=>old.map((slot,i)=>i===index?{...slot,...values}:slot));
   const ticket=(slot:Slot)=>{const product=products.find(p=>p.id===slot.productId);return <ConfiguredTicket config={template.config} fonts={fieldFonts} logoUrl={null} values={{
     produceName:product?.name||"PRODUTO",
@@ -42,6 +49,7 @@ export function ProduceTemplateGenerator({products}:{products:Product[]}){
       <div className="validity-editor-grid" style={{marginTop:14}}>{slots.slice(0,printCount).map((slot,index)=><div className="validity-editor" key={index}>
         <strong>Item {index+1}</strong>
         <label className="field"><span>Produto</span><select className="input" value={slot.productId} onChange={e=>{const product=products.find(p=>p.id===e.target.value);patch(index,{productId:product?.id??"",productQuery:product?.name??""})}}><option value="">Selecione o produto exato...</option>{sorted.map(p=><option value={p.id} key={p.id}>{p.name}{p.specification?" · "+p.specification:""} · Cód. {p.code}</option>)}</select></label>
+        <div className="preview-actions">{index<3&&<button className="btn" type="button" onClick={()=>{duplicate(index);if(printCount<index+2)setPrintCount(index+2)}}>Duplicar no próximo espaço</button>}{products.find(p=>p.id===slot.productId)?.pdf_path&&<button className="btn" type="button" onClick={()=>void previewPdf(products.find(p=>p.id===slot.productId)!)}>Abrir PDF original</button>}</div>
         <label className="field"><span>Preço</span><input className="input" inputMode="decimal" placeholder="9,99" value={slot.price} onChange={e=>patch(index,{price:e.target.value})}/></label><label className="field"><span>Ajuste do preço · {Math.round(slot.priceScale*100)}%</span><input className="input" type="range" min=".7" max="1.4" step=".05" value={slot.priceScale} onChange={e=>patch(index,{priceScale:Number(e.target.value)})}/></label>
       </div>)}</div>
     </section>
@@ -58,9 +66,10 @@ export function ProduceTemplateGenerator({products}:{products:Product[]}){
         <label className="field"><span>Código</span><input className="input" name="code" required inputMode="numeric" defaultValue={editing?.code??""} key={"code-"+(editing?.id??"new")}/></label>
         <div className="preview-actions"><button className="btn primary" type="submit">{editing?"Salvar alterações":"Cadastrar produto"}</button>{editing&&<button className="btn" type="button" onClick={()=>setEditing(null)}>Cancelar</button>}</div>
       </form>
-      {pdfError&&<div className="error">{pdfError}</div>}<p className="muted">Modelos PDF são armazenados privadamente por produto (até 10 MB). Abra o PDF original para impressão; a folha dinâmica continua disponível separadamente.</p><div className="produce-product-list" style={{marginTop:16}}>{sorted.map(product=><article className="card" key={product.id} style={{padding:12}}>
+      <div className="form-grid compact" style={{marginTop:14}}><label className="field"><span>Pesquisar no acervo</span><input className="input" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Nome, código ou especificação"/></label><label className="field"><span>Filtrar modelos</span><select className="input" value={onlyPdf?"pdf":"all"} onChange={e=>setOnlyPdf(e.target.value==="pdf")}><option value="all">Todos os produtos</option><option value="pdf">Somente com PDF</option></select></label></div><p className="muted">{filtered.length} produto(s) encontrados · {products.filter(p=>p.pdf_path).length} com PDF cadastrado.</p>
+      {pdfError&&<div className="error">{pdfError}</div>}<p className="muted">Modelos PDF são armazenados privadamente por produto (até 10 MB). Abra o PDF original para impressão; a folha dinâmica continua disponível separadamente.</p><div className="produce-product-list" style={{marginTop:16}}>{filtered.map(product=><article className="card" key={product.id} style={{padding:12}}>
         <strong>{product.name}</strong> {product.pdf_path&&<span className="pill">PDF cadastrado</span>}<div className="muted">{[product.specification,product.unit,"Cód. "+product.code].filter(Boolean).join(" · ")}</div>
-        <form action={uploadProducePdf} className="preview-actions" style={{marginTop:8}}><input type="hidden" name="id" value={product.id}/><label className="field"><span>{product.pdf_path?"Substituir modelo PDF":"Enviar modelo PDF"}</span><input className="input" name="pdf" type="file" accept="application/pdf,.pdf" required/></label><button className="btn" type="submit">Salvar PDF</button></form><div className="preview-actions" style={{marginTop:8}}>{product.pdf_path&&<><button className="btn" type="button" onClick={()=>void previewPdf(product)}>Visualizar PDF</button><form action={removeProducePdf}><input type="hidden" name="id" value={product.id}/><button className="btn" type="submit">Remover PDF</button></form></>}<button className="btn" type="button" onClick={()=>setEditing(product)}>Editar</button><form action={deleteProduceProduct}><input type="hidden" name="id" value={product.id}/><button className="btn danger" type="submit">Excluir</button></form></div>
+        <form action={async data=>{setUploading(product.id);setPdfError("");try{await uploadProducePdf(data)}catch(error){setPdfError(error instanceof Error?error.message:"Falha ao enviar PDF.")}finally{setUploading(null)}}} className="preview-actions" style={{marginTop:8}}><input type="hidden" name="id" value={product.id}/><label className="field"><span>{product.pdf_path?"Substituir modelo PDF":"Enviar modelo PDF"}</span><input className="input" name="pdf" type="file" accept="application/pdf,.pdf" required/></label><button className="btn" type="submit" disabled={uploading!==null}>{uploading===product.id?"Enviando PDF...":"Salvar PDF"}</button></form><div className="preview-actions" style={{marginTop:8}}>{product.pdf_path&&<><button className="btn" type="button" onClick={()=>void previewPdf(product)}>Visualizar PDF</button><form action={removeProducePdf}><input type="hidden" name="id" value={product.id}/><button className="btn" type="submit">Remover PDF</button></form></>}<button className="btn" type="button" onClick={()=>setEditing(product)}>Editar</button><form action={deleteProduceProduct}><input type="hidden" name="id" value={product.id}/><button className="btn danger" type="submit">Excluir</button></form></div>
       </article>)}</div>
     </section>
 
