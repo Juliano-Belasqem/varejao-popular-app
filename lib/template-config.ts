@@ -221,7 +221,8 @@ export function validateLayout(
     if(f.height<=0||f.height>100)positionErrors.push(`Altura = ${f.height}% (permitido: acima de 0 até 100%)`);
     if(f.x+f.width>100.01)positionErrors.push(`X + Largura = ${Number((f.x+f.width).toFixed(2))}% (máximo: 100%; largura máxima nesta posição: ${Number((100-f.x).toFixed(2))}%)`);
     if(f.y+f.height>100.01)positionErrors.push(`Y + Altura = ${Number((f.y+f.height).toFixed(2))}% (máximo: 100%; altura máxima nesta posição: ${Number((100-f.y).toFixed(2))}%)`);
-    if(f.fontSize<8||f.fontSize>500)positionErrors.push(`Tamanho da fonte = ${f.fontSize} (permitido: 8 a 500)`);
+    const maxFontSize = physical && key === "physicalPriceReais" ? 1000 : 500;
+    if(f.fontSize<8||f.fontSize>maxFontSize)positionErrors.push(`Tamanho da fonte = ${f.fontSize} (permitido: 8 a ${maxFontSize})`);
     if(f.weight<100||f.weight>900)positionErrors.push(`Peso da fonte = ${f.weight} (permitido: 100 a 900)`);
     if(positionErrors.length)throw new Error(`${fieldName}: ${positionErrors.join("; ")}.`);
     if (
@@ -232,7 +233,7 @@ export function validateLayout(
       f.x + f.width > 100.01 ||
       f.y + f.height > 100.01 ||
       f.fontSize < 8 ||
-      f.fontSize > 500 ||
+      f.fontSize > maxFontSize ||
       f.weight < 100 ||
       f.weight > 900 ||
       !["left", "center", "right"].includes(f.align) ||
