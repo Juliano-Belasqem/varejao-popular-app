@@ -5,9 +5,10 @@ import { ConfiguredTicket } from "@/components/configured-ticket";
 import { TemplateEditor } from "@/components/template-editor";
 import { useBrandKit } from "@/lib/brand-kit/client";
 import { useTemplate } from "@/lib/use-template";
-import { deleteProduceProduct, saveProduceProduct } from "./actions";
+import { deleteProduceProduct, saveProduceProduct, uploadProducePdf, removeProducePdf } from "./actions";
+import { createClient } from "@/lib/supabase/client";
 
-type Product={id:string;name:string;specification:string;unit:string;code:string};
+type Product={id:string;name:string;specification:string;unit:string;code:string;pdf_path:string|null};
 type Slot={productId:string;productQuery:string;price:string;priceScale:number};
 const empty=():Slot=>({productId:"",productQuery:"",price:"",priceScale:1});
 
@@ -19,6 +20,9 @@ export function ProduceTemplateGenerator({products}:{products:Product[]}){
   const {fieldFonts}=useBrandKit("validity");
   const [slots,setSlots]=useState<Slot[]>(()=>[empty(),empty(),empty(),empty()]);
   const [editing,setEditing]=useState<Product|null>(null);
+  const [pdfError,setPdfError]=useState("");
+  async function previewPdf(product:Product){if(!product.pdf_path)return;const {data,error}=await createClient().storage.from("produce-pdfs").createSignedUrl(product.pdf_path,120);if(error||!data?.signedUrl){setPdfError(error?.message??"Não foi possível abrir o PDF.");return}window.open(data.signedUrl,"_blank","noopener,noreferrer")}
+
   const [printCount,setPrintCount]=useState(4);
   const sorted=useMemo(()=>[...products].sort((a,b)=>a.name.localeCompare(b.name,"pt-BR")),[products]);
   const patch=(index:number,values:Partial<Slot>)=>setSlots(old=>old.map((slot,i)=>i===index?{...slot,...values}:slot));
@@ -54,9 +58,9 @@ export function ProduceTemplateGenerator({products}:{products:Product[]}){
         <label className="field"><span>Código</span><input className="input" name="code" required inputMode="numeric" defaultValue={editing?.code??""} key={"code-"+(editing?.id??"new")}/></label>
         <div className="preview-actions"><button className="btn primary" type="submit">{editing?"Salvar alterações":"Cadastrar produto"}</button>{editing&&<button className="btn" type="button" onClick={()=>setEditing(null)}>Cancelar</button>}</div>
       </form>
-      <div className="produce-product-list" style={{marginTop:16}}>{sorted.map(product=><article className="card" key={product.id} style={{padding:12}}>
-        <strong>{product.name}</strong><div className="muted">{[product.specification,product.unit,"Cód. "+product.code].filter(Boolean).join(" · ")}</div>
-        <div className="preview-actions" style={{marginTop:8}}><button className="btn" type="button" onClick={()=>setEditing(product)}>Editar</button><form action={deleteProduceProduct}><input type="hidden" name="id" value={product.id}/><button className="btn danger" type="submit">Excluir</button></form></div>
+      {pdfError&&<div className="error">{pdfError}</div>}<p className="muted">Modelos PDF são armazenados privadamente por produto (até 10 MB). Abra o PDF original para impressão; a folha dinâmica continua disponível separadamente.</p><div className="produce-product-list" style={{marginTop:16}}>{sorted.map(product=><article className="card" key={product.id} style={{padding:12}}>
+        <strong>{product.name}</strong> {product.pdf_path&&<span className="pill">PDF cadastrado</span>}<div className="muted">{[product.specification,product.unit,"Cód. "+product.code].filter(Boolean).join(" · ")}</div>
+        <form action={uploadProducePdf} className="preview-actions" style={{marginTop:8}}><input type="hidden" name="id" value={product.id}/><label className="field"><span>{product.pdf_path?"Substituir modelo PDF":"Enviar modelo PDF"}</span><input className="input" name="pdf" type="file" accept="application/pdf,.pdf" required/></label><button className="btn" type="submit">Salvar PDF</button></form><div className="preview-actions" style={{marginTop:8}}>{product.pdf_path&&<><button className="btn" type="button" onClick={()=>void previewPdf(product)}>Visualizar PDF</button><form action={removeProducePdf}><input type="hidden" name="id" value={product.id}/><button className="btn" type="submit">Remover PDF</button></form></>}<button className="btn" type="button" onClick={()=>setEditing(product)}>Editar</button><form action={deleteProduceProduct}><input type="hidden" name="id" value={product.id}/><button className="btn danger" type="submit">Excluir</button></form></div>
       </article>)}</div>
     </section>
 
