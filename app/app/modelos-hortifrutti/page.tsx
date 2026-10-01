@@ -5,7 +5,7 @@ export default async function ProduceTemplatesPage() {
   const supabase = await createClient();
   const { data: products, error } = await supabase
     .from("produce_template_products")
-    .select("id,name,specification,unit,code")
+    .select("id,name,specification,unit,code,pdf_path")
     .eq("active", true)
     .order("name", { ascending: true });
 
