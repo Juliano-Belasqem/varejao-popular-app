@@ -160,3 +160,8 @@
 .configured-fit-indicator{position:absolute;right:0;top:0;z-index:5;display:flex;align-items:center;justify-content:center;width:12px;height:12px;border-radius:50%;background:#2563eb;color:#fff;font:700 9px/1 Arial,sans-serif;pointer-events:none;box-shadow:0 0 0 1px #fff}
 .configured-fit-indicator.configured-fit-warning{background:#b45309}
 @media print{.configured-fit-indicator{display:none!important}}
+
+/* EAN digits use normal typography; only the bar geometry may stretch. */
+.configured-ticket .validity-barcode .barcode-svg{height:auto!important;max-height:calc(100% - 10px);min-height:0;flex:1 1 auto}
+.configured-ticket .validity-barcode-digits{display:block;flex:0 0 auto;max-width:100%;white-space:nowrap;text-align:center;font-family:Arial,Helvetica,sans-serif;font-weight:700;font-size:clamp(7px,1.25cqw,13px);line-height:1.15;letter-spacing:.06em;font-variant-numeric:tabular-nums;color:#000;transform:none}
+@media print{.configured-ticket .validity-barcode .barcode-svg{height:auto!important}}

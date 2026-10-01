@@ -213,6 +213,17 @@ export function validateLayout(
       )
     )
       throw new Error(`Campo inválido: ${fieldLabels[key]}.`);
+    const fieldName=fieldLabels[key]??key;
+    const positionErrors:string[]=[];
+    if(f.x<0||f.x>100)positionErrors.push(`X = ${f.x}% (permitido: 0 a 100%)`);
+    if(f.y<0||f.y>100)positionErrors.push(`Y = ${f.y}% (permitido: 0 a 100%)`);
+    if(f.width<=0||f.width>100)positionErrors.push(`Largura = ${f.width}% (permitido: acima de 0 até 100%)`);
+    if(f.height<=0||f.height>100)positionErrors.push(`Altura = ${f.height}% (permitido: acima de 0 até 100%)`);
+    if(f.x+f.width>100.01)positionErrors.push(`X + Largura = ${Number((f.x+f.width).toFixed(2))}% (máximo: 100%; largura máxima nesta posição: ${Number((100-f.x).toFixed(2))}%)`);
+    if(f.y+f.height>100.01)positionErrors.push(`Y + Altura = ${Number((f.y+f.height).toFixed(2))}% (máximo: 100%; altura máxima nesta posição: ${Number((100-f.y).toFixed(2))}%)`);
+    if(f.fontSize<8||f.fontSize>500)positionErrors.push(`Tamanho da fonte = ${f.fontSize} (permitido: 8 a 500)`);
+    if(f.weight<100||f.weight>900)positionErrors.push(`Peso da fonte = ${f.weight} (permitido: 100 a 900)`);
+    if(positionErrors.length)throw new Error(`${fieldName}: ${positionErrors.join("; ")}.`);
     if (
       f.x < 0 ||
       f.y < 0 ||
@@ -246,7 +257,7 @@ export function validateLayout(
       (f.fitMode != null && !["shrink","clip"].includes(f.fitMode)) ||
       (f.locked != null && typeof f.locked !== "boolean")
     )
-      throw new Error(`Ajuste os limites do campo ${fieldLabels[key]}.`);
+      throw new Error(`Verifique os parâmetros avançados do campo ${fieldName}: rotação (-180 a 180), camada (0 a 100), espaçamento (-20 a 100), altura de linha (0,5 a 3), padding (0 a 20), máximo de linhas (1 a 5), cor e estilo.`);
     result[key] = {
       x: f.x,
       y: f.y,
