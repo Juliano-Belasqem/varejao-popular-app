@@ -147,3 +147,11 @@
 .produce-uploaded-ticket>img{display:block;width:100%;height:100%;object-fit:fill}
 .produce-pdf-loading{display:grid;place-items:center;height:100%;padding:15px;text-align:center;color:#333;background:#f1f1f1}
 .produce-pdf-price{position:absolute;transform:translate(-50%,-50%);font-family:Arial,Helvetica,sans-serif;font-weight:900;white-space:nowrap;color:#111;line-height:1;letter-spacing:-.04em;text-shadow:0 0 2px #fff}
+
+/* Keep physical price and cents on the same baseline; their spacing follows the measured digit group. */
+.physical-responsive-price{display:inline-flex;align-items:flex-start;justify-content:center;gap:0;white-space:nowrap;line-height:1;width:max-content;max-width:none;margin:0 auto;font-variant-numeric:lining-nums tabular-nums}
+.physical-responsive-price>strong{display:inline-block;line-height:1;font-size:1em}
+.physical-responsive-price .physical-responsive-cents{display:inline-block;font-size:.34em;line-height:1.05;margin-top:.13em;flex-shrink:0}
+.configured-ticket .validity-barcode{width:100%;height:100%;min-height:0;min-width:0;overflow:visible}
+.configured-ticket .validity-barcode .barcode-svg{height:100%!important;max-height:100%;display:block}
+@media print{.configured-ticket .validity-barcode .barcode-svg{height:100%!important}}
