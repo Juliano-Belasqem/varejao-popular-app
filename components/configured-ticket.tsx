@@ -21,7 +21,7 @@ function FitText({children,padding=1,maxLines=1,fit=true}:{children:ReactNode;pa
   return()=>{observer.disconnect();window.removeEventListener("beforeprint",measure)};
  },[children,fit,maxLines,padding]);
  return <div ref={frame} className="configured-fit-text" style={{width:"100%",height:"100%",minWidth:0,minHeight:0,boxSizing:"border-box",padding:padding+"%",overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center"}}>
-  <div ref={content} style={{display:"block",width:"max-content",maxWidth:"none",flex:"0 0 auto",whiteSpace:maxLines===1?"nowrap":"normal",overflowWrap:"normal",textAlign:"center",lineHeight:"inherit",transform:"scale("+scale+")",transformOrigin:"center center"}}>{children}</div>
+  <div ref={content} style={{display:"block",width:maxLines===1?"max-content":"100%",maxWidth:"none",flex:"0 0 auto",whiteSpace:maxLines===1?"nowrap":"normal",overflowWrap:"normal",textAlign:"center",lineHeight:"inherit",transform:"scale("+scale+")",transformOrigin:"center center"}}>{children}</div>
  </div>;
 }
 
