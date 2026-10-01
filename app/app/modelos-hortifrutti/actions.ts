@@ -39,3 +39,34 @@ export async function deleteProduceProduct(formData: FormData) {
   if (error) throw new Error(error.message);
   revalidatePath("/app/modelos-hortifrutti");
 }
+
+export async function uploadProducePdf(formData: FormData) {
+  const profile = await requireProfile();
+  if (!canEdit(profile.role)) throw new Error("Sem permissão para enviar modelos.");
+  const id = value(formData,"id");
+  const file = formData.get("pdf");
+  if (!id || !(file instanceof File) || file.type !== "application/pdf" || file.size < 5 || file.size > 10*1024*1024)
+    throw new Error("Selecione um PDF válido de até 10 MB.");
+  const supabase = await createClient();
+  const { data: product, error: lookupError } = await supabase.from("produce_template_products").select("id,pdf_path").eq("id",id).single();
+  if (lookupError || !product) throw new Error("Produto não encontrado.");
+  const path = `${id}/${crypto.randomUUID()}.pdf`;
+  const { error: uploadError } = await supabase.storage.from("produce-pdfs").upload(path,await file.arrayBuffer(),{contentType:"application/pdf",upsert:false});
+  if (uploadError) throw new Error(uploadError.message);
+  const { error: saveError } = await supabase.from("produce_template_products").update({pdf_path:path,updated_by:profile.id}).eq("id",id);
+  if (saveError) {await supabase.storage.from("produce-pdfs").remove([path]);throw new Error(saveError.message)}
+  if (product.pdf_path) await supabase.storage.from("produce-pdfs").remove([product.pdf_path]);
+  revalidatePath("/app/modelos-hortifrutti");
+}
+export async function removeProducePdf(formData: FormData) {
+  const profile=await requireProfile();
+  if(!canEdit(profile.role))throw new Error("Sem permissão.");
+  const id=value(formData,"id");
+  const supabase=await createClient();
+  const {data:product,error}=await supabase.from("produce_template_products").select("pdf_path").eq("id",id).single();
+  if(error)throw new Error(error.message);
+  const {error:saveError}=await supabase.from("produce_template_products").update({pdf_path:null,updated_by:profile.id}).eq("id",id);
+  if(saveError)throw new Error(saveError.message);
+  if(product.pdf_path)await supabase.storage.from("produce-pdfs").remove([product.pdf_path]);
+  revalidatePath("/app/modelos-hortifrutti");
+}
