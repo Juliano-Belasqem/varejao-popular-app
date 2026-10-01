@@ -51,7 +51,7 @@ function UploadedPdfTicket({path,slot}:{path:string;slot:Slot}){
   },[path]);
   return <div className="produce-uploaded-ticket">
     {preview?.path===path?<img src={preview.image} alt="Arte original do PDF cadastrado" />:<div className="produce-pdf-loading">{error||"Carregando arte PDF..."}</div>}
-    {preview?.path===path&&<div className="produce-pdf-price" style={{left:slot.priceX+"%",top:slot.priceY+"%",fontSize:(Math.min(30,Math.max(8,20*slot.priceScale)))+"cqw"}}>R$ {slot.price.trim()||"0,00"}</div>}
+    {preview?.path===path&&<div className="produce-pdf-price" style={{left:slot.priceX+"%",top:slot.priceY+"%",fontSize:(Math.min(30,Math.max(8,20*slot.priceScale*(slot.price.replace(/[^0-9]/g,"").length<=3?1:slot.price.replace(/[^0-9]/g,"").length===4?.85:.7))))+"cqw"}}>R$ {slot.price.trim()||"0,00"}</div>}
   </div>;
 }
 
