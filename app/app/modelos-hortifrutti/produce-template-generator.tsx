@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ConfiguredTicket } from "@/components/configured-ticket";
 import { TemplateEditor } from "@/components/template-editor";
 import { useBrandKit } from "@/lib/brand-kit/client";
@@ -9,11 +9,51 @@ import { deleteProduceProduct, saveProduceProduct, uploadProducePdf, removeProdu
 import { createClient } from "@/lib/supabase/client";
 
 type Product={id:string;name:string;specification:string;unit:string;code:string;pdf_path:string|null};
-type Slot={productId:string;productQuery:string;price:string;priceScale:number};
-const empty=():Slot=>({productId:"",productQuery:"",price:"",priceScale:1});
+type Slot={productId:string;productQuery:string;price:string;priceScale:number;priceX:number;priceY:number};
+const empty=():Slot=>({productId:"",productQuery:"",price:"",priceScale:1,priceX:50,priceY:70});
 
 function splitPrice(value:string){const clean=value.replace(/[^0-9,]/g,"");const[a="0",b="00"]=clean.split(",");return{major:a||"0",minor:(b+"00").slice(0,2)}}
 function ProducePrice({value,manualScale=1}:{value:string;manualScale?:number}){const p=splitPrice(value);const scale=(p.major.length<=1?1.22:p.major.length===2?.76:p.major.length===3?.68:.58)*manualScale;return <div className="produce-price" style={{transform:"scale("+scale+")",transformOrigin:"center center",paddingTop:".12em",boxSizing:"border-box",width:"100%",height:"100%"}}><strong>{p.major}</strong><span>,{p.minor}</span></div>}
+
+
+/** Render the first page of the private PDF as the actual ticket artwork, on screen and on paper. */
+function UploadedPdfTicket({path,slot}:{path:string;slot:Slot}){
+  const [preview,setPreview]=useState<{path:string;image:string}|null>(null);
+  const [error,setError]=useState("");
+  useEffect(()=>{
+    let cancelled=false;
+    let task:{destroy:()=>Promise<void>}|undefined;
+    async function load(){
+      setError("");
+      try{
+        const {data,error:signedError}=await createClient().storage.from("produce-pdfs").createSignedUrl(path,300);
+        if(signedError||!data?.signedUrl)throw new Error(signedError?.message||"PDF indisponível.");
+        const pdfjs=await import("pdfjs-dist");
+        pdfjs.GlobalWorkerOptions.workerSrc="/pdf.worker.min.mjs";
+        if(cancelled)return;
+        const loading=pdfjs.getDocument({url:data.signedUrl});
+        task=loading;
+        const pdf=await loading.promise;
+        const page=await pdf.getPage(1);
+        const viewport=page.getViewport({scale:1});
+        const scale=Math.min(3,Math.max(1.5,1000/viewport.width));
+        const target=page.getViewport({scale});
+        const canvas=document.createElement("canvas");
+        canvas.width=Math.ceil(target.width);canvas.height=Math.ceil(target.height);
+        const context=canvas.getContext("2d");
+        if(!context)throw new Error("Não foi possível renderizar o PDF.");
+        await page.render({canvas,canvasContext:context,viewport:target}).promise;
+        if(!cancelled)setPreview({path,image:canvas.toDataURL("image/png")});
+      }catch(e){if(!cancelled)setError(e instanceof Error?e.message:"Falha ao carregar PDF.");}
+    }
+    void load();
+    return()=>{cancelled=true;void task?.destroy().catch(()=>{});};
+  },[path]);
+  return <div className="produce-uploaded-ticket">
+    {preview?.path===path?<img src={preview.image} alt="Arte original do PDF cadastrado" />:<div className="produce-pdf-loading">{error||"Carregando arte PDF..."}</div>}
+    {preview?.path===path&&<div className="produce-pdf-price" style={{left:slot.priceX+"%",top:slot.priceY+"%",fontSize:(Math.min(30,Math.max(8,20*slot.priceScale)))+"cqw"}}>R$ {slot.price.trim()||"0,00"}</div>}
+  </div>;
+}
 
 function sortedProducts(products:Product[],search:string,onlyPdf:boolean){const q=search.trim().normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR");return [...products].filter(p=>(!onlyPdf||!!p.pdf_path)&&[p.name,p.specification,p.code,p.unit].join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR").includes(q)).sort((a,b)=>a.name.localeCompare(b.name,"pt-BR"))}
 
@@ -33,7 +73,7 @@ export function ProduceTemplateGenerator({products}:{products:Product[]}){
   const sorted=useMemo(()=>[...products].sort((a,b)=>a.name.localeCompare(b.name,"pt-BR")),[products]);
   const duplicate=(index:number)=>setSlots(old=>old.map((s,i)=>i===index+1?{...old[index]}:s));
   const patch=(index:number,values:Partial<Slot>)=>setSlots(old=>old.map((slot,i)=>i===index?{...slot,...values}:slot));
-  const ticket=(slot:Slot)=>{const product=products.find(p=>p.id===slot.productId);return <ConfiguredTicket config={template.config} fonts={fieldFonts} logoUrl={null} values={{
+  const ticket=(slot:Slot)=>{const product=products.find(p=>p.id===slot.productId);if(product?.pdf_path)return <UploadedPdfTicket path={product.pdf_path} slot={slot}/>;return <ConfiguredTicket config={template.config} fonts={fieldFonts} logoUrl={null} values={{
     produceName:product?.name||"PRODUTO",
     produceSpecification:product ? (product.specification || "") : "ESPECIFICAÇÃO",
     produceCurrency:"R$",
@@ -67,7 +107,7 @@ export function ProduceTemplateGenerator({products}:{products:Product[]}){
         <div className="preview-actions"><button className="btn primary" type="submit">{editing?"Salvar alterações":"Cadastrar produto"}</button>{editing&&<button className="btn" type="button" onClick={()=>setEditing(null)}>Cancelar</button>}</div>
       </form>
       <div className="form-grid compact" style={{marginTop:14}}><label className="field"><span>Pesquisar no acervo</span><input className="input" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Nome, código ou especificação"/></label><label className="field"><span>Filtrar modelos</span><select className="input" value={onlyPdf?"pdf":"all"} onChange={e=>setOnlyPdf(e.target.value==="pdf")}><option value="all">Todos os produtos</option><option value="pdf">Somente com PDF</option></select></label></div><p className="muted">{filtered.length} produto(s) encontrados · {products.filter(p=>p.pdf_path).length} com PDF cadastrado.</p>
-      {pdfError&&<div className="error">{pdfError}</div>}<p className="muted">Modelos PDF são armazenados privadamente por produto (até 10 MB). Abra o PDF original para impressão; a folha dinâmica continua disponível separadamente.</p><div className="produce-product-list" style={{marginTop:16}}>{filtered.length===0&&<div className="card"><p>Nenhum produto encontrado para os filtros selecionados.</p><button className="btn" type="button" onClick={()=>{setSearch("");setOnlyPdf(false)}}>Limpar filtros</button></div>}{filtered.map(product=><article className="card" key={product.id} style={{padding:12}}>
+      {pdfError&&<div className="error">{pdfError}</div>}<p className="muted">Modelos PDF são armazenados privadamente por produto (até 10 MB). Ao selecionar um produto com PDF, a primeira página do arquivo será a arte do encarte; ajuste somente preço, posição e tamanho. Produtos sem PDF usam o template dinâmico.</p><div className="produce-product-list" style={{marginTop:16}}>{filtered.length===0&&<div className="card"><p>Nenhum produto encontrado para os filtros selecionados.</p><button className="btn" type="button" onClick={()=>{setSearch("");setOnlyPdf(false)}}>Limpar filtros</button></div>}{filtered.map(product=><article className="card" key={product.id} style={{padding:12}}>
         <strong>{product.name}</strong> {product.pdf_path&&<span className="pill">PDF cadastrado</span>}<div className="muted">{[product.specification,product.unit,"Cód. "+product.code].filter(Boolean).join(" · ")}</div>
         <form action={async data=>{setUploading(product.id);setPdfError("");try{await uploadProducePdf(data)}catch(error){setPdfError(error instanceof Error?error.message:"Falha ao enviar PDF.")}finally{setUploading(null)}}} className="preview-actions" style={{marginTop:8}}><input type="hidden" name="id" value={product.id}/><label className="field"><span>{product.pdf_path?"Substituir modelo PDF":"Enviar modelo PDF"}</span><input className="input" name="pdf" type="file" accept="application/pdf,.pdf" required/></label><button className="btn" type="submit" disabled={uploading!==null}>{uploading===product.id?"Enviando PDF...":"Salvar PDF"}</button></form><div className="preview-actions" style={{marginTop:8}}>{product.pdf_path&&<><button className="btn" type="button" onClick={()=>void previewPdf(product)}>Visualizar PDF</button><form action={removeProducePdf} onSubmit={e=>{if(!window.confirm(`Remover o PDF cadastrado de ${product.name}?`))e.preventDefault()}}><input type="hidden" name="id" value={product.id}/><button className="btn" type="submit">Remover PDF</button></form></>}<button className="btn" type="button" onClick={()=>setEditing(product)}>Editar</button><form action={deleteProduceProduct} onSubmit={e=>{if(!window.confirm(`Excluir o produto ${product.name} do cadastro?`))e.preventDefault()}}><input type="hidden" name="id" value={product.id}/><button className="btn danger" type="submit">Excluir</button></form></div>
       </article>)}</div>
