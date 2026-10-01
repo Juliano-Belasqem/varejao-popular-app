@@ -2,14 +2,27 @@ import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode }
 import type { TemplateConfig } from "@/lib/template-config";
 
 function FitText({children,padding=1,maxLines=1,fit=true}:{children:ReactNode;padding?:number;maxLines?:number;fit?:boolean}) {
-  const ref=useRef<HTMLDivElement>(null);
-  const [scale,setScale]=useState(1);
-  useLayoutEffect(()=>{
-    const el=ref.current;if(!el)return;
-    const measure=()=>{el.style.transform="scale(1)";if(!fit){setScale(1);return}const sx=el.scrollWidth?el.clientWidth/el.scrollWidth:1;const sy=el.scrollHeight?el.clientHeight/el.scrollHeight:1;setScale(Math.max(.15,Math.min(1,sx,sy)));};
-    measure();const ro=new ResizeObserver(measure);ro.observe(el);void document.fonts?.ready.then(measure);window.addEventListener("beforeprint",measure);return()=>{ro.disconnect();window.removeEventListener("beforeprint",measure)};
-  },[children,fit,maxLines,padding]);
-  return <div ref={ref} className="configured-fit-text" style={{transform:`scale(${scale})`,transformOrigin:"center center",width:"100%",height:"100%",boxSizing:"border-box",padding:`${padding}%`,display:"-webkit-box",WebkitBoxOrient:"vertical",WebkitLineClamp:maxLines,whiteSpace:maxLines===1?"nowrap":"normal",alignItems:"center",justifyContent:"inherit",overflow:"hidden"}}>{children}</div>;
+ const frame=useRef<HTMLDivElement>(null),content=useRef<HTMLDivElement>(null);
+ const [scale,setScale]=useState(1);
+ useLayoutEffect(()=>{
+  const box=frame.current,inner=content.current;if(!box||!inner)return;
+  const measure=()=>{
+   if(!fit){setScale(1);return}
+   const sx=box.clientWidth/Math.max(1,inner.scrollWidth);
+   const sy=box.clientHeight/Math.max(1,inner.scrollHeight);
+   const next=Math.max(.15,Math.min(1,sx,sy));
+   setScale(previous=>Math.abs(previous-next)>.005?next:previous);
+  };
+  measure();
+  const observer=new ResizeObserver(measure);
+  observer.observe(box);observer.observe(inner);
+  void document.fonts?.ready.then(measure);
+  window.addEventListener("beforeprint",measure);
+  return()=>{observer.disconnect();window.removeEventListener("beforeprint",measure)};
+ },[children,fit,maxLines,padding]);
+ return <div ref={frame} className="configured-fit-text" style={{width:"100%",height:"100%",minWidth:0,minHeight:0,boxSizing:"border-box",padding:padding+"%",overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center"}}>
+  <div ref={content} style={{display:"block",width:"max-content",maxWidth:"none",flex:"0 0 auto",whiteSpace:maxLines===1?"nowrap":"normal",overflowWrap:"normal",textAlign:"center",lineHeight:"inherit",transform:"scale("+scale+")",transformOrigin:"center center"}}>{children}</div>
+ </div>;
 }
 
 export function ConfiguredTicket({
