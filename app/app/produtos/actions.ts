@@ -315,16 +315,20 @@ export async function importErpSpreadsheet(formData: FormData) {
     if (!parsed.length) throw new Error("Nenhuma linha válida foi encontrada para importar.");
     const supabase = await createClient();
     const chunkSize = 250;
+    let importedCount = 0;
     for (let i = 0; i < parsed.length; i += chunkSize) {
       const { error } = await supabase.from("erp_products").upsert(parsed.slice(i, i + chunkSize), { onConflict: "code" });
-      if (error) throw new Error(`Falha na importação do ERP: ${error.message}`);
+      if (error) throw new Error(
+        `Importação interrompida após ${importedCount} de ${parsed.length} produtos. Os lotes anteriores foram salvos; nenhum produto ausente do arquivo foi excluído. Revise o arquivo e importe novamente. Detalhe: ${error.message}`
+      );
+      importedCount += Math.min(chunkSize, parsed.length - i);
     }
-    const { error: cleanupError } = await supabase.from("erp_products").delete().lt("last_seen_at", syncStarted);
-    if (cleanupError) throw new Error(`Importação concluída, mas a limpeza falhou: ${cleanupError.message}`);
+    // Deliberately non-destructive: an incomplete ERP export must never purge
+    // products missing from the current file. last_seen_at records each import.
     revalidatePath("/app/produtos");
     revalidatePath("/app");
     const mode = headerless ? "CSV sem cabeçalho" : "arquivo";
-    destination = `/app/produtos?import_ok=${encodeURIComponent(`${parsed.length} produtos sincronizados com sucesso (${mode}).`)}`;
+    destination = `/app/produtos?import_ok=${encodeURIComponent(`${parsed.length} produtos importados/atualizados com sucesso (${mode}). Produtos ausentes do arquivo foram preservados.`)}`;
   } catch (error) {
     destination = `/app/produtos?import_error=${encodeURIComponent(importMessage(error))}`;
   }
