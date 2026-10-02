@@ -73,6 +73,22 @@ test("layout rejects out-of-bounds, missing and malformed fields", () => {
   assert.deepEqual(previousMigrated.priceCents, defaultTemplate("digital-feed").layout.priceCents);
   assert.throws(() => validateLayout("digital-feed", { brand: legacy.brand }));
 });
+test("optional numeric template fields reject non-finite values", () => {
+  for (const key of [
+    "opacity", "rotation", "layer", "strokeWidth", "strokeOpacity",
+    "shadowBlur", "shadowX", "shadowY", "letterSpacing",
+    "strokeOffsetX", "strokeOffsetY", "strokeShadowBlur",
+    "strokeShadowX", "strokeShadowY", "strokeInnerGlowBlur",
+    "strokeInnerGlowWidth", "lineHeight", "padding", "maxLines",
+  ] as const) {
+    const layout = defaultTemplate("digital-feed").layout;
+    (layout.productLine1 as unknown as Record<string, unknown>)[key] = NaN;
+    assert.throws(() => validateLayout("digital-feed", layout), new RegExp(key));
+    (layout.productLine1 as unknown as Record<string, unknown>)[key] = Infinity;
+    assert.throws(() => validateLayout("digital-feed", layout), new RegExp(key));
+  }
+});
+
 test("typography outline layer round-trips and rejects invalid values", () => {
   const layout = defaultTemplate("digital-feed").layout;
   layout.productLine1.strokeLayer = "above";
