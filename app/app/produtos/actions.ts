@@ -168,7 +168,7 @@ export async function createProduct(formData: FormData) {
   const ean = String(formData.get("ean") ?? "").trim();
   const name = String(formData.get("name") ?? "").trim();
   if (!ean || !name) throw new Error("Código e nome são obrigatórios.");
-  if (!/^\\d{4,14}$/.test(ean)) throw new Error("Informe um código numérico de 4 a 14 dígitos.");
+  if (!/^\d{4,14}$/.test(ean)) throw new Error("Informe um código numérico de 4 a 14 dígitos.");
   const supabase = await createClient();
   const { error } = await supabase.from("products").insert({
     ean,
