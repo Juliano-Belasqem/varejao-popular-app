@@ -39,7 +39,7 @@
 | Etapa | Escopo / arquivos a ler | Objetivo | Estado |
 |---|---|---|---|
 | 01 | `lib/template-config.ts`, `components/template-editor.tsx`, `components/configured-ticket.tsx`, `lib/use-template.ts`, `app/api/templates/route.ts`, `tests/config.test.ts` | Validação, compatibilidade, salvamento e prévia | EM ANÁLISE |
-| 02 | `app/app/validade-proxima/**`, `app/app/modelos-hortifrutti/**`, `app/app/campanhas/[id]/fisico/**`, CSS e migrações correlatas | PDF, recortes, códigos, preços e impressão A4 | INVENTARIADO |
+| 02 | `app/app/validade-proxima/**`, `app/app/modelos-hortifrutti/**`, `app/app/campanhas/[id]/fisico/**`, CSS e migrações correlatas | PDF, recortes, códigos, preços e impressão A4 | EM ANÁLISE |
 | 03 | `app/app/campanhas/**`, `app/app/ofertas/**`, `app/app/produtos/**`, APIs de imagem, `lib/money.ts` | Consistência de catálogo, campanhas, preço e ativos | INVENTARIADO |
 | 04 | `app/app/campanhas/[id]/gerar/**`, `app/app/conteudo-redes/**`, `lib/media/**`, `app/api/digital-materials/**` | Preview, fontes, exportação e código legado | INVENTARIADO |
 | 05 | `components/visual-*`, `app/app/editor-visual/**`, `lib/visual-*`, `tests/visual-*` | Operações, persistência e renderização do editor visual | INVENTARIADO |
@@ -54,7 +54,7 @@
 | ID | Etapa | Arquivo | Achado / risco | Severidade | Situação |
 |---|---|---|---|---|---|
 | A-001 | 01 | `lib/template-config.ts` | Validação de números opcionais compara intervalos, mas NaN pode atravessar comparações (ex.: opacity, rotation, strokeWidth); proteger todos os parâmetros numéricos opcionais. | P1 | CORRIGIDO nesta branch; testes adicionados, aguardando CI |
-| A-002 | 01 | `app/api/templates/route.ts` | Controle otimista por revision e remoção de upload não confirmado já presentes; testar conflito concorrente em integração. | P2 | PENDENTE teste |\n| A-006 | 01 | `app/api/templates/route.ts` | GET não capturava erro de validação de layout persistido, resultando em erro interno sem orientação. | P1 | CORRIGIDO nesta branch; aguarda CI |\n| A-007 | 01 | `tests/config.test.ts` | Não havia regressão explícita para exceção de tamanho de fonte física (1000) versus digital (500). | P2 | CORRIGIDO nesta branch; aguarda CI |
+| A-002 | 01 | `app/api/templates/route.ts` | Controle otimista por revision e remoção de upload não confirmado já presentes; testar conflito concorrente em integração. | P2 | PENDENTE teste |\n| A-006 | 01 | `app/api/templates/route.ts` | GET não capturava erro de validação de layout persistido, resultando em erro interno sem orientação. | P1 | CORRIGIDO nesta branch; aguarda CI |\n| A-007 | 01 | `tests/config.test.ts` | Não havia regressão explícita para exceção de tamanho de fonte física (1000) versus digital (500). | P2 | CORRIGIDO nesta branch; aguarda CI |\n| A-008 | 02 | `validity-flyer-generator.tsx`, `campaign-physical-generator.tsx` | Implementações EAN-13 duplicadas; risco de divergência entre módulos. Extrair algoritmo puro e testar em etapa específica, preservando renderização de cada modelo. | P2 | PENDENTE |
 | A-003 | 02 | `app/app/modelos-hortifrutti/produce-template-generator.tsx` | Recorte 2×2 assume quadrantes iguais; arquivos com margens/gutters exigem seleção de área ajustável. | P2 | PENDENTE verificação com PDF real |
 | A-004 | 04 | `app/app/campanhas/[id]/gerar/page.tsx` | Gerador legado ainda coexistente com oficial; mapear diferenças antes de remoção. | P2 | PENDENTE |
 | A-005 | 08 | `.github/workflows/ci.yml` | CI possui testes unitários, typecheck, build e navegador do editor visual; falta cobertura dedicada de exportação física A4. | P1 | PENDENTE |
@@ -77,3 +77,8 @@
 - Gerar feed/story com fontes da marca e comparar prévia/exportação.
 - Validar usuários admin/editor/viewer, armazenamento privado e fluxos de publicações em ambiente seguro.
 - Verificar backup/restauração real do Supabase antes de qualquer migração operacional.
+
+### 2026-10-02 — início da etapa 02
+- Inspecionados: `app/app/validade-proxima/validity-flyer-generator.tsx`, `app/app/modelos-hortifrutti/actions.ts`, `app/app/modelos-hortifrutti/produce-template-generator.tsx`, `app/app/campanhas/[id]/fisico/campaign-physical-generator.tsx` (pontos de código de barras, PDF, preço e impressão).
+- A-008: validação e codificação EAN-13 estão duplicadas em Validade Próxima e Campanha Física. Antes de refatorar, adicionar testes com códigos conhecidos, inclusive dígito verificador inválido.
+- Inspeção visual real de A4 e leitura por scanner permanecem pendentes; não são demonstráveis por revisão estática.
