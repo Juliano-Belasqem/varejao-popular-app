@@ -256,6 +256,10 @@ async function publishFacebook(publication: Publication, media: Media[]) {
   return { mediaId: mediaId || null, postId };
 }
 
+class PublishedRemotelyError extends Error {
+  constructor(message: string, readonly postId: string) { super(message); this.name = "PublishedRemotelyError"; }
+}
+
 export async function publishPublication(publicationId: string, allowedStatuses = ["scheduled", "draft", "error"]) {
   const supabase = createAdminClient();
   const { data: publication, error: publicationError } = await supabase
@@ -294,7 +298,9 @@ export async function publishPublication(publicationId: string, allowedStatuses 
       : await publishFacebook(publication as Publication, media as Media[]);
 
     const now = new Date().toISOString();
-    await supabase
+    // A successful Meta request must never be reset to a retryable error merely
+    // because the local acknowledgement could not be persisted.
+    const { error: acknowledgementError } = await supabase
       .from("publications")
       .update({
         status: "published",
@@ -305,9 +311,14 @@ export async function publishPublication(publicationId: string, allowedStatuses 
         updated_at: now,
       })
       .eq("id", publicationId);
+    if (acknowledgementError) {
+      console.error("Meta published, but local acknowledgement failed", { publicationId, postId: result.postId, error: acknowledgementError.message });
+      throw new PublishedRemotelyError("A Meta confirmou a publicação, mas o sistema não conseguiu registrar o resultado. NÃO tente republicar; confira a publicação na Meta e concilie o registro.", result.postId);
+    }
 
     return result;
   } catch (error) {
+    if (error instanceof PublishedRemotelyError) throw error;
     const message = error instanceof Error ? error.message : "Falha desconhecida ao publicar na Meta.";
     await supabase
       .from("publications")
