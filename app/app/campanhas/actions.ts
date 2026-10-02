@@ -16,6 +16,13 @@ function numberValue(value: FormDataEntryValue | null) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function campaignDates(formData: FormData) {
+  const start = text(formData.get("start_date"));
+  const end = text(formData.get("end_date"));
+  if (start && end && start > end) throw new Error("A data final da campanha não pode ser anterior à data inicial.");
+  return { start_date: start, end_date: end };
+}
+
 async function editorContext() {
   const profile = await requireProfile();
   if (!canEdit(profile.role)) throw new Error("Sem permissão para editar campanhas.");
@@ -26,11 +33,11 @@ export async function createCampaign(formData: FormData) {
   const { profile, supabase } = await editorContext();
   const name = String(formData.get("name") ?? "").trim();
   if (!name) throw new Error("Nome da campanha é obrigatório.");
+  const dates = campaignDates(formData);
 
   const { error } = await supabase.from("campaigns").insert({
     name,
-    start_date: text(formData.get("start_date")),
-    end_date: text(formData.get("end_date")),
+    ...dates,
     theme: text(formData.get("theme")) ?? "Padrão",
     format: text(formData.get("format")) ?? "Físico + Digital",
     status: "draft",
@@ -50,11 +57,11 @@ export async function updateCampaign(formData: FormData) {
   const status = String(formData.get("status") ?? "draft");
   if (!id || !name) throw new Error("Campanha inválida.");
   if (!["draft", "approved", "archived"].includes(status)) throw new Error("Status inválido.");
+  const dates = campaignDates(formData);
 
   const { error } = await supabase.from("campaigns").update({
     name,
-    start_date: text(formData.get("start_date")),
-    end_date: text(formData.get("end_date")),
+    ...dates,
     theme: text(formData.get("theme")) ?? "Padrão",
     format: text(formData.get("format")) ?? "Físico + Digital",
     status,
