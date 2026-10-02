@@ -38,7 +38,7 @@ function priceParts(value:string){const clean=value.replace(/[^0-9,]/g,"");const
 function majorPriceScale(major:string){const digits=major.replace(/\D/g,"").length;return digits<=1?1:digits===2?.78:digits===3?.62:.5}
 function PhysicalPrice({major,minor,scale}:{major:string;minor:string;scale:number}){return <span className="physical-responsive-price" style={{fontSize:(scale*100)+"%"}}><strong>{major}</strong><span className="physical-responsive-cents">,{minor}</span></span>}
 function dateLabel(v:string|null){if(!v)return"__/__/__";const[y,m,d]=v.split("-");return y&&m&&d?`${d}/${m}/${y.slice(-2)}`:v}
-function validEan13(code:string){const digits=code.replace(/\\D/g,"");return digits.length===13?ean13(digits)?.code??null:null}
+function validEan13(code:string){const digits=code.replace(/\D/g,"");return digits.length===13?ean13(digits)?.code??null:null}
 function eanBars(code:string){const digits=validEan13(code);return digits?ean13(digits)?.bits??null:null}
 function Barcode({code,width,height}:{code:string;width:number;height:number}){const bits=eanBars(code),digits=validEan13(code);if(!bits||!digits)return <div className="barcode-fallback">{code||"EAN-13 inválido"}</div>;return <div className="physical-barcode"><svg className="barcode-svg" style={{width:`${width}%`,height:`${height}%`}} viewBox="0 0 113 60" preserveAspectRatio="none" shapeRendering="crispEdges"><rect width="113" height="60" fill="#fff"/>{bits.split("").map((b,i)=>b==="1"?<rect key={i} x={11+i} y="2" width="1" height={(i<3||(i>=45&&i<50)||i>=92)?46:41} fill="#000"/>:null)}</svg><div className="barcode-number">{digits}</div></div>}
 
