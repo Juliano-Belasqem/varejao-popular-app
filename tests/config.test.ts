@@ -89,6 +89,19 @@ test("optional numeric template fields reject non-finite values", () => {
   }
 });
 
+test("physical major price supports extended font range without changing other limits", () => {
+  for (const id of ["physical-one", "physical-four"] as const) {
+    const layout = defaultTemplate(id).layout;
+    layout.physicalPriceReais.fontSize = 1000;
+    assert.equal(validateLayout(id, layout).physicalPriceReais.fontSize, 1000);
+    layout.physicalPriceReais.fontSize = 1001;
+    assert.throws(() => validateLayout(id, layout), /1000/);
+  }
+  const digital = defaultTemplate("digital-feed").layout;
+  digital.priceReais.fontSize = 501;
+  assert.throws(() => validateLayout("digital-feed", digital), /500/);
+});
+
 test("typography outline layer round-trips and rejects invalid values", () => {
   const layout = defaultTemplate("digital-feed").layout;
   layout.productLine1.strokeLayer = "above";
