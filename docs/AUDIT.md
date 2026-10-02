@@ -54,7 +54,7 @@
 | ID | Etapa | Arquivo | Achado / risco | Severidade | Situação |
 |---|---|---|---|---|---|
 | A-001 | 01 | `lib/template-config.ts` | Validação de números opcionais compara intervalos, mas NaN pode atravessar comparações (ex.: opacity, rotation, strokeWidth); proteger todos os parâmetros numéricos opcionais. | P1 | CORRIGIDO nesta branch; testes adicionados, aguardando CI |
-| A-002 | 01 | `app/api/templates/route.ts` | Controle otimista por revision e remoção de upload não confirmado já presentes; testar conflito concorrente em integração. | P2 | PENDENTE teste |
+| A-002 | 01 | `app/api/templates/route.ts` | Controle otimista por revision e remoção de upload não confirmado já presentes; testar conflito concorrente em integração. | P2 | PENDENTE teste |\n| A-006 | 01 | `app/api/templates/route.ts` | GET não capturava erro de validação de layout persistido, resultando em erro interno sem orientação. | P1 | CORRIGIDO nesta branch; aguarda CI |\n| A-007 | 01 | `tests/config.test.ts` | Não havia regressão explícita para exceção de tamanho de fonte física (1000) versus digital (500). | P2 | CORRIGIDO nesta branch; aguarda CI |
 | A-003 | 02 | `app/app/modelos-hortifrutti/produce-template-generator.tsx` | Recorte 2×2 assume quadrantes iguais; arquivos com margens/gutters exigem seleção de área ajustável. | P2 | PENDENTE verificação com PDF real |
 | A-004 | 04 | `app/app/campanhas/[id]/gerar/page.tsx` | Gerador legado ainda coexistente com oficial; mapear diferenças antes de remoção. | P2 | PENDENTE |
 | A-005 | 08 | `.github/workflows/ci.yml` | CI possui testes unitários, typecheck, build e navegador do editor visual; falta cobertura dedicada de exportação física A4. | P1 | PENDENTE |
@@ -66,7 +66,7 @@
 - Inventário da árvore completo: 149 arquivos; classificação por domínio.
 - Lidos inicialmente: `.github/workflows/ci.yml`, `package.json`, `README.md`, `lib/use-template.ts`, `app/api/templates/route.ts`, `lib/auth.ts`, `app/app/page.tsx`, `app/app/campanhas/[id]/gerar/page.tsx`; amostras e/ou conteúdo de `lib/template-config.ts`, `components/template-editor.tsx`, `components/configured-ticket.tsx`, `tests/config.test.ts`, `app/app/modelos-hortifrutti/produce-template-generator.tsx`, `app/api/digital-materials/route.ts`, `app/api/visual-assets/route.ts`, `app/app/campanhas/[id]/gerar/official-template-generator.tsx`.
 - Revisão de segurança funcional iniciada: A-001 identificado e corrigido em `lib/template-config.ts`; teste de regressão em `tests/config.test.ts` cobrindo NaN e Infinity em 19 propriedades numéricas opcionais.
-- Nenhum deploy de produção ou teste contra banco real foi realizado nesta etapa.
+- A-006: o GET agora devolve resposta 503 explicativa para layout persistido inválido, sem divulgar detalhes internos.\n- A-007: testes de regressão adicionados para limite de fonte física (1000) e digital (500).\n- Revisão integral nesta etapa: `lib/use-template.ts`, `app/api/templates/route.ts`, `components/configured-ticket.tsx`, `lib/template-config.ts`, `tests/config.test.ts`; revisão focal de `components/template-editor.tsx` (carregamento, salvamento, upload e movimentação).\n- Próximas verificações da etapa 01: testar conflito concorrente da API em ambiente isolado e confirmar UX de alterações não salvas; registrar testes de CI após conclusão.\n- Nenhum deploy de produção ou teste contra banco real foi realizado nesta etapa.
 
 ## 5. Backlog de homologação manual
 
