@@ -55,9 +55,16 @@ export async function uploadProducePdf(formData: FormData) {
   const path = `${id}/${crypto.randomUUID()}.pdf`;
   const { error: uploadError } = await supabase.storage.from("produce-pdfs").upload(path,await file.arrayBuffer(),{contentType:"application/pdf",upsert:false});
   if (uploadError) throw new Error(uploadError.message);
-  const { error: saveError } = await supabase.from("produce_template_products").update({pdf_path:path,updated_by:profile.id}).eq("id",id);
-  if (saveError) {await supabase.storage.from("produce-pdfs").remove([path]);throw new Error(saveError.message)}
-  if (product.pdf_path) await supabase.storage.from("produce-pdfs").remove([product.pdf_path]);
+  // Compare the previously read path to avoid overwriting another user's newer upload.
+  let update = supabase.from("produce_template_products")
+    .update({pdf_path:path,updated_by:profile.id}).eq("id",id);
+  update = product.pdf_path ? update.eq("pdf_path",product.pdf_path) : update.is("pdf_path",null);
+  const { data: saved, error: saveError } = await update.select("id").maybeSingle();
+  if (saveError || !saved) {
+    await supabase.storage.from("produce-pdfs").remove([path]);
+    throw new Error(saveError?.message || "O PDF foi alterado em outra sessão. Recarregue antes de enviar novamente.");
+  }
+  // Retain previous PDF objects for recovery; a separate cleanup can remove orphaned files after backup.
   revalidatePath("/app/modelos-hortifrutti");
 }
 export async function removeProducePdf(formData: FormData) {
@@ -67,8 +74,11 @@ export async function removeProducePdf(formData: FormData) {
   const supabase=await createClient();
   const {data:product,error}=await supabase.from("produce_template_products").select("pdf_path").eq("id",id).single();
   if(error)throw new Error(error.message);
-  const {error:saveError}=await supabase.from("produce_template_products").update({pdf_path:null,updated_by:profile.id}).eq("id",id);
-  if(saveError)throw new Error(saveError.message);
-  if(product.pdf_path)await supabase.storage.from("produce-pdfs").remove([product.pdf_path]);
+  if (!product.pdf_path) return;
+  const {data:saved,error:saveError}=await supabase.from("produce_template_products")
+    .update({pdf_path:null,updated_by:profile.id}).eq("id",id)
+    .eq("pdf_path",product.pdf_path).select("id").maybeSingle();
+  if(saveError||!saved)throw new Error(saveError?.message||"O PDF foi alterado em outra sessão. Recarregue antes de remover.");
+  // Keep the detached object for recovery; do not delete files during the live edit.
   revalidatePath("/app/modelos-hortifrutti");
 }
