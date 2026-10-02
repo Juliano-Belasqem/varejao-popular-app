@@ -167,7 +167,8 @@ export async function createProduct(formData: FormData) {
   if (!canEdit(profile.role)) throw new Error("Sem permissão para editar produtos.");
   const ean = String(formData.get("ean") ?? "").trim();
   const name = String(formData.get("name") ?? "").trim();
-  if (!ean || !name) throw new Error("EAN e nome são obrigatórios.");
+  if (!ean || !name) throw new Error("Código e nome são obrigatórios.");
+  if (!/^\\d{4,14}$/.test(ean)) throw new Error("Informe um código numérico de 4 a 14 dígitos.");
   const supabase = await createClient();
   const { error } = await supabase.from("products").insert({
     ean,
@@ -180,7 +181,7 @@ export async function createProduct(formData: FormData) {
     stock: numberValue(formData.get("stock")),
     erp_description: text(formData.get("erp_description")),
     code_type: text(formData.get("code_type")),
-    gtin_valid: true,
+    gtin_valid: isValidGtin(ean),
     active: true,
   });
   if (error) throw new Error(error.message);
