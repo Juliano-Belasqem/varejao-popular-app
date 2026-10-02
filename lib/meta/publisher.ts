@@ -300,7 +300,7 @@ export async function publishPublication(publicationId: string, allowedStatuses 
     const now = new Date().toISOString();
     // A successful Meta request must never be reset to a retryable error merely
     // because the local acknowledgement could not be persisted.
-    const { error: acknowledgementError } = await supabase
+    const { data: acknowledgement, error: acknowledgementError } = await supabase
       .from("publications")
       .update({
         status: "published",
@@ -310,9 +310,12 @@ export async function publishPublication(publicationId: string, allowedStatuses 
         error_message: null,
         updated_at: now,
       })
-      .eq("id", publicationId);
-    if (acknowledgementError) {
-      console.error("Meta published, but local acknowledgement failed", { publicationId, postId: result.postId, error: acknowledgementError.message });
+      .eq("id", publicationId)
+      .eq("status", "publishing")
+      .select("id")
+      .maybeSingle();
+    if (acknowledgementError || !acknowledgement) {
+      console.error("Meta published, but local acknowledgement failed", { publicationId, postId: result.postId, error: acknowledgementError?.message || "No publishing row was updated" });
       throw new PublishedRemotelyError("A Meta confirmou a publicação, mas o sistema não conseguiu registrar o resultado. NÃO tente republicar; confira a publicação na Meta e concilie o registro.", result.postId);
     }
 
