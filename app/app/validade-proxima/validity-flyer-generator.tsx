@@ -3,6 +3,7 @@
 import { TemplateEditor } from "@/components/template-editor";
 import { ConfiguredTicket } from "@/components/configured-ticket";
 import { useTemplate } from "@/lib/use-template";
+import { ean13 } from "@/lib/visual-barcode";
 import { useMemo, useState } from "react";
 import { useBrandKit } from "@/lib/brand-kit/client";
 
@@ -12,8 +13,8 @@ const emptyEntry=():Entry=>({productId:"",name:"",brand:"",specification:"",norm
 
 function splitPrice(value:string){const clean=value.replace(/[^0-9,]/g,"");const[a="0",b="00"]=clean.split(",");return{major:a||"0",minor:(b+"00").slice(0,2)}}
 function ResponsivePrice({value,unit,manualScale=1}:{value:string;unit:string;manualScale?:number}){const price=splitPrice(value);const scale=(price.major.length<=1?1.22:price.major.length===2?.95:price.major.length===3?.76:.60)*manualScale;return <div style={{display:"flex",alignItems:"flex-start",justifyContent:"center",height:"100%",lineHeight:.9,transform:`scale(${scale})`,transformOrigin:"center center",paddingTop:".12em",boxSizing:"border-box"}}><small style={{fontSize:".2em",marginTop:".15em",color:"#c7192b"}}>R$</small><strong style={{fontSize:"1em"}}>{price.major}</strong><span style={{fontSize:".4em"}}>,{price.minor}<small style={{display:"block",fontSize:".55em",color:"#c7192b"}}>{unit}</small></span></div>}
-function validEan13(code:string){const d=code.replace(/\D/g,"");if(d.length!==13)return null;const sum=d.slice(0,12).split("").reduce((acc,n,i)=>acc+Number(n)*(i%2===0?1:3),0);const check=(10-(sum%10))%10;return check===Number(d[12])?d:null}
-function eanBars(code:string){const valid=validEan13(code);if(!valid)return null;const d=valid;const L=["0001101","0011001","0010011","0111101","0100011","0110001","0101111","0111011","0110111","0001011"],G=["0100111","0110011","0011011","0100001","0011101","0111001","0000101","0010001","0001001","0010111"],R=["1110010","1100110","1101100","1000010","1011100","1001110","1010000","1000100","1001000","1110100"],P=["LLLLLL","LLGLGG","LLGGLG","LLGGGL","LGLLGG","LGGLLG","LGGGLL","LGLGLG","LGLGGL","LGGLGL"][Number(d[0])];let bits="101";for(let i=1;i<=6;i++)bits+=(P[i-1]==="L"?L:G)[Number(d[i])];bits+="01010";for(let i=7;i<=12;i++)bits+=R[Number(d[i])];return bits+"101"}
+function validEan13(code:string){const digits=code.replace(/\\D/g,"");return digits.length===13?ean13(digits)?.code??null:null}
+function eanBars(code:string){const digits=validEan13(code);return digits?ean13(digits)?.bits??null:null}
 function Barcode({code,width=100,height=100}:{code:string;width?:number;height?:number}){
  const bits=eanBars(code),digits=validEan13(code);
  if(!bits||!digits)return <div className="barcode-fallback" style={{textAlign:"center",fontVariantNumeric:"tabular-nums",overflowWrap:"anywhere"}}>{code.replace(/\D/g,"")||"Informe o código"}<small style={{display:"block"}}>Para gerar barras EAN-13, informe 13 dígitos válidos.</small></div>;
