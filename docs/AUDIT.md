@@ -113,3 +113,8 @@
 - **07 / acesso e segurança:** inspecionados `lib/auth.ts`, `lib/supabase/admin.ts`, `lib/supabase/proxy.ts`, `proxy.ts`, `app/api/product-image/[productId]/route.ts`, `app/api/product-art-composition/route.ts`, `app/api/brand-kit/route.ts`, `app/api/openai/generate-social-image/route.ts`, `supabase/migrations/0002_security_hardening.sql`, `supabase/migrations/20261001112000_produce_pdf_templates.sql`. A-014 e A-015 corrigidos. A-016 requer medida de infraestrutura, não apenas checagem de URL.
 - **08 / interface e qualidade:** inspecionados `app/app/layout.tsx`, `components/sidebar.tsx`, `app/globals.css` (regras de impressão), `.github/workflows/ci.yml`, `tests/browser-check.mjs`, `package.json`. A-018 e cobertura A4 ficam no backlog de homologação.
 - **Importante:** estas oito etapas receberam scan estrutural e revisão estática focal. Não equivale a inspeção linha a linha dos 149 arquivos nem a homologação de produção. Manter pendências explícitas, não rotular projeto como integralmente validado.
+
+### 2026-10-02 — CI e reforço de confirmação Meta
+- Commit `010a0bb4fff70490422c8fe13adb80afb0add2a8`: workflow CI concluído com sucesso no GitHub. Commits posteriores exigem nova execução; não reutilizar resultado anterior como validação do HEAD.
+- A-013 reforçado: a confirmação local exige linha efetivamente atualizada com status anterior `publishing` (`select("id").maybeSingle()`), além de ausência de erro do banco. Uma atualização que afetou zero linhas também exige conciliação manual, sem transformar a publicação remota em falha republicável.
+- **Critério de merge:** CI verde no HEAD definitivo, revisão das pendências críticas, sem alegar homologação de produção. Merge não executado, conforme combinado.
