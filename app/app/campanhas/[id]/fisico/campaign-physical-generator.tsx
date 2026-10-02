@@ -4,6 +4,7 @@ import { ConfiguredTicket } from "@/components/configured-ticket";
 import { TemplateEditor } from "@/components/template-editor";
 import { useBrandKit } from "@/lib/brand-kit/client";
 import { useTemplate } from "@/lib/use-template";
+import { ean13 } from "@/lib/visual-barcode";
 
 type Campaign={id:string;name:string;start_date:string|null;end_date:string|null;theme:string|null};
 type Item={id:string;product_id:string|null;normal_price:number|string|null;offer_price:number|string|null;highlighted_price:string|null;ean_snapshot:string|null;name_snapshot:string|null;brand_snapshot:string|null;specification_snapshot:string|null;sort_order:number|null;display_name:string|null;full_name:string|null;product_brand:string|null;product_specification:string|null};
@@ -37,8 +38,8 @@ function priceParts(value:string){const clean=value.replace(/[^0-9,]/g,"");const
 function majorPriceScale(major:string){const digits=major.replace(/\D/g,"").length;return digits<=1?1:digits===2?.78:digits===3?.62:.5}
 function PhysicalPrice({major,minor,scale}:{major:string;minor:string;scale:number}){return <span className="physical-responsive-price" style={{fontSize:(scale*100)+"%"}}><strong>{major}</strong><span className="physical-responsive-cents">,{minor}</span></span>}
 function dateLabel(v:string|null){if(!v)return"__/__/__";const[y,m,d]=v.split("-");return y&&m&&d?`${d}/${m}/${y.slice(-2)}`:v}
-function validEan13(code:string){const digits=code.replace(/\D/g,"");if(digits.length!==13)return null;const sum=digits.slice(0,12).split("").reduce((acc,d,i)=>acc+Number(d)*(i%2===0?1:3),0);return(10-(sum%10))%10===Number(digits[12])?digits:null}
-function eanBars(code:string){const d=validEan13(code);if(!d)return null;const L=["0001101","0011001","0010011","0111101","0100011","0110001","0101111","0111011","0110111","0001011"],G=["0100111","0110011","0011011","0100001","0011101","0111001","0000101","0010001","0001001","0010111"],R=["1110010","1100110","1101100","1000010","1011100","1001110","1010000","1000100","1001000","1110100"],P=["LLLLLL","LLGLGG","LLGGLG","LLGGGL","LGLLGG","LGGLLG","LGGGLL","LGLGLG","LGLGGL","LGGLGL"];let bits="101";for(let i=1;i<=6;i++)bits+=(P[Number(d[0])][i-1]==="L"?L:G)[Number(d[i])];bits+="01010";for(let i=7;i<=12;i++)bits+=R[Number(d[i])];return bits+"101"}
+function validEan13(code:string){const digits=code.replace(/\\D/g,"");return digits.length===13?ean13(digits)?.code??null:null}
+function eanBars(code:string){const digits=validEan13(code);return digits?ean13(digits)?.bits??null:null}
 function Barcode({code,width,height}:{code:string;width:number;height:number}){const bits=eanBars(code),digits=validEan13(code);if(!bits||!digits)return <div className="barcode-fallback">{code||"EAN-13 inválido"}</div>;return <div className="physical-barcode"><svg className="barcode-svg" style={{width:`${width}%`,height:`${height}%`}} viewBox="0 0 113 60" preserveAspectRatio="none" shapeRendering="crispEdges"><rect width="113" height="60" fill="#fff"/>{bits.split("").map((b,i)=>b==="1"?<rect key={i} x={11+i} y="2" width="1" height={(i<3||(i>=45&&i<50)||i>=92)?46:41} fill="#000"/>:null)}</svg><div className="barcode-number">{digits}</div></div>}
 
 export function CampaignPhysicalGenerator({campaign,items}:{campaign:Campaign;items:Item[]}){
