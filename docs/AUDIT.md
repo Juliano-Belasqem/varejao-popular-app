@@ -38,14 +38,14 @@
 
 | Etapa | Escopo / arquivos a ler | Objetivo | Estado |
 |---|---|---|---|
-| 01 | `lib/template-config.ts`, `components/template-editor.tsx`, `components/configured-ticket.tsx`, `lib/use-template.ts`, `app/api/templates/route.ts`, `tests/config.test.ts` | Validação, compatibilidade, salvamento e prévia | EM ANÁLISE |
-| 02 | `app/app/validade-proxima/**`, `app/app/modelos-hortifrutti/**`, `app/app/campanhas/[id]/fisico/**`, CSS e migrações correlatas | PDF, recortes, códigos, preços e impressão A4 | EM ANÁLISE |
-| 03 | `app/app/campanhas/**`, `app/app/ofertas/**`, `app/app/produtos/**`, APIs de imagem, `lib/money.ts` | Consistência de catálogo, campanhas, preço e ativos | EM ANÁLISE |
-| 04 | `app/app/campanhas/[id]/gerar/**`, `app/app/conteudo-redes/**`, `lib/media/**`, `app/api/digital-materials/**` | Preview, fontes, exportação e código legado | INVENTARIADO |
-| 05 | `components/visual-*`, `app/app/editor-visual/**`, `lib/visual-*`, `tests/visual-*` | Operações, persistência e renderização do editor visual | INVENTARIADO |
-| 06 | `app/app/publicacoes/**`, `app/api/publications/**`, `lib/publications/**`, `lib/meta/**` | Publicação, agendamento, idempotência e auditoria | INVENTARIADO |
-| 07 | `lib/auth.ts`, `lib/supabase/**`, `proxy.ts`, `app/api/**` restante, `app/app/usuarios/**`, migrações SQL | Autorização, RLS, uploads e integridade | INVENTARIADO |
-| 08 | `app/app/layout.tsx`, `components/sidebar.tsx`, `app/globals.css`, login, dashboard, configuração, README e demais testes | UX, acessibilidade, CI, documentação e homologação | INVENTARIADO |
+| 01 | `lib/template-config.ts`, `components/template-editor.tsx`, `components/configured-ticket.tsx`, `lib/use-template.ts`, `app/api/templates/route.ts`, `tests/config.test.ts` | Validação, compatibilidade, salvamento e prévia | REVISÃO ESTÁTICA INICIAL CONCLUÍDA; homologação pendente |
+| 02 | `app/app/validade-proxima/**`, `app/app/modelos-hortifrutti/**`, `app/app/campanhas/[id]/fisico/**`, CSS e migrações correlatas | PDF, recortes, códigos, preços e impressão A4 | REVISÃO ESTÁTICA INICIAL CONCLUÍDA; homologação pendente |
+| 03 | `app/app/campanhas/**`, `app/app/ofertas/**`, `app/app/produtos/**`, APIs de imagem, `lib/money.ts` | Consistência de catálogo, campanhas, preço e ativos | REVISÃO ESTÁTICA INICIAL CONCLUÍDA; homologação pendente |
+| 04 | `app/app/campanhas/[id]/gerar/**`, `app/app/conteudo-redes/**`, `lib/media/**`, `app/api/digital-materials/**` | Preview, fontes, exportação e código legado | REVISÃO ESTÁTICA INICIAL CONCLUÍDA; homologação pendente |
+| 05 | `components/visual-*`, `app/app/editor-visual/**`, `lib/visual-*`, `tests/visual-*` | Operações, persistência e renderização do editor visual | REVISÃO ESTÁTICA INICIAL CONCLUÍDA; homologação pendente |
+| 06 | `app/app/publicacoes/**`, `app/api/publications/**`, `lib/publications/**`, `lib/meta/**` | Publicação, agendamento, idempotência e auditoria | REVISÃO ESTÁTICA INICIAL CONCLUÍDA; homologação pendente |
+| 07 | `lib/auth.ts`, `lib/supabase/**`, `proxy.ts`, `app/api/**` restante, `app/app/usuarios/**`, migrações SQL | Autorização, RLS, uploads e integridade | REVISÃO ESTÁTICA INICIAL CONCLUÍDA; homologação pendente |
+| 08 | `app/app/layout.tsx`, `components/sidebar.tsx`, `app/globals.css`, login, dashboard, configuração, README e demais testes | UX, acessibilidade, CI, documentação e homologação | REVISÃO ESTÁTICA INICIAL CONCLUÍDA; homologação pendente |
 
 **Procedimento para continuidade entre chats:** ler este AUDIT primeiro; selecionar apenas a próxima etapa PENDENTE; registrar os arquivos e intervalos revisados, achados com reprodução, commits e resultados; não repetir o scan completo se a árvore não mudou. Comparar com o SHA de backup para detectar novos arquivos.
 
@@ -58,6 +58,13 @@
 | A-003 | 02 | `app/app/modelos-hortifrutti/produce-template-generator.tsx` | Recorte 2×2 assume quadrantes iguais; arquivos com margens/gutters exigem seleção de área ajustável. | P2 | PENDENTE verificação com PDF real |
 | A-004 | 04 | `app/app/campanhas/[id]/gerar/page.tsx` | Gerador legado ainda coexistente com oficial; mapear diferenças antes de remoção. | P2 | PENDENTE |
 | A-005 | 08 | `.github/workflows/ci.yml` | CI possui testes unitários, typecheck, build e navegador do editor visual; falta cobertura dedicada de exportação física A4. | P1 | PENDENTE |
+
+| A-013 | 06 | `lib/meta/publisher.ts` | Meta podia confirmar publicação e a gravação local falhar sem verificação, possibilitando repetição remota ao marcar erro. | P0 | CORRIGIDO: erro de conciliação mantém publishing, exige conferência manual; CI pendente |
+| A-014 | 07 | `app/api/product-art-composition/route.ts` | PUT exigia apenas login, não papel de edição. | P1 | CORRIGIDO: requireProfile + canEdit; CI pendente |
+| A-015 | 07 | `app/api/openai/generate-social-image/route.ts` | Endpoint de geração paga não verificava autenticação/permissão. | P0 | CORRIGIDO: requireProfile + canEdit antes de API externa; CI pendente |
+| A-016 | 07 | `lib/remote-image.ts` | URLs são checadas via DNS antes de fetch, mas resolução do fetch pode diferir (janela de DNS rebinding). | P1 | PENDENTE: fixação de IP/egress control em infraestrutura |
+| A-017 | 06 | `lib/meta/publisher.ts` | Uma resposta de sucesso remoto com erro de confirmação local exige conciliação humana; ausência de workflow automático de reconciliação. | P1 | PENDENTE: projetar reconciliação por IDs da Meta, sem republicação |
+| A-018 | 08 | `app/globals.css` | Regras de impressão de código de barras duplicadas, uma `height:100%!important` e outra `height:auto!important`; a última prevalece, comportamento frágil. | P2 | PENDENTE: teste visual A4 antes de consolidar |
 
 ## 4. Diário de execução
 
@@ -98,3 +105,11 @@
 - Revisados `app/app/produtos/page.tsx` e novamente `app/app/produtos/actions.ts` nos trechos de importação, deduplicação por código, upsert em lotes e exclusão por `last_seen_at`.
 - A-012 corrigido de forma conservadora: nenhum item ERP é excluído por ausência em um arquivo importado. A rotina continua em lotes de 250; falhas informam quantos registros foram efetivamente persistidos, sem prometer rollback. A tela foi atualizada para refletir essa semântica.
 - Pendente: testes de integração com exportação completa, parcial e falha simulada entre lotes; desenhar futura função separada de arquivamento de registros obsoletos, com confirmação e possibilidade de restauração.
+
+### 2026-10-02 — varredura transversal das etapas 04–08
+- **04 / digital:** inspecionados `app/app/campanhas/[id]/gerar/official-template-generator.tsx`, `page.tsx`, `app/api/digital-materials/route.ts`, `lib/media/canvas-renderer.ts`, `lib/remote-image.ts`, `lib/visual-export.ts`. Gerador legado segue listado como A-004: remover apenas após paridade visual/exportação confirmada.
+- **05 / editor visual:** inspecionados `lib/visual-engine.ts`, `lib/visual-operations.ts`, `lib/visual-export.ts`, `components/visual-engine-editor.tsx` (pontos de persistência, erros, exportação), `components/visual-properties.tsx`, `components/visual-renderer.tsx`, `tests/visual-operations.test.ts`, `tests/visual-database.test.ts` e `app/app/editor-visual/page.tsx`. Há testes unitários e de navegador; falta homologação de manipulação/exportação com fontes e imagens reais.
+- **06 / publicações:** inspecionados `app/api/publication-drafts/route.ts`, `app/api/publications/process/route.ts`, `app/app/publicacoes/actions.ts`, `lib/meta/publisher.ts`, `lib/publications/validation.ts`. A-013 corrigido: confirmação remota não pode voltar a status de erro/republicação automática se o update local falhar; manter status publishing para conciliação manual e registrar ID remoto no log do servidor. A-017 permanece.
+- **07 / acesso e segurança:** inspecionados `lib/auth.ts`, `lib/supabase/admin.ts`, `lib/supabase/proxy.ts`, `proxy.ts`, `app/api/product-image/[productId]/route.ts`, `app/api/product-art-composition/route.ts`, `app/api/brand-kit/route.ts`, `app/api/openai/generate-social-image/route.ts`, `supabase/migrations/0002_security_hardening.sql`, `supabase/migrations/20261001112000_produce_pdf_templates.sql`. A-014 e A-015 corrigidos. A-016 requer medida de infraestrutura, não apenas checagem de URL.
+- **08 / interface e qualidade:** inspecionados `app/app/layout.tsx`, `components/sidebar.tsx`, `app/globals.css` (regras de impressão), `.github/workflows/ci.yml`, `tests/browser-check.mjs`, `package.json`. A-018 e cobertura A4 ficam no backlog de homologação.
+- **Importante:** estas oito etapas receberam scan estrutural e revisão estática focal. Não equivale a inspeção linha a linha dos 149 arquivos nem a homologação de produção. Manter pendências explícitas, não rotular projeto como integralmente validado.
