@@ -36,11 +36,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
   const page = Math.max(1, Number.parseInt(filters.page || "1", 10) || 1);
   const q = String(filters.q ?? "").trim().slice(0, 80);
 
-  const [{ data: matchingCampaigns }, tokenHealth, draftCount, scheduledCount, publishedCount, errorCount] = await Promise.all([
+  const [{ data: matchingCampaigns }, tokenHealth, draftCount, scheduledCount, publishingCount, publishedCount, errorCount] = await Promise.all([
     q ? supabase.from("campaigns").select("id").ilike("name", `%${q.replace(/[%_,()]/g, " ")}%`).limit(50) : Promise.resolve({ data: [] as { id: string }[] }),
     getMetaTokenHealth(),
     supabase.from("publications").select("*", { count: "exact", head: true }).eq("status", "draft"),
     supabase.from("publications").select("*", { count: "exact", head: true }).eq("status", "scheduled"),
+    supabase.from("publications").select("*", { count: "exact", head: true }).eq("status", "publishing"),
     supabase.from("publications").select("*", { count: "exact", head: true }).eq("status", "published"),
     supabase.from("publications").select("*", { count: "exact", head: true }).eq("status", "error"),
   ]);
@@ -117,6 +118,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12, marginBottom: 18 }}>
         <Link href="/app/publicacoes?status=draft" className="card" style={{ color: "inherit", textDecoration: "none" }}><div className="muted">Rascunhos</div><div style={{ fontSize: 28, fontWeight: 900 }}>{draftCount.count ?? 0}</div></Link>
         <Link href="/app/publicacoes?status=scheduled" className="card" style={{ color: "inherit", textDecoration: "none" }}><div className="muted">Agendadas</div><div style={{ fontSize: 28, fontWeight: 900 }}>{scheduledCount.count ?? 0}</div></Link>
+        <Link href="/app/publicacoes?status=publishing" className="card" style={{ color: "inherit", textDecoration: "none" }}><div className="muted">Em processamento / conciliação</div><div style={{ fontSize: 28, fontWeight: 900 }}>{publishingCount.count ?? 0}</div></Link>
         <Link href="/app/publicacoes?status=published" className="card" style={{ color: "inherit", textDecoration: "none" }}><div className="muted">Publicadas</div><div style={{ fontSize: 28, fontWeight: 900 }}>{publishedCount.count ?? 0}</div></Link>
         <Link href="/app/publicacoes?status=error" className="card" style={{ color: "inherit", textDecoration: "none" }}><div className="muted">Com erro</div><div style={{ fontSize: 28, fontWeight: 900 }}>{errorCount.count ?? 0}</div></Link>
       </div>
@@ -125,7 +127,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
         <div className="page-head" style={{ marginBottom: 12 }}><div><h2 style={{ margin: 0 }}>Filtros e busca</h2><div className="muted">A busca encontra texto da legenda ou nome da campanha.</div></div>{hasFilters && <Link href="/app/publicacoes" className="btn">Limpar filtros</Link>}</div>
         <form method="get" style={{ display: "grid", gridTemplateColumns: "minmax(220px,2fr) repeat(4,minmax(130px,1fr)) auto", gap: 10, alignItems: "end" }}>
           <label className="field"><span>Buscar</span><input className="input" name="q" defaultValue={q} placeholder="Legenda ou campanha" /></label>
-          <label className="field"><span>Status</span><select className="input" name="status" defaultValue={filters.status || "all"}><option value="all">Todos</option><option value="draft">Rascunhos</option><option value="scheduled">Agendadas</option><option value="published">Publicadas</option><option value="error">Com erro</option><option value="cancelled">Canceladas</option></select></label>
+          <label className="field"><span>Status</span><select className="input" name="status" defaultValue={filters.status || "all"}><option value="all">Todos</option><option value="draft">Rascunhos</option><option value="scheduled">Agendadas</option><option value="publishing">Publicando / conciliação</option><option value="published">Publicadas</option><option value="error">Com erro</option><option value="cancelled">Canceladas</option></select></label>
           <label className="field"><span>Rede</span><select className="input" name="network" defaultValue={filters.network || "all"}><option value="all">Todas</option><option value="instagram">Instagram</option><option value="facebook">Facebook</option></select></label>
           <label className="field"><span>Tipo</span><select className="input" name="type" defaultValue={filters.type || "all"}><option value="all">Todos</option><option value="feed">Feed</option><option value="story">Story</option><option value="carousel">Carrossel</option><option value="reel">Reel</option></select></label>
           <label className="field"><span>Origem</span><select className="input" name="source" defaultValue={filters.source || "all"}><option value="all">Todas</option><option value="campaign">Campanhas</option><option value="independent">Independentes</option></select></label>
@@ -157,6 +159,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
                     <div style={{ display: "flex", gap: 7, flexWrap: "wrap", alignItems: "center" }}><strong>{networkLabels[publication.network] ?? publication.network}</strong><span className="pill">{typeLabels[publication.type] ?? publication.type}</span><span className="pill">{statusLabels[publication.status] ?? publication.status}</span></div>
                     <div style={{ fontWeight: 800, marginTop: 6 }}>{publication.campaign_id ? campaignName.get(publication.campaign_id) ?? "Campanha" : "Publicação independente"}</div>
                     <div className="muted" style={{ fontSize: 12, marginTop: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{publication.caption || "Sem legenda"}</div>
+                    {publication.status === "publishing" && <div className="error" style={{ marginTop: 5, fontSize: 12 }}>Em processamento ou aguardando conferência na Meta. Não republique sem conciliação.</div>}
                     {publication.status === "scheduled" && <div className="muted" style={{ fontSize: 12, marginTop: 3 }}>Agendada para {dateLabel(publication.scheduled_at)}</div>}
                     {publication.status === "error" && publication.error_message && <div className="error" style={{ marginTop: 5, fontSize: 12 }}>{publication.error_message}</div>}
                   </Link>
