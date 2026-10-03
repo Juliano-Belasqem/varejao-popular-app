@@ -77,7 +77,19 @@ export async function bulkPublicationAction(formData: FormData) {
         const paths = (media ?? []).filter((item) => deletedIds.has(item.publication_id))
           .map((item) => item.storage_path).filter(Boolean) as string[];
         if (paths.length) {
-          const { error: storageError } = await supabase.storage.from("social-media").remove(paths);
+          // A Storage object may still be referenced by another publication.
+          const { data: referenced, error: referenceError } = await supabase.from("publication_media")
+            .select("storage_path").in("storage_path", [...new Set(paths)]);
+          if (referenceError) {
+            console.error("Cannot verify remaining media references; Storage retained", referenceError);
+            await audit(profile.id, "publication_bulk_deleted", [...deletedIds]);
+            return;
+          }
+          const referencedPaths = new Set((referenced ?? []).map((item) => item.storage_path));
+          const removablePaths = [...new Set(paths)].filter((path) => !referencedPaths.has(path));
+          const { error: storageError } = removablePaths.length
+            ? await supabase.storage.from("social-media").remove(removablePaths)
+            : { error: null };
           if (storageError) console.error("bulk publication media Storage cleanup failed", storageError);
         }
         await audit(profile.id, "publication_bulk_deleted", [...deletedIds]);
