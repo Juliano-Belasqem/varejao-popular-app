@@ -297,7 +297,13 @@ export async function importErpSpreadsheet(formData: FormData) {
     for (const row of dataRows) {
       const code = String(row[codeIndex] ?? "").trim();
       const description = String(row[descriptionIndex] ?? "").trim();
-      if (!code || !description) continue;
+      if (!code && !description && row.every((cell) => String(cell ?? "").trim() === "")) continue;
+      if (!code || !description) throw new Error(
+        `Linha ${(headerless ? 0 : headerRowIndex + 1) + dataRows.indexOf(row) + 1}: código e descrição são obrigatórios. Importação cancelada sem gravar lotes.`
+      );
+      if (byCode.has(code)) throw new Error(
+        `Código duplicado no arquivo: ${code}. Corrija a exportação antes de importar; nenhum lote foi gravado.`
+      );
       byCode.set(code, {
         code,
         description,
