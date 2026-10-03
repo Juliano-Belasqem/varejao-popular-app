@@ -96,11 +96,15 @@ export async function addPublicationMediaAction(formData: FormData) {
   if (!id || !materialPath) return;
 
   const supabase = await createClient();
-  const { data: publication } = await supabase
+  const { data: publication, error: publicationError } = await supabase
     .from("publications")
     .select("id,campaign_id,status")
     .eq("id", id)
     .maybeSingle();
+  if (publicationError) {
+    console.error("Cannot load publication before adding media", { id, error: publicationError.message });
+    return;
+  }
 
   if (!publication || !publication.campaign_id || !["draft", "scheduled", "error", "cancelled"].includes(publication.status)) return;
   if (!materialPath.startsWith(`${publication.campaign_id}/`)) return;
@@ -137,7 +141,8 @@ export async function addPublicationMediaAction(formData: FormData) {
     .maybeSingle();
   if (orderError) {
     console.error("Cannot determine publication media ordering", { id, error: orderError.message });
-    await supabase.storage.from("social-media").remove([publicPath]);
+    const { error: cleanupError } = await supabase.storage.from("social-media").remove([publicPath]);
+    if (cleanupError) console.error("Cannot clean up publication media after ordering failure", { id, publicPath, error: cleanupError.message });
     return;
   }
 
@@ -149,7 +154,12 @@ export async function addPublicationMediaAction(formData: FormData) {
     sort_order: (lastMedia?.sort_order ?? -1) + 1,
   });
 
-  if (mediaError) await supabase.storage.from("social-media").remove([publicPath]);
+  if (mediaError) {
+    console.error("Cannot register uploaded publication media", { id, error: mediaError.message });
+    const { error: cleanupError } = await supabase.storage.from("social-media").remove([publicPath]);
+    if (cleanupError) console.error("Cannot clean up unregistered publication media", { id, publicPath, error: cleanupError.message });
+    return;
+  }
   revalidatePath(`/app/publicacoes/${id}`);
 }
 
