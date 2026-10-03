@@ -224,3 +224,7 @@
 ### 2026-10-03 — confirmação de agendamento e cancelamento
 - A-028 (P1): `schedulePublicationAction` verificava pré-condições em leitura anterior, mas o update final aceitava qualquer status editável. Agora o update compara status, rede e tipo que foram efetivamente validados, e exige retorno do ID atualizado; falha ou zero linhas não é tratado como sucesso. `cancelScheduledPublicationAction` também exige confirmação da transição `scheduled → cancelled` e registra falhas.
 - Limitação: mídia e legenda ainda podem mudar concorrentemente sem lock/versionamento; agendamento + mídia requerem teste transacional/RPC antes de afirmar proteção completa. Não houve alteração de banco/produção nesta rodada.
+
+### 2026-10-03 — unicidade do caminho de mídia
+- A-029 (P2): nome do objeto em `social-media` para mídia copiada de campanha dependia apenas de timestamp em milissegundos + nome de origem. Uploads simultâneos podiam disputar o mesmo caminho (com `upsert:false`). Acrescentado `crypto.randomUUID()` por upload; não altera arquivos já existentes.
+- Verificar CI e manter teste integrado de concorrência e referências compartilhadas de Storage como pendência. 
