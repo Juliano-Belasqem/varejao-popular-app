@@ -261,3 +261,8 @@
 - A-035 (P2): `publication-drafts` e `digital-materials` usavam timestamp em milissegundos e nome como caminho; uploads simultâneos podiam colidir. Ambos agora incluem UUID por upload, mantendo `upsert:false`.
 - A-036 (P1): em falha de inserção de `publication_media`, `publication-drafts` excluía o objeto Storage independentemente do resultado da exclusão do pai. Agora só compensa Storage após confirmação da exclusão condicional do rascunho; falhas de exclusão/limpeza são registradas com IDs/caminhos. Falha na criação do pai também registra erro da limpeza do objeto recém-enviado.
 - Pendente: testes reais de RLS, concorrência e recuperação de objetos órfãos; Postgres e Storage não compartilham transação.
+
+### 2026-10-03 — bloco final 2/4: substituição do logo da marca
+- CI `37128255241`, HEAD `ca9bf134e26c966c348a6dfae36e44b71b3d6826`: sucesso.
+- A-037 (P1): upload de logo usava `Date.now()` como nome e, após update sem verificação de linha, apagava imediatamente o logo anterior. Duas sessões podiam disputar nome/atualização e eliminar um arquivo ainda necessário. Agora o caminho inclui UUID, a atualização compara `logo_path` previamente lido e exige confirmação do registro; em conflito/falha tenta limpar somente o upload novo, registrando erro da compensação. O logo anterior é preservado para recuperação.
+- A política de retenção/limpeza de logos antigos requer backup e rotina separada. Validar concorrência e RLS em ambiente isolado.
