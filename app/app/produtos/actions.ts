@@ -260,15 +260,7 @@ export async function importErpSpreadsheet(formData: FormData) {
     let dataRows: unknown[][];
 
     if (headerless) {
-      codeIndex = 0;
-      descriptionIndex = 1;
-      priceIndex = 2;
-      stockIndex = 3;
-      unitIndex = 4;
-      typeIndex = -1;
-      gtinIndex = -1;
-      imageIndex = -1;
-      dataRows = rows;
+      throw new Error("CSV sem cabeçalho não pode ser importado com segurança: faltam colunas de atributos e o upsert poderia apagar dados anteriores. Utilize a exportação completa do ERP com cabeçalhos.");
     } else {
       if (headerRowIndex < 0) {
         const preview = rows.slice(0, 5).flatMap((row) => row.map((value) => String(value ?? "").trim()).filter(Boolean)).slice(0, 12).join(" | ");
