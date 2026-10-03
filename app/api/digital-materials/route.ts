@@ -26,7 +26,7 @@ export async function GET(request: Request) {
     if (!isRasterBytes(bytes, "image/png")) {
       return NextResponse.json({ error: "O arquivo não possui uma assinatura PNG válida." }, { status: 400 });
     }
-    if (!["feed", "story"].includes(format) || !["composed", "background"].includes(mode)) {
+    if (!["feed", "story"].includes(format) || !/^[a-z0-9_-]{1,32}$/i.test(mode)) {
       return NextResponse.json({ error: "Formato ou modalidade inválidos." }, { status: 400 });
     }
     const supabase = await createClient();
