@@ -98,7 +98,7 @@ async function waitForInstagramVideo(containerId: string, token: string) {
     }
     await sleep(1500);
   }
-  throw new Error("O vídeo ainda está sendo processado pela Meta. Aguarde alguns segundos e tente publicar novamente.");
+  throw new Error("O vídeo ainda está sendo processado pela Meta. Não republique automaticamente: confira o processamento e concilie manualmente antes de uma nova tentativa.");
 }
 
 async function publishInstagram(publication: Publication, media: Media[]) {
@@ -321,7 +321,16 @@ export async function publishPublication(publicationId: string, allowedStatuses 
       .maybeSingle();
     if (acknowledgementError || !acknowledgement) {
       console.error("Meta published, but local acknowledgement failed", { publicationId, postId: result.postId, error: acknowledgementError?.message || "No publishing row was updated" });
-      throw new PublishedRemotelyError("A Meta confirmou a publicação, mas o sistema não conseguiu registrar o resultado. NÃO tente republicar; confira a publicação na Meta e concilie o registro.", result.postId);
+      const warning = `A Meta confirmou a publicação (post ID: ${result.postId}), mas o registro local falhou. NÃO republique; concilie manualmente.`;
+      try {
+        const { error: warningError } = await supabase.from("publications")
+          .update({ error_message: warning.slice(0, 1500), updated_at: new Date().toISOString() })
+          .eq("id", publicationId).eq("status", "publishing");
+        if (warningError) console.error("Could not persist confirmed Meta post ID for reconciliation", { publicationId, postId: result.postId, error: warningError.message });
+      } catch (warningError) {
+        console.error("Could not persist confirmed Meta post ID for reconciliation", { publicationId, postId: result.postId, warningError });
+      }
+      throw new PublishedRemotelyError(warning, result.postId);
     }
 
     return result;
