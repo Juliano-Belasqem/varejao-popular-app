@@ -284,7 +284,11 @@ export async function deleteDraftAction(formData: FormData) {
   if (!id) return;
 
   const supabase = await createClient();
-  const { data: publication } = await supabase.from("publications").select("status").eq("id", id).maybeSingle();
+  const { data: publication, error: publicationError } = await supabase.from("publications").select("status").eq("id", id).maybeSingle();
+  if (publicationError) {
+    console.error("Cannot determine publication deletion eligibility", { id, error: publicationError.message });
+    return;
+  }
   if (!publication || !["draft", "cancelled", "error"].includes(publication.status)) return;
 
   const { data: media, error: mediaError } = await supabase.from("publication_media").select("storage_path").eq("publication_id", id);
