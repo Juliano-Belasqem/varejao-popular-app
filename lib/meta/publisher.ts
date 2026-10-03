@@ -63,7 +63,16 @@ async function graphGet(path: string, params: Record<string, string>) {
 }
 
 async function uploadHostedFacebookVideo(uploadUrl: string, fileUrl: string, token: string) {
-  const response = await fetch(uploadUrl, {
+  // The URL comes from a remote API response; never forward our OAuth token to
+  // an arbitrary origin, even if the initial Graph request was trusted.
+  const target = new URL(uploadUrl);
+  if (target.protocol !== "https:" || target.username || target.password ||
+      !["rupload.facebook.com", "graph-video.facebook.com"].includes(target.hostname.toLowerCase()) ||
+      (target.port && target.port !== "443")) {
+    throw new Error("Destino de upload de vídeo da Meta não autorizado.");
+  }
+  const response = await fetch(target, {
+    redirect: "error",
     method: "POST",
     headers: {
       Authorization: `OAuth ${token}`,
