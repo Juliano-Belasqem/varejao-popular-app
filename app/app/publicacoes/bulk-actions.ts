@@ -42,11 +42,15 @@ export async function bulkPublicationAction(formData: FormData) {
   }
 
   if (action === "delete_drafts") {
-    const { data: eligible } = await supabase
+    const { data: eligible, error: eligibleError } = await supabase
       .from("publications")
       .select("id")
       .in("id", ids)
       .in("status", ["draft", "cancelled", "error"]);
+    if (eligibleError) {
+      console.error("Cannot determine bulk deletion eligibility", eligibleError);
+      return;
+    }
     const eligibleIds = (eligible ?? []).map((item) => item.id);
     if (eligibleIds.length) {
       const { data: media, error: mediaError } = await supabase
@@ -77,11 +81,15 @@ export async function bulkPublicationAction(formData: FormData) {
   }
 
   if (action === "retry_errors") {
-    const { data: eligible } = await supabase
+    const { data: eligible, error: eligibleError } = await supabase
       .from("publications")
       .select("id")
       .in("id", ids)
       .eq("status", "error");
+    if (eligibleError) {
+      console.error("Cannot determine bulk retry eligibility", eligibleError);
+      return;
+    }
     const eligibleIds = (eligible ?? []).map((item) => item.id);
     for (const id of eligibleIds) {
       try {
