@@ -271,3 +271,9 @@
 - CI `37128838393`, HEAD `bf4aba0151a359cb3f60bda36d6f07a09c222060`: sucesso.
 - A-038 (P1): desativação de fonte apagava imediatamente seu objeto Storage, embora modelos antigos possam referenciar a família; também ignorava erro ao consultar/atualizar os campos que usam a fonte. Agora consulta fonte/configuração com erro explícito, confirma a desativação condicional e verifica o update de fallback. Preserva o arquivo para compatibilidade/recuperação; falha parcial é registrada e comunicada. Compensação de upload de fonte também registra erro de remoção.
 - Limitação: desativação e atualização de `brand_settings` são duas operações, não transação única; concorrência na configuração de fontes requer homologação e, se necessário, RPC transacional.
+
+### 2026-10-03 — bloco final 3/4: validação de arquivos digitais
+- CI `37129090868`, HEAD `c0cb6c51faf0f316d54571b9087f109cf2e1f9e9`: sucesso.
+- A-039 (P2): upload `digital-materials` confiava apenas no MIME declarado `image/png` e permitia arquivo vazio; agora verifica assinatura PNG, tamanho não nulo, formato feed/story e modalidade como segmento de nome limitado antes do Storage.
+- A-040 (P2): criação de rascunho copiava qualquer objeto obtido no bucket `digital-materials` declarando `image/png`; agora verifica tamanho (1 byte a 9 MB) e assinatura PNG antes de criar novo objeto/publicação.
+- Assinatura de arquivo é validação superficial, não decodificação integral; validar arquivos reais, RLS e fluxo feed/story em ambiente isolado.
