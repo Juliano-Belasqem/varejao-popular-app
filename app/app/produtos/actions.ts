@@ -294,12 +294,12 @@ export async function importErpSpreadsheet(formData: FormData) {
       code_type: string | null; gtin_valid: boolean | null; search_image: boolean; imported_at: string; updated_at: string; last_seen_at: string;
     }>();
 
-    for (const row of dataRows) {
+    for (const [rowIndex, row] of dataRows.entries()) {
       const code = String(row[codeIndex] ?? "").trim();
       const description = String(row[descriptionIndex] ?? "").trim();
       if (!code && !description && row.every((cell) => String(cell ?? "").trim() === "")) continue;
       if (!code || !description) throw new Error(
-        `Linha ${(headerless ? 0 : headerRowIndex + 1) + dataRows.indexOf(row) + 1}: código e descrição são obrigatórios. Importação cancelada sem gravar lotes.`
+        `Linha ${headerRowIndex + rowIndex + 2}: código e descrição são obrigatórios. Importação cancelada sem gravar lotes.`
       );
       if (byCode.has(code)) throw new Error(
         `Código duplicado no arquivo: ${code}. Corrija a exportação antes de importar; nenhum lote foi gravado.`
