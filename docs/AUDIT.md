@@ -197,3 +197,7 @@
 
 ### 2026-10-03 — inventário de mídia obrigatório antes de excluir
 - A-023: exclusões individual e em lote agora abortam se a consulta de `publication_media` retornar erro, em vez de excluir o registro pai sem conhecer os caminhos de arquivos a limpar. Falhas registradas no servidor. Continua necessário teste isolado com Supabase/RLS, incluindo falha de Storage posterior à exclusão do banco.
+
+### 2026-10-03 — consultas de elegibilidade fail-closed
+- [CI 37125794502](https://github.com/Juliano-Belasqem/varejao-popular-app/actions/runs/37125794502), HEAD `ea317ec5c6322223a0b2c129a2e8be3fda3feb71`: `success`.
+- A-023: consultas de elegibilidade da exclusão em lote, reenvio de erros em lote e exclusão individual agora verificam `error` explicitamente e registram a falha; nenhuma mutação é iniciada após falha de leitura. Permanece pendente teste integrado de concorrência, permissões/RLS e recuperação de objetos órfãos caso Storage falhe após exclusão no banco.
