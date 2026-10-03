@@ -285,3 +285,8 @@
 - A regressão de `digital-materials` foi corrigida e o CI [`37129343855`](https://github.com/Juliano-Belasqem/varejao-popular-app/actions/runs/37129343855) passou no commit `ac8a6409df1bb2ee0707746f99bb7cb74b0c23e4`.
 - [AUDIT-CLOSURE.md](AUDIT-CLOSURE.md) atualizado com evidência do CI, escopo real dos testes, bloqueios de liberação (A-016, RLS/Storage, Meta, impressão física), sequência de backup, rollback e aceite. A aprovação automatizada não equivale à homologação operacional.
 - Branch/PR seguem isolados. Não realizar merge sem aprovação explícita após inspeção do HEAD final.
+
+### 2026-10-03 — início da resolução dos bloqueios
+- A-016 mitigado de modo **fail-closed**: `lib/remote-image.ts` só permite `downloadRemoteImage` quando `REMOTE_IMAGE_EGRESS_PROTECTED=true`; padrão desativado. Não marcar DNS rebinding como resolvido sem proteção e teste de egress em tempo de conexão. Ver [AUDIT-CLOSURE.md](AUDIT-CLOSURE.md).
+- A-041 (P1): `uploadHostedFacebookVideo` recebia `upload_url` remoto e enviava token OAuth a esse destino sem restringir origem/redirect. Agora exige HTTPS sem credenciais na URL, porta 443/padrão e host explícito `rupload.facebook.com` ou `graph-video.facebook.com`, com `redirect: "error"`. Validar host real retornado pela Meta em sandbox; não afrouxar para domínios arbitrários.
+- Próximas validações: Supabase isolado para concorrência/RLS, Meta sandbox para fluxos de upload/ack e rede com DNS controlado. Sem mudanças em produção.
