@@ -61,7 +61,12 @@ export async function uploadProducePdf(formData: FormData) {
   update = product.pdf_path ? update.eq("pdf_path",product.pdf_path) : update.is("pdf_path",null);
   const { data: saved, error: saveError } = await update.select("id").maybeSingle();
   if (saveError || !saved) {
-    await supabase.storage.from("produce-pdfs").remove([path]);
+    // The newly uploaded object is the only one eligible for compensation.
+    // Preserve the old PDF and log a cleanup failure so an orphan can be recovered later.
+    const { error: cleanupError } = await supabase.storage.from("produce-pdfs").remove([path]);
+    if (cleanupError) {
+      console.error("Could not clean up unregistered produce PDF", { id, path, error: cleanupError.message });
+    }
     throw new Error(saveError?.message || "O PDF foi alterado em outra sessão. Recarregue antes de enviar novamente.");
   }
   // Retain previous PDF objects for recovery; a separate cleanup can remove orphaned files after backup.
@@ -71,6 +76,7 @@ export async function removeProducePdf(formData: FormData) {
   const profile=await requireProfile();
   if(!canEdit(profile.role))throw new Error("Sem permissão.");
   const id=value(formData,"id");
+  if (!id) return;
   const supabase=await createClient();
   const {data:product,error}=await supabase.from("produce_template_products").select("pdf_path").eq("id",id).single();
   if(error)throw new Error(error.message);
