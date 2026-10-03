@@ -251,3 +251,7 @@
 - CI `37127339354`, HEAD `bff7e66843d444ce5277d020e15f0f14e56959ca`: sucesso.
 - A-033 (P2): compensação do upload PDF após falha/conflito no update condicional não inspecionava erro do Storage; agora registra `id`, caminho do novo objeto e erro de limpeza para recuperação de órfão. O PDF anterior continua retido; remoção sem `id` é rejeitada antes da consulta.
 - A-009 permanece dependente de teste real com duas sessões e de procedimento de limpeza pós-backup; não existe transação distribuída Postgres/Storage.
+
+### 2026-10-03 — bloco final 2/4: API de composição visual
+- A-034 (P2): `PUT /api/product-art-composition` aceitava URL de imagem com esquema arbitrário e geometria convertida com `Number(...)||fallback`, inclusive infinito em x/y e escala. Agora exige URL absoluta HTTP(S), limita tamanho de URL/identificadores/legendas, restringe a transformação aos primeiros 12 elementos e normaliza apenas números finitos; esquemas `data:`, `javascript:` e outros são descartados.
+- A autorização `requireProfile + canEdit` permanece. URLs HTTP(S) ainda são conteúdo externo e não devem ser confundidas com fetch servidor seguro; verificar política de imagem/renderização no teste de navegador.
