@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { canEdit, requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { isRasterBytes } from "@/lib/raster-file";
 
 function safePathPart(value: string) {
   return value
@@ -71,10 +72,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Não foi possível carregar o material salvo." }, { status: 404 });
     }
 
+    if (source.size === 0 || source.size > 9 * 1024 * 1024) {
+      return NextResponse.json({ error: "Material vazio ou maior que 9 MB." }, { status: 400 });
+    }
+    const bytes = new Uint8Array(await source.arrayBuffer());
+    if (!isRasterBytes(bytes, "image/png")) {
+      return NextResponse.json({ error: "O material salvo não possui uma assinatura PNG válida." }, { status: 400 });
+    }
     const sourceName = materialPath.split("/").pop() || "material.png";
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const publicPath = `${campaignId}/drafts/${timestamp}-${crypto.randomUUID()}-${safePathPart(sourceName)}`;
-    const bytes = await source.arrayBuffer();
     const { error: uploadError } = await supabase.storage
       .from("social-media")
       .upload(publicPath, bytes, { contentType: "image/png", upsert: false });
