@@ -266,3 +266,8 @@
 - CI `37128255241`, HEAD `ca9bf134e26c966c348a6dfae36e44b71b3d6826`: sucesso.
 - A-037 (P1): upload de logo usava `Date.now()` como nome e, após update sem verificação de linha, apagava imediatamente o logo anterior. Duas sessões podiam disputar nome/atualização e eliminar um arquivo ainda necessário. Agora o caminho inclui UUID, a atualização compara `logo_path` previamente lido e exige confirmação do registro; em conflito/falha tenta limpar somente o upload novo, registrando erro da compensação. O logo anterior é preservado para recuperação.
 - A política de retenção/limpeza de logos antigos requer backup e rotina separada. Validar concorrência e RLS em ambiente isolado.
+
+### 2026-10-03 — bloco final 2/4: fontes do Kit da Marca
+- CI `37128838393`, HEAD `bf4aba0151a359cb3f60bda36d6f07a09c222060`: sucesso.
+- A-038 (P1): desativação de fonte apagava imediatamente seu objeto Storage, embora modelos antigos possam referenciar a família; também ignorava erro ao consultar/atualizar os campos que usam a fonte. Agora consulta fonte/configuração com erro explícito, confirma a desativação condicional e verifica o update de fallback. Preserva o arquivo para compatibilidade/recuperação; falha parcial é registrada e comunicada. Compensação de upload de fonte também registra erro de remoção.
+- Limitação: desativação e atualização de `brand_settings` são duas operações, não transação única; concorrência na configuração de fontes requer homologação e, se necessário, RPC transacional.
