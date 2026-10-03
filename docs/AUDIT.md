@@ -241,3 +241,8 @@
 ### 2026-10-03 — delimitação de encerramento
 - Criado [AUDIT-CLOSURE.md](AUDIT-CLOSURE.md) com quatro blocos finais de revisão técnica e matriz de aceite em ambiente isolado (ERP, templates, hortifrutti, físico/digital, autorização, Meta, concorrência e rede). O prazo em blocos não equivale à duração da homologação externa.
 - O PR permanece sem merge até revisão do diff, CI final e aprovação explícita. Pendências arquiteturais não devem ser reclassificadas como resolvidas apenas por CI.
+
+### 2026-10-03 — bloco final 1/4: integridade ERP
+- CI `37127115888` para HEAD `e3f964bbdc0ede1ffd71314958c6422a840a58fc`: sucesso.
+- A-032 (P2): parser CSV aceitava fim de arquivo com campo entre aspas não encerrado, podendo interpretar um arquivo truncado como linha válida. Agora lança erro antes de iniciar qualquer upsert. Removido texto de sucesso para modalidade sem cabeçalho, que já é recusada por segurança.
+- Escopo deste bloco: revisão focal da importação ERP, sem alegar transação global de múltiplos lotes. Falhas durante gravação de lote ainda podem deixar lotes anteriores persistidos, sem exclusão destrutiva. Testar com arquivos reais em ambiente isolado.
