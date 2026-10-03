@@ -209,3 +209,10 @@
 ### 2026-10-03 — remoção individual de mídia
 - [CI 37126008094](https://github.com/Juliano-Belasqem/varejao-popular-app/actions/runs/37126008094), HEAD `cab4a0e3cadd42c80e90c17dc4ea8ab317337326`: `success`.
 - A-025 (P1): `removePublicationMediaAction` apagava o objeto Storage mesmo se a exclusão de `publication_media` falhasse. Agora requer confirmação via `delete().select("id").maybeSingle()` antes de remover Storage, e registra falhas de limpeza. Risco residual: checagem de status da publicação ocorre antes da exclusão da mídia (sem trava transacional); testar corrida com início de publicação e considerar RPC transacional para bloqueio por estado.
+
+### 2026-10-03 — validação de pré-condições e manual Meta
+- [CI 37126290195](https://github.com/Juliano-Belasqem/varejao-popular-app/actions/runs/37126290195), HEAD `bc2f5c4be9ff667eb6903436f76a60afd1edae7a`: `success`.
+- A-026 (P1): `schedulePublicationAction` podia tratar erro de consulta de `publication_media` como lista vazia; agora interrompe em erros da publicação ou da mídia. Escrita de `error_message` após validação negativa também é condicionada a estados editáveis, evitando atualizar `publishing`/`published` após mudança de status.
+- A-027 (P2): `addPublicationMediaAction` agora interrompe em erro/contagem nula da consulta do limite de 10 mídias; se a consulta da última posição falhar depois do upload, tenta limpar o objeto recém-enviado e não insere uma ordenação presumida. `removePublicationMediaAction` distingue erros de consulta de ausência de publicação/mídia.
+- Criado `docs/META-RECONCILIATION.md` com passos para confirmar o resultado na Meta, preservar evidência e impedir reenvio quando houver incerteza. Nenhum estado de produção é alterado pelo manual.
+- Pendências: teste integrado com RLS, concorrência na edição/publicação, limites simultâneos de mídia e limpeza de objetos órfãos; o controle de até 10 mídias ainda não é transacional.
