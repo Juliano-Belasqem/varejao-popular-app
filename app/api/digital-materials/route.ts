@@ -99,7 +99,7 @@ export async function POST(request: Request) {
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const filename = safeName(file.name.endsWith(".png") ? file.name : `${file.name}.png`);
-    const path = `${campaignId}/${timestamp}-${mode}-${format}-${filename}`;
+    const path = `${campaignId}/${timestamp}-${crypto.randomUUID()}-${mode}-${format}-${filename}`;
 
     const bytes = await file.arrayBuffer();
     const { error: uploadError } = await supabase.storage
