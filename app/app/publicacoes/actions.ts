@@ -238,16 +238,22 @@ export async function schedulePublicationAction(formData: FormData) {
     return;
   }
 
-  const { error } = await supabase
+  const { data: scheduled, error } = await supabase
     .from("publications")
     .update({ status: "scheduled", scheduled_at: scheduledAt, error_message: null, updated_by: profile.id, updated_at: new Date().toISOString() })
     .eq("id", id)
-    .in("status", ["draft", "scheduled", "error", "cancelled"]);
+    .eq("status", publication.status)
+    .eq("network", publication.network)
+    .eq("type", publication.type)
+    .select("id")
+    .maybeSingle();
 
-  if (!error) {
-    revalidatePath("/app/publicacoes");
-    revalidatePath(`/app/publicacoes/${id}`);
+  if (error || !scheduled) {
+    console.error("Publication scheduling not confirmed; state or format may have changed", { id, error: error?.message });
+    return;
   }
+  revalidatePath("/app/publicacoes");
+  revalidatePath(`/app/publicacoes/${id}`);
 }
 
 export async function cancelScheduledPublicationAction(formData: FormData) {
@@ -258,11 +264,17 @@ export async function cancelScheduledPublicationAction(formData: FormData) {
   if (!id) return;
 
   const supabase = await createClient();
-  await supabase
+  const { data: cancelled, error: cancelError } = await supabase
     .from("publications")
     .update({ status: "cancelled", scheduled_at: null, error_message: null, updated_by: profile.id, updated_at: new Date().toISOString() })
     .eq("id", id)
-    .eq("status", "scheduled");
+    .eq("status", "scheduled")
+    .select("id")
+    .maybeSingle();
+  if (cancelError || !cancelled) {
+    console.error("Publication cancellation not confirmed", { id, error: cancelError?.message });
+    return;
+  }
 
   revalidatePath("/app/publicacoes");
   revalidatePath(`/app/publicacoes/${id}`);
