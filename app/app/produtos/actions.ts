@@ -304,6 +304,12 @@ export async function importErpSpreadsheet(formData: FormData) {
       if (byCode.has(code)) throw new Error(
         `Código duplicado no arquivo: ${code}. Corrija a exportação antes de importar; nenhum lote foi gravado.`
       );
+      for (const [label, index] of [["preço", priceIndex], ["estoque", stockIndex]] as const) {
+        const raw = String(row[index] ?? "").trim();
+        if (raw && numberValue(row[index]) === null) throw new Error(
+          `Linha ${headerRowIndex + rowIndex + 2}: ${label} inválido (${raw.slice(0, 40)}). Importação cancelada antes de gravar lotes.`
+        );
+      }
       byCode.set(code, {
         code,
         description,
