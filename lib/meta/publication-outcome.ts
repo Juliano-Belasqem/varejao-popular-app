@@ -2,7 +2,3 @@
 export function publicationFailureDisposition(remoteAttempted: boolean): "reconcile" | "retryable-error" {
   return remoteAttempted ? "reconcile" : "retryable-error";
 }
-
-export function isAutomaticallyPublishable(status: string): boolean {
-  return status === "scheduled";
-}
