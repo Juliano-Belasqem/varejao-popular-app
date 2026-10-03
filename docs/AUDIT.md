@@ -179,3 +179,8 @@
 - [CI 37124452730](https://github.com/Juliano-Belasqem/varejao-popular-app/actions/runs/37124452730), HEAD `0c4f6cfa5273021dabebad99688ea8e6b41f1a58`: `success`, incluindo o teste unitário da política de falhas remotas.
 - A-013/A-017: se a Meta retorna `postId`, mas o `update(status=published)` falha, a rotina tenta guardar `postId` em `error_message` com filtro `status=publishing`, mantendo o registro fora da fila automática. Se também falhar esse aviso, registra em log. A mensagem de timeout de processamento de vídeo não recomenda mais republicação automática.
 - Pendência: testes de integração com mocks de chamadas Meta e persistência Supabase, conferência de logs operacionais e fluxo administrativo de conciliação. Novo HEAD aguarda CI.
+
+### 2026-10-03 — aviso operacional no detalhe da publicação
+- [CI 37124659169](https://github.com/Juliano-Belasqem/varejao-popular-app/actions/runs/37124659169), HEAD `8a0740d2c60d362d6c103ced275e38aea9e7f733`: `success`.
+- A-017: página `app/app/publicacoes/[id]/page.tsx` agora mostra aviso permanente para `status=publishing` com instrução de conferir a Meta, evitar duplicação e informar o ID local ao administrador. Não depende de `error_message` ter sido persistido. Ações de republicação/reagendamento já são indisponíveis nesse status.
+- Ainda não existe ferramenta administrativa de conciliação remota; operação exige conferência humana e procedimento definido. Novo HEAD aguarda CI.
