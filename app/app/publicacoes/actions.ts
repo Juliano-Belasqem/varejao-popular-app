@@ -124,7 +124,8 @@ export async function addPublicationMediaAction(formData: FormData) {
 
   const sourceName = materialPath.split("/").pop() || "material.png";
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const publicPath = `${publication.campaign_id}/drafts/${timestamp}-${safePathPart(sourceName)}`;
+  // A timestamp alone is not unique when two uploads begin within the same millisecond.
+  const publicPath = `${publication.campaign_id}/drafts/${timestamp}-${crypto.randomUUID()}-${safePathPart(sourceName)}`;
   const bytes = await source.arrayBuffer();
   const { error: uploadError } = await supabase.storage
     .from("social-media")
