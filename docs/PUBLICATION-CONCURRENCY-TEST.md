@@ -70,3 +70,8 @@ select count(*) from public.publication_media where publication_id='<PUBLICATION
 5. Verificar timeout e erro de conexão da Meta após o início da chamada remota: estado deve permanecer para conciliação, sem republicação automática.
 
 **Critério de aceite:** registrar comandos, saídas, IDs descartáveis, papéis, versão de migration, tempos/locks observados e conclusão por cenário. Não executar publicação real na Meta nem apontar Storage para buckets de produção.
+
+## Verificação dos ambientes conectados — 03/10/2026
+- Consulta somente leitura confirmou dois projetos acessíveis: `vtrgecsqvzbdvkkoorqb` (migrations do aplicativo de mídia, até `produce_pdf_templates` e variante física) e `atmgfzqzslidfmuguenf` (`varejao-estoques-homolog`, migrations de estoque/pedidos). Ambos sem branches de desenvolvimento listadas na consulta.
+- **Não aplicar esta migration ao projeto de mídia diretamente**, pois não foi designado como descartável. **Não reutilizar `varejao-estoques-homolog`**: seu esquema é de outro aplicativo.
+- Pré-requisito de execução remota: criar/aprovar um projeto descartável específico ou uma branch isolada do projeto de mídia, verificar eventual custo antes de criar, aplicar as migrations necessárias e então executar o roteiro de duas sessões. Nenhum teste remoto ou DDL foi executado nesta consulta.
