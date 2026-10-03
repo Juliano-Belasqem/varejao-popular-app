@@ -277,3 +277,6 @@
 - A-039 (P2): upload `digital-materials` confiava apenas no MIME declarado `image/png` e permitia arquivo vazio; agora verifica assinatura PNG, tamanho não nulo, formato feed/story e modalidade como segmento de nome limitado antes do Storage.
 - A-040 (P2): criação de rascunho copiava qualquer objeto obtido no bucket `digital-materials` declarando `image/png`; agora verifica tamanho (1 byte a 9 MB) e assinatura PNG antes de criar novo objeto/publicação.
 - Assinatura de arquivo é validação superficial, não decodificação integral; validar arquivos reais, RLS e fluxo feed/story em ambiente isolado.
+
+### 2026-10-03 — correção de regressão do bloco 3
+- CI `37129249657` para HEAD `7fe6d5cdee98437d00d3698471a9509a7dd8f254`: falhou. Inspeção encontrou que a validação recém-adicionada ao `digital-materials` havia sido inserida por engano também em `GET`, referenciando variáveis exclusivas de `POST` (`file`, `format`, `mode`). A validação foi movida exclusivamente para `POST` antes do upload. Não considerar o bloco 3 aprovado até novo CI verde.
