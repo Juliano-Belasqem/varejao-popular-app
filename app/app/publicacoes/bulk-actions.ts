@@ -49,10 +49,14 @@ export async function bulkPublicationAction(formData: FormData) {
       .in("status", ["draft", "cancelled", "error"]);
     const eligibleIds = (eligible ?? []).map((item) => item.id);
     if (eligibleIds.length) {
-      const { data: media } = await supabase
+      const { data: media, error: mediaError } = await supabase
         .from("publication_media")
         .select("publication_id,storage_path")
         .in("publication_id", eligibleIds);
+      if (mediaError) {
+        console.error("Cannot safely delete publications without media inventory", mediaError);
+        return;
+      }
       // Guard the final delete too: a status can change after the eligibility read.
       // Only remove Storage objects for publications confirmed deleted.
       const { data: deleted, error: deleteError } = await supabase.from("publications")
