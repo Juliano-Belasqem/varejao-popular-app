@@ -290,3 +290,8 @@
 - A-016 mitigado de modo **fail-closed**: `lib/remote-image.ts` só permite `downloadRemoteImage` quando `REMOTE_IMAGE_EGRESS_PROTECTED=true`; padrão desativado. Não marcar DNS rebinding como resolvido sem proteção e teste de egress em tempo de conexão. Ver [AUDIT-CLOSURE.md](AUDIT-CLOSURE.md).
 - A-041 (P1): `uploadHostedFacebookVideo` recebia `upload_url` remoto e enviava token OAuth a esse destino sem restringir origem/redirect. Agora exige HTTPS sem credenciais na URL, porta 443/padrão e host explícito `rupload.facebook.com` ou `graph-video.facebook.com`, com `redirect: "error"`. Validar host real retornado pela Meta em sandbox; não afrouxar para domínios arbitrários.
 - Próximas validações: Supabase isolado para concorrência/RLS, Meta sandbox para fluxos de upload/ack e rede com DNS controlado. Sem mudanças em produção.
+
+### 2026-10-03 — regressão de destino OAuth da Meta
+- CI `37130394685` passou no commit `a3b0de41988afa5f4c6d081065beb5ede6af1495` (mitigação A-016 e bloqueio de origem A-041).
+- Extraída função pura `assertMetaVideoUploadUrl` para `lib/meta/upload-url.ts`; `publisher.ts` a utiliza antes de encaminhar token OAuth. Novo `tests/meta-upload-url.test.ts` verifica origens permitidas e rejeição de HTTP, domínio sufixado malicioso, credenciais embutidas, porta alternativa, loopback e URL inválida.
+- O bloqueio de rede A-016 permanece **mitigado, não homologado**. O fluxo de vídeo Meta requer teste com URL de upload real retornada pela API em sandbox.
