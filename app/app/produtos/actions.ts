@@ -110,6 +110,7 @@ function parseDelimitedText(input: string, delimiter: string) {
     field += char;
   }
 
+  if (quoted) throw new Error("CSV inválido: campo entre aspas não foi encerrado. Importação cancelada antes de gravar lotes.");
   row.push(field.trim());
   if (row.some((cell) => cell !== "")) rows.push(row);
   return rows;
@@ -348,8 +349,7 @@ export async function importErpSpreadsheet(formData: FormData) {
     // products missing from the current file. last_seen_at records each import.
     revalidatePath("/app/produtos");
     revalidatePath("/app");
-    const mode = headerless ? "CSV sem cabeçalho" : "arquivo";
-    destination = `/app/produtos?import_ok=${encodeURIComponent(`${parsed.length} produtos importados/atualizados com sucesso (${mode}). Produtos ausentes do arquivo foram preservados.`)}`;
+    destination = `/app/produtos?import_ok=${encodeURIComponent(`${parsed.length} produtos importados/atualizados com sucesso. Produtos ausentes do arquivo foram preservados.`)}`;
   } catch (error) {
     destination = `/app/produtos?import_error=${encodeURIComponent(importMessage(error))}`;
   }
