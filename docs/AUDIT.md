@@ -165,3 +165,7 @@
 - CI do HEAD anterior `cda9580da194597b7e8c53dd803a06b52c1f7eea`: [run 37124221073](https://github.com/Juliano-Belasqem/varejao-popular-app/actions/runs/37124221073) estava em execução na última consulta; não atribuir resultado sem nova confirmação.
 - A-013/A-017: a partir do início da chamada remota, uma exceção pode representar resposta perdida após publicação bem-sucedida. O tratamento agora conserva status `publishing` (não elegível a retry automático), registra alerta de conciliação manual em `error_message` quando possível e gera log com ID local. Exceções de pré-validação continuam marcando `error` apenas se a linha ainda estiver em `publishing`.
 - Trade-off deliberado: falhas definitivamente remotas também podem ficar em `publishing` até conferência; isto evita duplicação à custa de intervenção manual. Testar com respostas simuladas de sucesso, erro HTTP, timeout e falha no reconhecimento local; sem Meta real nesta etapa. CI do novo HEAD pendente.
+
+### 2026-10-03 — persistência do aviso de conciliação Meta
+- O tratamento de resultado remoto ambíguo também verifica o campo `error` retornado pelo Supabase ao tentar registrar `error_message`, além de exceções lançadas; falhas são registradas em log. O status permanece `publishing`, sem nova tentativa automática.
+- A alteração não equivale a teste com a Meta real. Antes do merge, simular falha de transporte após envio, erro de reconhecimento local e impossibilidade de persistir o aviso; confirmar que nenhuma dessas condições volta a deixar a publicação elegível ao agendador.
