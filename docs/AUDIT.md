@@ -174,3 +174,8 @@
 - Extraída a decisão de tratamento `publicationFailureDisposition` para `lib/meta/publication-outcome.ts`, utilizada por `lib/meta/publisher.ts` e exercitada em `tests/publication-outcome.test.ts`: falha antes da tentativa remota pode ser retryable; após iniciar a chamada Meta exige conciliação, sem status `error` republicável.
 - Cobertura atual é unitária da política, **não** simulação completa de Meta/Supabase. Ainda testar fluxo integrado de erro HTTP, timeout, publicação remota confirmada e falha de atualização local.
 - CI do HEAD com os novos testes deve ser verificado antes de aprovar o PR.
+
+### 2026-10-03 — ID remoto para conciliação Meta
+- [CI 37124452730](https://github.com/Juliano-Belasqem/varejao-popular-app/actions/runs/37124452730), HEAD `0c4f6cfa5273021dabebad99688ea8e6b41f1a58`: `success`, incluindo o teste unitário da política de falhas remotas.
+- A-013/A-017: se a Meta retorna `postId`, mas o `update(status=published)` falha, a rotina tenta guardar `postId` em `error_message` com filtro `status=publishing`, mantendo o registro fora da fila automática. Se também falhar esse aviso, registra em log. A mensagem de timeout de processamento de vídeo não recomenda mais republicação automática.
+- Pendência: testes de integração com mocks de chamadas Meta e persistência Supabase, conferência de logs operacionais e fluxo administrativo de conciliação. Novo HEAD aguarda CI.
