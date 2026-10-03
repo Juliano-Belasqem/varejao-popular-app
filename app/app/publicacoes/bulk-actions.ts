@@ -53,11 +53,22 @@ export async function bulkPublicationAction(formData: FormData) {
         .from("publication_media")
         .select("publication_id,storage_path")
         .in("publication_id", eligibleIds);
-      await supabase.from("publication_media").delete().in("publication_id", eligibleIds);
-      await supabase.from("publications").delete().in("id", eligibleIds);
-      const paths = (media ?? []).map((item) => item.storage_path).filter(Boolean) as string[];
-      if (paths.length) await supabase.storage.from("social-media").remove(paths);
-      await audit(profile.id, "publication_bulk_deleted", eligibleIds);
+      // Guard the final delete too: a status can change after the eligibility read.
+      // Only remove Storage objects for publications confirmed deleted.
+      const { data: deleted, error: deleteError } = await supabase.from("publications")
+        .delete().in("id", eligibleIds).in("status", ["draft", "cancelled", "error"]).select("id");
+      if (deleteError) {
+        console.error("bulk publication deletion failed; Storage retained", deleteError);
+      } else {
+        const deletedIds = new Set((deleted ?? []).map((item) => item.id));
+        const paths = (media ?? []).filter((item) => deletedIds.has(item.publication_id))
+          .map((item) => item.storage_path).filter(Boolean) as string[];
+        if (paths.length) {
+          const { error: storageError } = await supabase.storage.from("social-media").remove(paths);
+          if (storageError) console.error("bulk publication media Storage cleanup failed", storageError);
+        }
+        await audit(profile.id, "publication_bulk_deleted", [...deletedIds]);
+      }
     }
   }
 
