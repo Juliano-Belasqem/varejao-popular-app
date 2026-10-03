@@ -12,13 +12,14 @@ function selectedIds(formData: FormData) {
 async function audit(actorId: string, action: string, ids: string[], details?: Record<string, unknown>) {
   const supabase = await createClient();
   if (!ids.length) return;
-  await supabase.from("audit_logs").insert(ids.map((id) => ({
+  const { error } = await supabase.from("audit_logs").insert(ids.map((id) => ({
     actor_id: actorId,
     action,
     entity_type: "publication",
     entity_id: id,
     details: details ?? {},
   })));
+  if (error) console.error("Publication bulk audit log write failed", { action, count: ids.length, error: error.message });
 }
 
 export async function bulkPublicationAction(formData: FormData) {
@@ -32,41 +33,80 @@ export async function bulkPublicationAction(formData: FormData) {
   const supabase = await createClient();
 
   if (action === "cancel") {
-    const { data } = await supabase
+    const { data, error: cancelError } = await supabase
       .from("publications")
       .update({ status: "cancelled", scheduled_at: null, error_message: null, updated_by: profile.id, updated_at: new Date().toISOString() })
       .in("id", ids)
       .eq("status", "scheduled")
       .select("id");
+    if (cancelError) {
+      console.error("Bulk scheduled publication cancellation failed", cancelError);
+      return;
+    }
     await audit(profile.id, "publication_bulk_cancelled", (data ?? []).map((item) => item.id));
   }
 
   if (action === "delete_drafts") {
-    const { data: eligible } = await supabase
+    const { data: eligible, error: eligibleError } = await supabase
       .from("publications")
       .select("id")
       .in("id", ids)
       .in("status", ["draft", "cancelled", "error"]);
+    if (eligibleError) {
+      console.error("Cannot determine bulk deletion eligibility", eligibleError);
+      return;
+    }
     const eligibleIds = (eligible ?? []).map((item) => item.id);
     if (eligibleIds.length) {
-      const { data: media } = await supabase
+      const { data: media, error: mediaError } = await supabase
         .from("publication_media")
         .select("publication_id,storage_path")
         .in("publication_id", eligibleIds);
-      await supabase.from("publication_media").delete().in("publication_id", eligibleIds);
-      await supabase.from("publications").delete().in("id", eligibleIds);
-      const paths = (media ?? []).map((item) => item.storage_path).filter(Boolean) as string[];
-      if (paths.length) await supabase.storage.from("social-media").remove(paths);
-      await audit(profile.id, "publication_bulk_deleted", eligibleIds);
+      if (mediaError) {
+        console.error("Cannot safely delete publications without media inventory", mediaError);
+        return;
+      }
+      // Guard the final delete too: a status can change after the eligibility read.
+      // Only remove Storage objects for publications confirmed deleted.
+      const { data: deleted, error: deleteError } = await supabase.from("publications")
+        .delete().in("id", eligibleIds).in("status", ["draft", "cancelled", "error"]).select("id");
+      if (deleteError) {
+        console.error("bulk publication deletion failed; Storage retained", deleteError);
+      } else {
+        const deletedIds = new Set((deleted ?? []).map((item) => item.id));
+        const paths = (media ?? []).filter((item) => deletedIds.has(item.publication_id))
+          .map((item) => item.storage_path).filter(Boolean) as string[];
+        if (paths.length) {
+          // A Storage object may still be referenced by another publication.
+          const { data: referenced, error: referenceError } = await supabase.from("publication_media")
+            .select("storage_path").in("storage_path", [...new Set(paths)]);
+          if (referenceError) {
+            console.error("Cannot verify remaining media references; Storage retained", referenceError);
+            await audit(profile.id, "publication_bulk_deleted", [...deletedIds]);
+            return;
+          }
+          const referencedPaths = new Set((referenced ?? []).map((item) => item.storage_path));
+          const removablePaths = [...new Set(paths)].filter((path) => !referencedPaths.has(path));
+          const { error: storageError } = removablePaths.length
+            ? await supabase.storage.from("social-media").remove(removablePaths)
+            : { error: null };
+          if (storageError) console.error("bulk publication media Storage cleanup failed", storageError);
+        }
+        await audit(profile.id, "publication_bulk_deleted", [...deletedIds]);
+      }
     }
   }
 
   if (action === "retry_errors") {
-    const { data: eligible } = await supabase
+    const { data: eligible, error: eligibleError } = await supabase
       .from("publications")
       .select("id")
       .in("id", ids)
       .eq("status", "error");
+    if (eligibleError) {
+      console.error("Cannot determine bulk retry eligibility", eligibleError);
+      return;
+    }
     const eligibleIds = (eligible ?? []).map((item) => item.id);
     for (const id of eligibleIds) {
       try {

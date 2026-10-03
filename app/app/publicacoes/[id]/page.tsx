@@ -254,6 +254,13 @@ export default async function PublicationDetailPage({ params }: { params: Promis
             )}
           </div>
 
+          {publication.status === "publishing" && (
+            <div className="error" role="alert" style={{ marginTop: 14 }}>
+              <strong>Publicação em processamento ou aguardando conciliação.</strong>
+              <p>Não crie outra publicação com o mesmo conteúdo nem tente republicar antes de conferir o resultado diretamente na Meta. Se o processamento não terminar, encaminhe o ID deste registro ao administrador para conciliação manual.</p>
+              <p>ID local: <code>{publication.id}</code></p>
+            </div>
+          )}
           {publication.error_message && <div className="error" style={{ marginTop: 14 }}>{publication.error_message}</div>}
 
           {canDelete && (

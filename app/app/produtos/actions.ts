@@ -110,6 +110,7 @@ function parseDelimitedText(input: string, delimiter: string) {
     field += char;
   }
 
+  if (quoted) throw new Error("CSV inválido: campo entre aspas não foi encerrado. Importação cancelada antes de gravar lotes.");
   row.push(field.trim());
   if (row.some((cell) => cell !== "")) rows.push(row);
   return rows;
@@ -167,7 +168,8 @@ export async function createProduct(formData: FormData) {
   if (!canEdit(profile.role)) throw new Error("Sem permissão para editar produtos.");
   const ean = String(formData.get("ean") ?? "").trim();
   const name = String(formData.get("name") ?? "").trim();
-  if (!ean || !name) throw new Error("EAN e nome são obrigatórios.");
+  if (!ean || !name) throw new Error("Código e nome são obrigatórios.");
+  if (!/^\d{4,14}$/.test(ean)) throw new Error("Informe um código numérico de 4 a 14 dígitos.");
   const supabase = await createClient();
   const { error } = await supabase.from("products").insert({
     ean,
@@ -180,7 +182,7 @@ export async function createProduct(formData: FormData) {
     stock: numberValue(formData.get("stock")),
     erp_description: text(formData.get("erp_description")),
     code_type: text(formData.get("code_type")),
-    gtin_valid: true,
+    gtin_valid: isValidGtin(ean),
     active: true,
   });
   if (error) throw new Error(error.message);
@@ -259,15 +261,7 @@ export async function importErpSpreadsheet(formData: FormData) {
     let dataRows: unknown[][];
 
     if (headerless) {
-      codeIndex = 0;
-      descriptionIndex = 1;
-      priceIndex = 2;
-      stockIndex = 3;
-      unitIndex = 4;
-      typeIndex = -1;
-      gtinIndex = -1;
-      imageIndex = -1;
-      dataRows = rows;
+      throw new Error("CSV sem cabeçalho não pode ser importado com segurança: faltam colunas de atributos e o upsert poderia apagar dados anteriores. Utilize a exportação completa do ERP com cabeçalhos.");
     } else {
       if (headerRowIndex < 0) {
         const preview = rows.slice(0, 5).flatMap((row) => row.map((value) => String(value ?? "").trim()).filter(Boolean)).slice(0, 12).join(" | ");
@@ -283,6 +277,16 @@ export async function importErpSpreadsheet(formData: FormData) {
       gtinIndex = findHeaderIndex(header, ["gtin válido", "gtin valido", "gtin válido?", "gtin valido?"]);
       imageIndex = findHeaderIndex(header, ["pesquisar imagem", "pesquisar imagem?", "buscar imagem", "buscar imagem?"]);
       dataRows = rows.slice(headerRowIndex + 1);
+      // Upsert replaces the entire supplied record. Reject incomplete schemas
+      // rather than silently erasing attributes omitted from an ERP export.
+      const missing = [
+        ["preço", priceIndex], ["estoque", stockIndex], ["unidade", unitIndex],
+        ["tipo de código", typeIndex], ["GTIN válido", gtinIndex],
+        ["pesquisar imagem", imageIndex],
+      ].filter(([, index]) => (index as number) < 0).map(([label]) => label);
+      if (missing.length) throw new Error(
+        `Arquivo com colunas incompletas: ${missing.join(", ")}. A importação foi cancelada antes de gravar qualquer lote para evitar apagar atributos já cadastrados. Exporte a planilha completa do ERP.`
+      );
     }
 
     const syncStarted = new Date().toISOString();
@@ -291,10 +295,29 @@ export async function importErpSpreadsheet(formData: FormData) {
       code_type: string | null; gtin_valid: boolean | null; search_image: boolean; imported_at: string; updated_at: string; last_seen_at: string;
     }>();
 
-    for (const row of dataRows) {
+    for (const [rowIndex, row] of dataRows.entries()) {
       const code = String(row[codeIndex] ?? "").trim();
       const description = String(row[descriptionIndex] ?? "").trim();
-      if (!code || !description) continue;
+      if (!code && !description && row.every((cell) => String(cell ?? "").trim() === "")) continue;
+      if (!code || !description) throw new Error(
+        `Linha ${headerRowIndex + rowIndex + 2}: código e descrição são obrigatórios. Importação cancelada sem gravar lotes.`
+      );
+      if (byCode.has(code)) throw new Error(
+        `Código duplicado no arquivo: ${code}. Corrija a exportação antes de importar; nenhum lote foi gravado.`
+      );
+      for (const [label, index] of [["preço", priceIndex], ["estoque", stockIndex]] as const) {
+        const raw = String(row[index] ?? "").trim();
+        if (raw && numberValue(row[index]) === null) throw new Error(
+          `Linha ${headerRowIndex + rowIndex + 2}: ${label} inválido (${raw.slice(0, 40)}). Importação cancelada antes de gravar lotes.`
+        );
+      }
+      for (const [label, index] of [["GTIN válido", gtinIndex], ["pesquisar imagem", imageIndex]] as const) {
+        const raw = String(row[index] ?? "").trim();
+        if (raw && !["sim", "s", "true", "1", "yes", "não", "nao", "n", "false", "0", "no"].includes(raw.toLowerCase()))
+          throw new Error(
+            `Linha ${headerRowIndex + rowIndex + 2}: ${label} deve ser Sim ou Não (recebido: ${raw.slice(0, 40)}). Importação cancelada antes de gravar lotes.`
+          );
+      }
       byCode.set(code, {
         code,
         description,
@@ -314,16 +337,19 @@ export async function importErpSpreadsheet(formData: FormData) {
     if (!parsed.length) throw new Error("Nenhuma linha válida foi encontrada para importar.");
     const supabase = await createClient();
     const chunkSize = 250;
+    let importedCount = 0;
     for (let i = 0; i < parsed.length; i += chunkSize) {
       const { error } = await supabase.from("erp_products").upsert(parsed.slice(i, i + chunkSize), { onConflict: "code" });
-      if (error) throw new Error(`Falha na importação do ERP: ${error.message}`);
+      if (error) throw new Error(
+        `Importação interrompida após ${importedCount} de ${parsed.length} produtos. Os lotes anteriores foram salvos; nenhum produto ausente do arquivo foi excluído. Revise o arquivo e importe novamente. Detalhe: ${error.message}`
+      );
+      importedCount += Math.min(chunkSize, parsed.length - i);
     }
-    const { error: cleanupError } = await supabase.from("erp_products").delete().lt("last_seen_at", syncStarted);
-    if (cleanupError) throw new Error(`Importação concluída, mas a limpeza falhou: ${cleanupError.message}`);
+    // Deliberately non-destructive: an incomplete ERP export must never purge
+    // products missing from the current file. last_seen_at records each import.
     revalidatePath("/app/produtos");
     revalidatePath("/app");
-    const mode = headerless ? "CSV sem cabeçalho" : "arquivo";
-    destination = `/app/produtos?import_ok=${encodeURIComponent(`${parsed.length} produtos sincronizados com sucesso (${mode}).`)}`;
+    destination = `/app/produtos?import_ok=${encodeURIComponent(`${parsed.length} produtos importados/atualizados com sucesso. Produtos ausentes do arquivo foram preservados.`)}`;
   } catch (error) {
     destination = `/app/produtos?import_error=${encodeURIComponent(importMessage(error))}`;
   }
