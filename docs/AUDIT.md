@@ -194,3 +194,6 @@
 - [CI 37124929066](https://github.com/Juliano-Belasqem/varejao-popular-app/actions/runs/37124929066), HEAD `5de41b55d7cae85f9b4ea0da722bc3080da64215`: `success`.
 - A-023 (P1): exclusão individual e em lote verificavam status em leitura prévia, mas excluíam pais/mídias sem filtro de status na operação final e limpavam Storage mesmo sem confirmação de sucesso. Corrigido com `delete().in("status", ["draft","cancelled","error"]).select("id")`; apenas IDs efetivamente excluídos têm Storage limpo. A FK de `publication_media.publication_id` em `0001_initial.sql` tem `ON DELETE CASCADE`, portanto não se remove mais a mídia relacional antecipadamente.
 - Se a exclusão do banco falhar, objetos Storage são retidos. Se a limpeza Storage falhar após exclusão, há log e pode restar órfão para manutenção; exclusão banco+Storage não é transação distribuída. Testar RLS e exclusão em concorrência em ambiente isolado. CI do novo HEAD pendente.
+
+### 2026-10-03 — inventário de mídia obrigatório antes de excluir
+- A-023: exclusões individual e em lote agora abortam se a consulta de `publication_media` retornar erro, em vez de excluir o registro pai sem conhecer os caminhos de arquivos a limpar. Falhas registradas no servidor. Continua necessário teste isolado com Supabase/RLS, incluindo falha de Storage posterior à exclusão do banco.
