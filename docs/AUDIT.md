@@ -255,3 +255,9 @@
 ### 2026-10-03 — bloco final 2/4: API de composição visual
 - A-034 (P2): `PUT /api/product-art-composition` aceitava URL de imagem com esquema arbitrário e geometria convertida com `Number(...)||fallback`, inclusive infinito em x/y e escala. Agora exige URL absoluta HTTP(S), limita tamanho de URL/identificadores/legendas, restringe a transformação aos primeiros 12 elementos e normaliza apenas números finitos; esquemas `data:`, `javascript:` e outros são descartados.
 - A autorização `requireProfile + canEdit` permanece. URLs HTTP(S) ainda são conteúdo externo e não devem ser confundidas com fetch servidor seguro; verificar política de imagem/renderização no teste de navegador.
+
+### 2026-10-03 — bloco final 2/4: rotas de mídia digital
+- CI `37127948590`, HEAD `a4ea9a3668f7726a9fbb761cea553625998a37de`: sucesso.
+- A-035 (P2): `publication-drafts` e `digital-materials` usavam timestamp em milissegundos e nome como caminho; uploads simultâneos podiam colidir. Ambos agora incluem UUID por upload, mantendo `upsert:false`.
+- A-036 (P1): em falha de inserção de `publication_media`, `publication-drafts` excluía o objeto Storage independentemente do resultado da exclusão do pai. Agora só compensa Storage após confirmação da exclusão condicional do rascunho; falhas de exclusão/limpeza são registradas com IDs/caminhos. Falha na criação do pai também registra erro da limpeza do objeto recém-enviado.
+- Pendente: testes reais de RLS, concorrência e recuperação de objetos órfãos; Postgres e Storage não compartilham transação.
