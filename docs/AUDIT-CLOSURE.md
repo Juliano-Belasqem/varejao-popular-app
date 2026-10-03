@@ -47,3 +47,8 @@ A revisão estática inicial das oito etapas está registrada em [AUDIT.md](AUDI
 4. Após aprovação, observar a implantação e validar os fluxos críticos com dados não destrutivos. Não presumir que a prévia da Vercel esteja ativa: o comentário automático do PR registra deployment ignorado.
 
 **Estado:** revisão técnica automatizada avançada; homologação operacional e aceite de implantação pendentes. Sem autorização para merge neste documento.
+
+## Mitigação A-016 — bloqueio preventivo de download remoto (03/10/2026)
+- `downloadRemoteImage()` agora falha antes de qualquer DNS/conexão se `REMOTE_IMAGE_EGRESS_PROTECTED !== "true"`. A importação de imagem por URL fica **desabilitada por padrão**, sem desativar uploads de arquivos locais. Isto é uma mitigação fail-closed, não prova de eliminação de DNS rebinding.
+- **Não configurar a variável como true apenas para restaurar a função.** Primeiro implementar saída de rede que bloqueie em tempo de conexão IPv4/IPv6 privados, loopback, link-local, metadata e redirecionamentos para destinos proibidos; registrar quem controla DNS e o destino efetivo da conexão. Testar rebinding com DNS controlado e redirects antes de habilitar.
+- A equipe deve comunicar na interface/operacional que a importação por URL depende da proteção de infraestrutura; utilizar upload de arquivo local enquanto estiver bloqueada.
