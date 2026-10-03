@@ -22,13 +22,6 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Campanha inválida." }, { status: 400 });
     }
 
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    if (!isRasterBytes(bytes, "image/png")) {
-      return NextResponse.json({ error: "O arquivo não possui uma assinatura PNG válida." }, { status: 400 });
-    }
-    if (!["feed", "story"].includes(format) || !/^[a-z0-9_-]{1,32}$/i.test(mode)) {
-      return NextResponse.json({ error: "Formato ou modalidade inválidos." }, { status: 400 });
-    }
     const supabase = await createClient();
     const { data: campaign, error: campaignError } = await supabase
       .from("campaigns")
@@ -92,6 +85,14 @@ export async function POST(request: Request) {
     }
     if (file.size > 9 * 1024 * 1024) {
       return NextResponse.json({ error: "O PNG excede o limite de 9 MB." }, { status: 413 });
+    }
+
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    if (!isRasterBytes(bytes, "image/png")) {
+      return NextResponse.json({ error: "O arquivo não possui uma assinatura PNG válida." }, { status: 400 });
+    }
+    if (!["feed", "story"].includes(format) || !/^[a-z0-9_-]{1,32}$/i.test(mode)) {
+      return NextResponse.json({ error: "Formato ou modalidade inválidos." }, { status: 400 });
     }
 
     const supabase = await createClient();
