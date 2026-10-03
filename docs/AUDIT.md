@@ -228,3 +228,7 @@
 ### 2026-10-03 — unicidade do caminho de mídia
 - A-029 (P2): nome do objeto em `social-media` para mídia copiada de campanha dependia apenas de timestamp em milissegundos + nome de origem. Uploads simultâneos podiam disputar o mesmo caminho (com `upsert:false`). Acrescentado `crypto.randomUUID()` por upload; não altera arquivos já existentes.
 - Verificar CI e manter teste integrado de concorrência e referências compartilhadas de Storage como pendência. 
+
+### 2026-10-03 — confirmação de mutações editoriais
+- A-030 (P2): `savePublicationAction` e `returnToDraftAction` ignoravam o resultado do update. Ambas exigem agora `select("id").maybeSingle()`, registram falha ou zero linhas e só revalidam a página após confirmação. A restrição de status continua aplicada no update, inclusive contra mudança para `publishing`/`published` entre renderização e envio do formulário.
+- Pendência: feedback de erro visível ao usuário ainda é limitado a log servidor; o CI valida tipagem/build/testes, não homologação de RLS real.
