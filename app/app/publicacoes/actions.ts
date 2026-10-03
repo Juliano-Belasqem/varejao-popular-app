@@ -164,8 +164,17 @@ export async function removePublicationMediaAction(formData: FormData) {
     .maybeSingle();
   if (!media) return;
 
-  await supabase.from("publication_media").delete().eq("id", mediaId).eq("publication_id", id);
-  if (media.storage_path) await supabase.storage.from("social-media").remove([media.storage_path]);
+  // Do not remove the Storage object unless the relational delete succeeded.
+  const { data: deleted, error: deleteError } = await supabase.from("publication_media")
+    .delete().eq("id", mediaId).eq("publication_id", id).select("id").maybeSingle();
+  if (deleteError || !deleted) {
+    console.error("Publication media deletion not confirmed; Storage retained", { id, mediaId, error: deleteError?.message });
+    return;
+  }
+  if (media.storage_path) {
+    const { error: storageError } = await supabase.storage.from("social-media").remove([media.storage_path]);
+    if (storageError) console.error("Publication media Storage cleanup failed", { id, mediaId, error: storageError.message });
+  }
   revalidatePath(`/app/publicacoes/${id}`);
   revalidatePath(`/app/publicacoes/${id}/midia`);
 }
