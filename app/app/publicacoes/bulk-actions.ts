@@ -12,13 +12,14 @@ function selectedIds(formData: FormData) {
 async function audit(actorId: string, action: string, ids: string[], details?: Record<string, unknown>) {
   const supabase = await createClient();
   if (!ids.length) return;
-  await supabase.from("audit_logs").insert(ids.map((id) => ({
+  const { error } = await supabase.from("audit_logs").insert(ids.map((id) => ({
     actor_id: actorId,
     action,
     entity_type: "publication",
     entity_id: id,
     details: details ?? {},
   })));
+  if (error) console.error("Publication bulk audit log write failed", { action, count: ids.length, error: error.message });
 }
 
 export async function bulkPublicationAction(formData: FormData) {
@@ -32,12 +33,16 @@ export async function bulkPublicationAction(formData: FormData) {
   const supabase = await createClient();
 
   if (action === "cancel") {
-    const { data } = await supabase
+    const { data, error: cancelError } = await supabase
       .from("publications")
       .update({ status: "cancelled", scheduled_at: null, error_message: null, updated_by: profile.id, updated_at: new Date().toISOString() })
       .in("id", ids)
       .eq("status", "scheduled")
       .select("id");
+    if (cancelError) {
+      console.error("Bulk scheduled publication cancellation failed", cancelError);
+      return;
+    }
     await audit(profile.id, "publication_bulk_cancelled", (data ?? []).map((item) => item.id));
   }
 
