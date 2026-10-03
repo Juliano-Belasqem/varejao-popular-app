@@ -220,3 +220,7 @@
 ### 2026-10-03 — observabilidade de upload de mídia
 - A-027: leitura inicial da publicação em `addPublicationMediaAction` agora distingue erro de registro ausente. Falha de inserção de mídia após upload registra o motivo, tenta remover apenas o objeto recém-criado e interrompe sem indicar sucesso. Falhas da limpeza após erro de ordenação/inserção são registradas com `publicPath` para investigação de objeto órfão.
 - CI `37126541182` estava em andamento na última consulta; confirmar execução do HEAD desta rodada. Ainda não há transação distribuída entre Postgres e Storage.
+
+### 2026-10-03 — confirmação de agendamento e cancelamento
+- A-028 (P1): `schedulePublicationAction` verificava pré-condições em leitura anterior, mas o update final aceitava qualquer status editável. Agora o update compara status, rede e tipo que foram efetivamente validados, e exige retorno do ID atualizado; falha ou zero linhas não é tratado como sucesso. `cancelScheduledPublicationAction` também exige confirmação da transição `scheduled → cancelled` e registra falhas.
+- Limitação: mídia e legenda ainda podem mudar concorrentemente sem lock/versionamento; agendamento + mídia requerem teste transacional/RPC antes de afirmar proteção completa. Não houve alteração de banco/produção nesta rodada.
