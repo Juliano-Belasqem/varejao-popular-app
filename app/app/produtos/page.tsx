@@ -73,7 +73,7 @@ export default async function Page({
         <div className="grid" style={{ marginBottom: 16 }}>
           <section className="card">
             <h2 style={{ marginTop: 0 }}>Sincronizar ERP</h2>
-            <p className="muted">Importe o arquivo do ERP em XLSX, XLS ou CSV. Códigos existentes são atualizados e novos códigos são adicionados. Produtos ausentes do arquivo são preservados para evitar perdas em exportações parciais.</p>
+            <p className="muted">Importe a exportação completa do ERP em XLSX, XLS ou CSV com cabeçalhos: código, descrição, preço, estoque, unidade, tipo de código, GTIN válido e pesquisar imagem. CSV sem cabeçalho e arquivos sem essas colunas são recusados para proteger dados existentes. Códigos presentes são atualizados/adicionados; produtos ausentes do arquivo são preservados.</p>
             <form action={importErpSpreadsheet} className="form">
               <label className="field">
                 <span>Arquivo XLSX/XLS/CSV</span>
