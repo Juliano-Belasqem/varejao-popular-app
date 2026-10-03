@@ -288,10 +288,19 @@ export async function deleteDraftAction(formData: FormData) {
   if (!publication || !["draft", "cancelled", "error"].includes(publication.status)) return;
 
   const { data: media } = await supabase.from("publication_media").select("storage_path").eq("publication_id", id);
-  await supabase.from("publication_media").delete().eq("publication_id", id);
-  await supabase.from("publications").delete().eq("id", id);
+  // publication_media has an ON DELETE CASCADE foreign key; delete the parent
+  // conditionally and only clean Storage after the database confirms deletion.
+  const { data: deleted, error: deleteError } = await supabase.from("publications")
+    .delete().eq("id", id).in("status", ["draft", "cancelled", "error"]).select("id").maybeSingle();
+  if (deleteError || !deleted) {
+    console.error("Publication deletion not confirmed; media Storage retained", { id, error: deleteError?.message });
+    return;
+  }
   const paths = (media ?? []).map((item) => item.storage_path).filter(Boolean);
-  if (paths.length) await supabase.storage.from("social-media").remove(paths);
+  if (paths.length) {
+    const { error: storageError } = await supabase.storage.from("social-media").remove(paths);
+    if (storageError) console.error("Publication Storage cleanup failed", { id, error: storageError.message });
+  }
   revalidatePath("/app/publicacoes");
   redirect("/app/publicacoes");
 }
