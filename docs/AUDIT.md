@@ -189,3 +189,8 @@
 - A-017: `app/app/publicacoes/page.tsx` passa a contar `publishing` separadamente, oferece filtro dedicado e apresenta aviso de não republicação em cada registro. A tela de detalhe já contém ID local e instruções.
 - O indicador reúne publicações legitimamente em andamento e publicações cujo resultado é ambíguo; **não** equivale a diagnóstico automático de falha. Conferir horário, histórico e resultado na Meta antes de agir.
 - CI do HEAD anterior `a2ef06496890b19348be8109119fa8011da1db72` estava em execução na consulta; resultado final deve ser verificado. CI do novo HEAD pendente.
+
+### 2026-10-03 — exclusão de publicações com concorrência e Storage
+- [CI 37124929066](https://github.com/Juliano-Belasqem/varejao-popular-app/actions/runs/37124929066), HEAD `5de41b55d7cae85f9b4ea0da722bc3080da64215`: `success`.
+- A-023 (P1): exclusão individual e em lote verificavam status em leitura prévia, mas excluíam pais/mídias sem filtro de status na operação final e limpavam Storage mesmo sem confirmação de sucesso. Corrigido com `delete().in("status", ["draft","cancelled","error"]).select("id")`; apenas IDs efetivamente excluídos têm Storage limpo. A FK de `publication_media.publication_id` em `0001_initial.sql` tem `ON DELETE CASCADE`, portanto não se remove mais a mídia relacional antecipadamente.
+- Se a exclusão do banco falhar, objetos Storage são retidos. Se a limpeza Storage falhar após exclusão, há log e pode restar órfão para manutenção; exclusão banco+Storage não é transação distribuída. Testar RLS e exclusão em concorrência em ambiente isolado. CI do novo HEAD pendente.
