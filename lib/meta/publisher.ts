@@ -281,6 +281,7 @@ export async function publishPublication(publicationId: string, allowedStatuses 
 
   if (claimError || !claimed) throw new Error("A publicação já está sendo processada ou mudou de status.");
 
+  let remoteAttempted = false;
   try {
     const { data: media, error: mediaError } = await supabase
       .from("publication_media")
@@ -293,6 +294,9 @@ export async function publishPublication(publicationId: string, allowedStatuses 
     const validation = validatePublicationMedia(publication, media ?? []);
     if (!validation.ok) throw new Error(validation.message);
 
+    // A transport failure after dispatch may mean Meta published but the reply was lost.
+    // Conservatively require reconciliation rather than marking such a request retryable.
+    remoteAttempted = true;
     const result = publication.network === "instagram"
       ? await publishInstagram(publication as Publication, media as Media[])
       : await publishFacebook(publication as Publication, media as Media[]);
@@ -323,10 +327,22 @@ export async function publishPublication(publicationId: string, allowedStatuses 
   } catch (error) {
     if (error instanceof PublishedRemotelyError) throw error;
     const message = error instanceof Error ? error.message : "Falha desconhecida ao publicar na Meta.";
+    if (remoteAttempted) {
+      const reconciliationMessage = `Resultado da Meta não confirmado. NÃO republique automaticamente; confira a Meta e concilie manualmente. Detalhe: ${message}`;
+      console.error("Meta publication requires manual reconciliation", { publicationId, error: message });
+      try {
+        await supabase.from("publications")
+          .update({ error_message: reconciliationMessage.slice(0, 1500), updated_at: new Date().toISOString() })
+          .eq("id", publicationId).eq("status", "publishing");
+      } catch (acknowledgementError) {
+        console.error("Could not persist Meta reconciliation warning", { publicationId, acknowledgementError });
+      }
+      throw new Error(reconciliationMessage);
+    }
     await supabase
       .from("publications")
       .update({ status: "error", error_message: message.slice(0, 1500), updated_at: new Date().toISOString() })
-      .eq("id", publicationId);
+      .eq("id", publicationId).eq("status", "publishing");
     throw error;
   }
 }
