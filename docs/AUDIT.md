@@ -216,3 +216,7 @@
 - A-027 (P2): `addPublicationMediaAction` agora interrompe em erro/contagem nula da consulta do limite de 10 mídias; se a consulta da última posição falhar depois do upload, tenta limpar o objeto recém-enviado e não insere uma ordenação presumida. `removePublicationMediaAction` distingue erros de consulta de ausência de publicação/mídia.
 - Criado `docs/META-RECONCILIATION.md` com passos para confirmar o resultado na Meta, preservar evidência e impedir reenvio quando houver incerteza. Nenhum estado de produção é alterado pelo manual.
 - Pendências: teste integrado com RLS, concorrência na edição/publicação, limites simultâneos de mídia e limpeza de objetos órfãos; o controle de até 10 mídias ainda não é transacional.
+
+### 2026-10-03 — observabilidade de upload de mídia
+- A-027: leitura inicial da publicação em `addPublicationMediaAction` agora distingue erro de registro ausente. Falha de inserção de mídia após upload registra o motivo, tenta remover apenas o objeto recém-criado e interrompe sem indicar sucesso. Falhas da limpeza após erro de ordenação/inserção são registradas com `publicPath` para investigação de objeto órfão.
+- CI `37126541182` estava em andamento na última consulta; confirmar execução do HEAD desta rodada. Ainda não há transação distribuída entre Postgres e Storage.
