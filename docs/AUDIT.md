@@ -205,3 +205,7 @@
 ### 2026-10-03 — cancelamento em lote e falhas do log de auditoria
 - A-024 (P2): `bulkPublicationAction` ignorava `error` do cancelamento Supabase e a função auxiliar `audit` ignorava falhas na inserção em `audit_logs`. Agora não registra cancelamento quando o update retorna erro, e falhas da gravação do log são registradas no servidor. A gravação do log continua separada da mutação e não constitui garantia transacional; requer teste RLS e observabilidade operacional.
 - CI do novo HEAD deve ser confirmado. A-023 permanece pendente de testes integrados em ambiente isolado.
+
+### 2026-10-03 — remoção individual de mídia
+- [CI 37126008094](https://github.com/Juliano-Belasqem/varejao-popular-app/actions/runs/37126008094), HEAD `cab4a0e3cadd42c80e90c17dc4ea8ab317337326`: `success`.
+- A-025 (P1): `removePublicationMediaAction` apagava o objeto Storage mesmo se a exclusão de `publication_media` falhasse. Agora requer confirmação via `delete().select("id").maybeSingle()` antes de remover Storage, e registra falhas de limpeza. Risco residual: checagem de status da publicação ocorre antes da exclusão da mídia (sem trava transacional); testar corrida com início de publicação e considerar RPC transacional para bloqueio por estado.
