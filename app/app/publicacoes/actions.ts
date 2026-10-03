@@ -206,8 +206,14 @@ export async function removePublicationMediaAction(formData: FormData) {
     return;
   }
   if (media.storage_path) {
-    const { error: storageError } = await supabase.storage.from("social-media").remove([media.storage_path]);
-    if (storageError) console.error("Publication media Storage cleanup failed", { id, mediaId, error: storageError.message });
+    const { count: references, error: referenceError } = await supabase.from("publication_media")
+      .select("id", { count: "exact", head: true }).eq("storage_path", media.storage_path);
+    if (referenceError || references === null) {
+      console.error("Cannot verify remaining media references; Storage retained", { id, mediaId, error: referenceError?.message });
+    } else if (references === 0) {
+      const { error: storageError } = await supabase.storage.from("social-media").remove([media.storage_path]);
+      if (storageError) console.error("Publication media Storage cleanup failed", { id, mediaId, error: storageError.message });
+    }
   }
   revalidatePath(`/app/publicacoes/${id}`);
   revalidatePath(`/app/publicacoes/${id}/midia`);
@@ -372,8 +378,18 @@ export async function deleteDraftAction(formData: FormData) {
   }
   const paths = (media ?? []).map((item) => item.storage_path).filter(Boolean);
   if (paths.length) {
-    const { error: storageError } = await supabase.storage.from("social-media").remove(paths);
-    if (storageError) console.error("Publication Storage cleanup failed", { id, error: storageError.message });
+    const { data: referenced, error: referenceError } = await supabase.from("publication_media")
+      .select("storage_path").in("storage_path", [...new Set(paths)]);
+    if (referenceError) {
+      console.error("Cannot verify remaining media references; Storage retained", { id, error: referenceError.message });
+    } else {
+      const referencedPaths = new Set((referenced ?? []).map((item) => item.storage_path));
+      const removablePaths = [...new Set(paths)].filter((path) => !referencedPaths.has(path));
+      if (removablePaths.length) {
+        const { error: storageError } = await supabase.storage.from("social-media").remove(removablePaths);
+        if (storageError) console.error("Publication Storage cleanup failed", { id, error: storageError.message });
+      }
+    }
   }
   revalidatePath("/app/publicacoes");
   redirect("/app/publicacoes");
