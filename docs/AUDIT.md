@@ -280,3 +280,8 @@
 
 ### 2026-10-03 — correção de regressão do bloco 3
 - CI `37129249657` para HEAD `7fe6d5cdee98437d00d3698471a9509a7dd8f254`: falhou. Inspeção encontrou que a validação recém-adicionada ao `digital-materials` havia sido inserida por engano também em `GET`, referenciando variáveis exclusivas de `POST` (`file`, `format`, `mode`). A validação foi movida exclusivamente para `POST` antes do upload. Não considerar o bloco 3 aprovado até novo CI verde.
+
+### 2026-10-03 — fechamento técnico preliminar
+- A regressão de `digital-materials` foi corrigida e o CI [`37129343855`](https://github.com/Juliano-Belasqem/varejao-popular-app/actions/runs/37129343855) passou no commit `ac8a6409df1bb2ee0707746f99bb7cb74b0c23e4`.
+- [AUDIT-CLOSURE.md](AUDIT-CLOSURE.md) atualizado com evidência do CI, escopo real dos testes, bloqueios de liberação (A-016, RLS/Storage, Meta, impressão física), sequência de backup, rollback e aceite. A aprovação automatizada não equivale à homologação operacional.
+- Branch/PR seguem isolados. Não realizar merge sem aprovação explícita após inspeção do HEAD final.
