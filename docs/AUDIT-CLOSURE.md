@@ -27,3 +27,23 @@ A revisão estática inicial das oito etapas está registrada em [AUDIT.md](AUDI
 - Não aplicar migrações nem operações destrutivas no Supabase de produção como parte da auditoria.
 - Antes de implantação: backup verificável de banco e Storage, snapshot de variáveis Vercel e plano de rollback compatível com migrações.
 - Estado final possível: **revisão técnica concluída com homologação pendente**. Não rotular como sistema 100% testado até que os cenários acima sejam executados.
+
+## Evidência técnica consolidada — 03/10/2026
+- CI aprovado após correção da regressão A-039: [run 37129343855](https://github.com/Juliano-Belasqem/varejao-popular-app/actions/runs/37129343855), commit `ac8a6409df1bb2ee0707746f99bb7cb74b0c23e4`. O erro anterior [37129249657](https://github.com/Juliano-Belasqem/varejao-popular-app/actions/runs/37129249657) decorreu da inserção indevida da validação de upload em GET; correção registrada em AUDIT.md.
+- CI executa `pnpm test`, `pnpm run typecheck`, `pnpm run build` e `node tests/run-visual-browser.mjs` com fixtures locais. O artefato `visual-editor-verification` tem retenção de sete dias e inclui prévias e exportações. Não interpretar screenshots locais como homologação com banco real ou dispositivo de impressão.
+- PR de trabalho: [#81](https://github.com/Juliano-Belasqem/varejao-popular-app/pull/81), branch `audit/phase-01-foundation`; backup Git: `backup/pre-audit-2026-10-02`, base `2fe48e260eb4a692394d7b10fe4b6621af8fc58b`. O backup de Git não inclui banco, Storage nem variáveis Vercel.
+
+## Pendências e bloqueios de liberação
+1. **A-016 — SSRF / DNS rebinding:** validação de URL não garante o destino de conexão; estabelecer controle de saída/egress e testar DNS/redirects em infraestrutura controlada antes de liberar fetch remoto irrestrito.
+2. **Concorrência / integridade:** validar em Supabase isolado operações que cruzam tabelas e Storage (publicações, mídias, fontes/logos e PDF). As verificações condicionais e a retenção conservadora reduzem riscos, mas não substituem transações/RPCs.
+3. **Meta:** testar falha após sucesso remoto e confirmação local, processamento lento e conciliação manual conforme [META-RECONCILIATION.md](META-RECONCILIATION.md). Não executar publicações reais de teste em contas de produção.
+4. **Impressão e visual:** testar com PDF de hortifrutti real, A4 1/4 e 1/folha, fontes da marca, código GTIN lido por scanner físico, layouts feed/story e dispositivos representativos.
+5. **Autorização:** executar matriz de perfis e RLS para tabelas/buckets, inclusive URLs assinadas, sem usar credenciais de produção na bateria de testes.
+
+## Sequência segura para aprovação
+1. Revisar alterações e pendências do PR; anexar evidências de homologação isolada e registrar correções adicionais no mesmo relatório.
+2. Obter backup restaurável de banco/Storage e registro das configurações de implantação; preparar rollback e avaliar migrações separadamente.
+3. Confirmar CI verde no **HEAD final** (o CI de commit anterior não certifica commits documentais posteriores), verificar o diff e só então solicitar aprovação explícita do merge.
+4. Após aprovação, observar a implantação e validar os fluxos críticos com dados não destrutivos. Não presumir que a prévia da Vercel esteja ativa: o comentário automático do PR registra deployment ignorado.
+
+**Estado:** revisão técnica automatizada avançada; homologação operacional e aceite de implantação pendentes. Sem autorização para merge neste documento.
