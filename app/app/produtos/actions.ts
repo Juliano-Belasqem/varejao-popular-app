@@ -284,6 +284,16 @@ export async function importErpSpreadsheet(formData: FormData) {
       gtinIndex = findHeaderIndex(header, ["gtin válido", "gtin valido", "gtin válido?", "gtin valido?"]);
       imageIndex = findHeaderIndex(header, ["pesquisar imagem", "pesquisar imagem?", "buscar imagem", "buscar imagem?"]);
       dataRows = rows.slice(headerRowIndex + 1);
+      // Upsert replaces the entire supplied record. Reject incomplete schemas
+      // rather than silently erasing attributes omitted from an ERP export.
+      const missing = [
+        ["preço", priceIndex], ["estoque", stockIndex], ["unidade", unitIndex],
+        ["tipo de código", typeIndex], ["GTIN válido", gtinIndex],
+        ["pesquisar imagem", imageIndex],
+      ].filter(([, index]) => (index as number) < 0).map(([label]) => label);
+      if (missing.length) throw new Error(
+        `Arquivo com colunas incompletas: ${missing.join(", ")}. A importação foi cancelada antes de gravar qualquer lote para evitar apagar atributos já cadastrados. Exporte a planilha completa do ERP.`
+      );
     }
 
     const syncStarted = new Date().toISOString();
