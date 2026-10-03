@@ -287,7 +287,11 @@ export async function deleteDraftAction(formData: FormData) {
   const { data: publication } = await supabase.from("publications").select("status").eq("id", id).maybeSingle();
   if (!publication || !["draft", "cancelled", "error"].includes(publication.status)) return;
 
-  const { data: media } = await supabase.from("publication_media").select("storage_path").eq("publication_id", id);
+  const { data: media, error: mediaError } = await supabase.from("publication_media").select("storage_path").eq("publication_id", id);
+  if (mediaError) {
+    console.error("Cannot safely delete publication without media inventory", { id, error: mediaError.message });
+    return;
+  }
   // publication_media has an ON DELETE CASCADE foreign key; delete the parent
   // conditionally and only clean Storage after the database confirms deletion.
   const { data: deleted, error: deleteError } = await supabase.from("publications")
