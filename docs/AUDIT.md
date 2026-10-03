@@ -232,3 +232,8 @@
 ### 2026-10-03 — confirmação de mutações editoriais
 - A-030 (P2): `savePublicationAction` e `returnToDraftAction` ignoravam o resultado do update. Ambas exigem agora `select("id").maybeSingle()`, registram falha ou zero linhas e só revalidam a página após confirmação. A restrição de status continua aplicada no update, inclusive contra mudança para `publishing`/`published` entre renderização e envio do formulário.
 - Pendência: feedback de erro visível ao usuário ainda é limitado a log servidor; o CI valida tipagem/build/testes, não homologação de RLS real.
+
+### 2026-10-03 — referências compartilhadas no Storage
+- CI `37126845232` para o HEAD `8d5441078c40b988f17425bce389a2994cb6223f`: sucesso.
+- A-031 (P1): após remover registro de mídia, publicação individual ou lote, o código apagava o objeto `social-media` sem verificar se outro registro `publication_media` ainda referenciava o mesmo `storage_path`. Agora consulta as referências restantes e remove somente caminhos sem referência; se a consulta falhar, preserva Storage e registra a impossibilidade de verificar. Caminhos são deduplicados na remoção em lote.
+- Limitação: verificação e remoção de Storage não são atômicas; inserção concorrente da mesma referência ainda exige política transacional/imutabilidade do caminho e testes de integração com RLS. A exclusão no banco já confirmada não é revertida por falha na limpeza.
