@@ -201,3 +201,7 @@
 ### 2026-10-03 — consultas de elegibilidade fail-closed
 - [CI 37125794502](https://github.com/Juliano-Belasqem/varejao-popular-app/actions/runs/37125794502), HEAD `ea317ec5c6322223a0b2c129a2e8be3fda3feb71`: `success`.
 - A-023: consultas de elegibilidade da exclusão em lote, reenvio de erros em lote e exclusão individual agora verificam `error` explicitamente e registram a falha; nenhuma mutação é iniciada após falha de leitura. Permanece pendente teste integrado de concorrência, permissões/RLS e recuperação de objetos órfãos caso Storage falhe após exclusão no banco.
+
+### 2026-10-03 — cancelamento em lote e falhas do log de auditoria
+- A-024 (P2): `bulkPublicationAction` ignorava `error` do cancelamento Supabase e a função auxiliar `audit` ignorava falhas na inserção em `audit_logs`. Agora não registra cancelamento quando o update retorna erro, e falhas da gravação do log são registradas no servidor. A gravação do log continua separada da mutação e não constitui garantia transacional; requer teste RLS e observabilidade operacional.
+- CI do novo HEAD deve ser confirmado. A-023 permanece pendente de testes integrados em ambiente isolado.
