@@ -105,11 +105,15 @@ export async function addPublicationMediaAction(formData: FormData) {
   if (!publication || !publication.campaign_id || !["draft", "scheduled", "error", "cancelled"].includes(publication.status)) return;
   if (!materialPath.startsWith(`${publication.campaign_id}/`)) return;
 
-  const { count } = await supabase
+  const { count, error: countError } = await supabase
     .from("publication_media")
     .select("id", { count: "exact", head: true })
     .eq("publication_id", id);
-  if ((count ?? 0) >= 10) return;
+  if (countError || count === null) {
+    console.error("Cannot verify publication media limit", { id, error: countError?.message });
+    return;
+  }
+  if (count >= 10) return;
 
   const { data: source, error: downloadError } = await supabase.storage.from("digital-materials").download(materialPath);
   if (downloadError || !source) return;
@@ -124,13 +128,18 @@ export async function addPublicationMediaAction(formData: FormData) {
   if (uploadError) return;
 
   const { data: publicUrlData } = supabase.storage.from("social-media").getPublicUrl(publicPath);
-  const { data: lastMedia } = await supabase
+  const { data: lastMedia, error: orderError } = await supabase
     .from("publication_media")
     .select("sort_order")
     .eq("publication_id", id)
     .order("sort_order", { ascending: false })
     .limit(1)
     .maybeSingle();
+  if (orderError) {
+    console.error("Cannot determine publication media ordering", { id, error: orderError.message });
+    await supabase.storage.from("social-media").remove([publicPath]);
+    return;
+  }
 
   const { error: mediaError } = await supabase.from("publication_media").insert({
     publication_id: id,
@@ -153,15 +162,23 @@ export async function removePublicationMediaAction(formData: FormData) {
   if (!id || !mediaId) return;
 
   const supabase = await createClient();
-  const { data: publication } = await supabase.from("publications").select("status").eq("id", id).maybeSingle();
+  const { data: publication, error: publicationError } = await supabase.from("publications").select("status").eq("id", id).maybeSingle();
+  if (publicationError) {
+    console.error("Cannot check publication state before media removal", { id, error: publicationError.message });
+    return;
+  }
   if (!publication || !["draft", "scheduled", "error", "cancelled"].includes(publication.status)) return;
 
-  const { data: media } = await supabase
+  const { data: media, error: mediaError } = await supabase
     .from("publication_media")
     .select("id,storage_path")
     .eq("id", mediaId)
     .eq("publication_id", id)
     .maybeSingle();
+  if (mediaError) {
+    console.error("Cannot load publication media for removal", { id, mediaId, error: mediaError.message });
+    return;
+  }
   if (!media) return;
 
   // Do not remove the Storage object unless the relational delete succeeded.
@@ -189,11 +206,15 @@ export async function schedulePublicationAction(formData: FormData) {
   if (!id || !scheduledAt || new Date(scheduledAt).getTime() <= Date.now()) return;
 
   const supabase = await createClient();
-  const [{ data: publication }, { data: media }] = await Promise.all([
+  const [{ data: publication, error: publicationError }, { data: media, error: mediaError }] = await Promise.all([
     supabase.from("publications").select("network,type,status").eq("id", id).maybeSingle(),
     supabase.from("publication_media").select("media_type,public_url").eq("publication_id", id),
   ]);
 
+  if (publicationError || mediaError) {
+    console.error("Cannot validate publication scheduling prerequisites", { id, publicationError: publicationError?.message, mediaError: mediaError?.message });
+    return;
+  }
   if (!publication || !["draft", "scheduled", "error", "cancelled"].includes(publication.status)) return;
 
   const validation = validatePublicationMedia(publication, media ?? []);
@@ -201,7 +222,8 @@ export async function schedulePublicationAction(formData: FormData) {
     await supabase
       .from("publications")
       .update({ error_message: `Não foi possível agendar: ${validation.message}`, updated_by: profile.id, updated_at: new Date().toISOString() })
-      .eq("id", id);
+      .eq("id", id)
+      .in("status", ["draft", "scheduled", "error", "cancelled"]);
     revalidatePath(`/app/publicacoes/${id}`);
     return;
   }
