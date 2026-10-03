@@ -77,11 +77,17 @@ export async function savePublicationAction(formData: FormData) {
   if (!id || !networks.has(network) || !types.has(type)) return;
 
   const supabase = await createClient();
-  await supabase
+  const { data: saved, error: saveError } = await supabase
     .from("publications")
     .update({ network, type, caption: caption || null, updated_by: profile.id, updated_at: new Date().toISOString() })
     .eq("id", id)
-    .in("status", ["draft", "scheduled", "error", "cancelled"]);
+    .in("status", ["draft", "scheduled", "error", "cancelled"])
+    .select("id")
+    .maybeSingle();
+  if (saveError || !saved) {
+    console.error("Publication edit not confirmed", { id, error: saveError?.message });
+    return;
+  }
 
   revalidatePath("/app/publicacoes");
   revalidatePath(`/app/publicacoes/${id}`);
@@ -321,11 +327,17 @@ export async function returnToDraftAction(formData: FormData) {
   if (!id) return;
 
   const supabase = await createClient();
-  await supabase
+  const { data: returned, error: returnError } = await supabase
     .from("publications")
     .update({ status: "draft", scheduled_at: null, error_message: null, updated_by: profile.id, updated_at: new Date().toISOString() })
     .eq("id", id)
-    .in("status", ["scheduled", "error", "cancelled"]);
+    .in("status", ["scheduled", "error", "cancelled"])
+    .select("id")
+    .maybeSingle();
+  if (returnError || !returned) {
+    console.error("Return to publication draft not confirmed", { id, error: returnError?.message });
+    return;
+  }
 
   revalidatePath("/app/publicacoes");
   revalidatePath(`/app/publicacoes/${id}`);
