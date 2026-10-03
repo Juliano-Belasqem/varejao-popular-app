@@ -75,13 +75,25 @@ export async function POST(request: Request) {
     const allowedTypes = new Set(["image/png","image/webp","image/svg+xml"]);
     if (!allowedTypes.has(file.type)) return NextResponse.json({ error: "Logo deve ser PNG, WebP ou SVG." }, { status: 400 });
     const ext = file.name.split(".").pop()?.toLowerCase() || "png";
-    const path = `logo/logo-${Date.now()}.${ext}`;
+    const path = `logo/logo-${crypto.randomUUID()}.${ext}`;
     const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: false, contentType: file.type });
     if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 400 });
-    const { data: old } = await supabase.from("brand_settings").select("logo_path").eq("id","default").single();
-    const { error: updateError } = await supabase.from("brand_settings").update({ logo_path: path, updated_by: user.id, updated_at: new Date().toISOString() }).eq("id","default");
-    if (updateError) return NextResponse.json({ error: updateError.message }, { status: 400 });
-    if (old?.logo_path) await supabase.storage.from(BUCKET).remove([old.logo_path]);
+    const { data: old, error: lookupError } = await supabase.from("brand_settings").select("logo_path").eq("id","default").single();
+    if (lookupError || !old) {
+      const { error: cleanupError } = await supabase.storage.from(BUCKET).remove([path]);
+      if (cleanupError) console.error("Unregistered brand logo cleanup failed", { path, error: cleanupError.message });
+      return NextResponse.json({ error: "Não foi possível verificar a configuração atual do logo." }, { status: 503 });
+    }
+    let update = supabase.from("brand_settings")
+      .update({ logo_path: path, updated_by: user.id, updated_at: new Date().toISOString() }).eq("id","default");
+    update = old.logo_path ? update.eq("logo_path",old.logo_path) : update.is("logo_path",null);
+    const { data: saved, error: updateError } = await update.select("id").maybeSingle();
+    if (updateError || !saved) {
+      const { error: cleanupError } = await supabase.storage.from(BUCKET).remove([path]);
+      if (cleanupError) console.error("Conflicted brand logo cleanup failed", { path, error: cleanupError.message });
+      return NextResponse.json({ error: updateError?.message || "O logo foi alterado em outra sessão. Recarregue e tente novamente." }, { status: 409 });
+    }
+    // Preserve the previous logo for recovery; never remove an object another session may reference.
     return NextResponse.json({ ok: true });
   }
 
