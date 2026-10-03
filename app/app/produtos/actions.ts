@@ -310,6 +310,13 @@ export async function importErpSpreadsheet(formData: FormData) {
           `Linha ${headerRowIndex + rowIndex + 2}: ${label} inválido (${raw.slice(0, 40)}). Importação cancelada antes de gravar lotes.`
         );
       }
+      for (const [label, index] of [["GTIN válido", gtinIndex], ["pesquisar imagem", imageIndex]] as const) {
+        const raw = String(row[index] ?? "").trim();
+        if (raw && !["sim", "s", "true", "1", "yes", "não", "nao", "n", "false", "0", "no"].includes(raw.toLowerCase()))
+          throw new Error(
+            `Linha ${headerRowIndex + rowIndex + 2}: ${label} deve ser Sim ou Não (recebido: ${raw.slice(0, 40)}). Importação cancelada antes de gravar lotes.`
+          );
+      }
       byCode.set(code, {
         code,
         description,
