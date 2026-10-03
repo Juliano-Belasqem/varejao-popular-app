@@ -169,3 +169,8 @@
 ### 2026-10-03 — persistência do aviso de conciliação Meta
 - O tratamento de resultado remoto ambíguo também verifica o campo `error` retornado pelo Supabase ao tentar registrar `error_message`, além de exceções lançadas; falhas são registradas em log. O status permanece `publishing`, sem nova tentativa automática.
 - A alteração não equivale a teste com a Meta real. Antes do merge, simular falha de transporte após envio, erro de reconhecimento local e impossibilidade de persistir o aviso; confirmar que nenhuma dessas condições volta a deixar a publicação elegível ao agendador.
+
+### 2026-10-03 — regressão da política de falhas Meta
+- Extraída a decisão de tratamento `publicationFailureDisposition` para `lib/meta/publication-outcome.ts`, utilizada por `lib/meta/publisher.ts` e exercitada em `tests/publication-outcome.test.ts`: falha antes da tentativa remota pode ser retryable; após iniciar a chamada Meta exige conciliação, sem status `error` republicável.
+- Cobertura atual é unitária da política, **não** simulação completa de Meta/Supabase. Ainda testar fluxo integrado de erro HTTP, timeout, publicação remota confirmada e falha de atualização local.
+- CI do HEAD com os novos testes deve ser verificado antes de aprovar o PR.
