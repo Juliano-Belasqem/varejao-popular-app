@@ -160,3 +160,8 @@
 - [CI 37124104822](https://github.com/Juliano-Belasqem/varejao-popular-app/actions/runs/37124104822), HEAD `3a459f3ad088aea4b1774eab4ca00a10cd9e9792`: `success`.
 - A-022: GTIN válido/pesquisar imagem aceitam células vazias e valores booleanos explícitos `sim/s/true/1/yes/não/nao/n/false/0/no`, sem distinção de caixa; texto não reconhecido provoca erro com linha antes da gravação. Células vazias continuam seguindo o contrato atual de importação completa (GTIN `null`, pesquisar imagem `false`); homologar semântica de vazios com arquivo ERP real.
 - Novo HEAD exige CI próprio. PR permanece sem merge.
+
+### 2026-10-03 — publicação Meta: resultado remoto ambíguo
+- CI do HEAD anterior `cda9580da194597b7e8c53dd803a06b52c1f7eea`: [run 37124221073](https://github.com/Juliano-Belasqem/varejao-popular-app/actions/runs/37124221073) estava em execução na última consulta; não atribuir resultado sem nova confirmação.
+- A-013/A-017: a partir do início da chamada remota, uma exceção pode representar resposta perdida após publicação bem-sucedida. O tratamento agora conserva status `publishing` (não elegível a retry automático), registra alerta de conciliação manual em `error_message` quando possível e gera log com ID local. Exceções de pré-validação continuam marcando `error` apenas se a linha ainda estiver em `publishing`.
+- Trade-off deliberado: falhas definitivamente remotas também podem ficar em `publishing` até conferência; isto evita duplicação à custa de intervenção manual. Testar com respostas simuladas de sucesso, erro HTTP, timeout e falha no reconhecimento local; sem Meta real nesta etapa. CI do novo HEAD pendente.
