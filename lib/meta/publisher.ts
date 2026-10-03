@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validatePublicationMedia } from "@/lib/publications/validation";
+import { publicationFailureDisposition } from "@/lib/meta/publication-outcome";
 
 type Publication = {
   id: string;
@@ -327,7 +328,7 @@ export async function publishPublication(publicationId: string, allowedStatuses 
   } catch (error) {
     if (error instanceof PublishedRemotelyError) throw error;
     const message = error instanceof Error ? error.message : "Falha desconhecida ao publicar na Meta.";
-    if (remoteAttempted) {
+    if (publicationFailureDisposition(remoteAttempted) === "reconcile") {
       const reconciliationMessage = `Resultado da Meta não confirmado. NÃO republique automaticamente; confira a Meta e concilie manualmente. Detalhe: ${message}`;
       console.error("Meta publication requires manual reconciliation", { publicationId, error: message });
       try {
