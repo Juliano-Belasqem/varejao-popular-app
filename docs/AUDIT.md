@@ -295,3 +295,7 @@
 - CI `37130394685` passou no commit `a3b0de41988afa5f4c6d081065beb5ede6af1495` (mitigação A-016 e bloqueio de origem A-041).
 - Extraída função pura `assertMetaVideoUploadUrl` para `lib/meta/upload-url.ts`; `publisher.ts` a utiliza antes de encaminhar token OAuth. Novo `tests/meta-upload-url.test.ts` verifica origens permitidas e rejeição de HTTP, domínio sufixado malicioso, credenciais embutidas, porta alternativa, loopback e URL inválida.
 - O bloqueio de rede A-016 permanece **mitigado, não homologado**. O fluxo de vídeo Meta requer teste com URL de upload real retornada pela API em sandbox.
+
+### 2026-10-03 — bloqueio de concorrência publicação/mídia
+- A-042 (P1): checagem de status na Server Action antes da mutação de `publication_media` não era atômica com o claim do publicador. Nova migration `20261003090000_guard_publication_media_mutation.sql` cria trigger `BEFORE INSERT OR UPDATE OR DELETE` com `SELECT ... FOR UPDATE` no registro pai, serializando mutações com a transição de status; rejeita mídia em `publishing`/`published`, preserva exclusão em cascata do pai. Novo teste `tests/publication-media-guard.test.ts` cobre transições básicas com PGlite.
+- A migration está **apenas versionada**; não aplicada ao Supabase remoto. Teste PGlite não simula duas conexões Supabase, Storage nem políticas RLS reais. Homologar concorrência em duas sessões e a exclusão em cascata em projeto isolado antes de produção.
