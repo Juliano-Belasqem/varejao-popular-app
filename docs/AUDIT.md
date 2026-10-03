@@ -246,3 +246,8 @@
 - CI `37127115888` para HEAD `e3f964bbdc0ede1ffd71314958c6422a840a58fc`: sucesso.
 - A-032 (P2): parser CSV aceitava fim de arquivo com campo entre aspas não encerrado, podendo interpretar um arquivo truncado como linha válida. Agora lança erro antes de iniciar qualquer upsert. Removido texto de sucesso para modalidade sem cabeçalho, que já é recusada por segurança.
 - Escopo deste bloco: revisão focal da importação ERP, sem alegar transação global de múltiplos lotes. Falhas durante gravação de lote ainda podem deixar lotes anteriores persistidos, sem exclusão destrutiva. Testar com arquivos reais em ambiente isolado.
+
+### 2026-10-03 — bloco final 1/4: recuperação de PDFs
+- CI `37127339354`, HEAD `bff7e66843d444ce5277d020e15f0f14e56959ca`: sucesso.
+- A-033 (P2): compensação do upload PDF após falha/conflito no update condicional não inspecionava erro do Storage; agora registra `id`, caminho do novo objeto e erro de limpeza para recuperação de órfão. O PDF anterior continua retido; remoção sem `id` é rejeitada antes da consulta.
+- A-009 permanece dependente de teste real com duas sessões e de procedimento de limpeza pós-backup; não existe transação distribuída Postgres/Storage.
