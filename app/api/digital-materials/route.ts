@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { canEdit, requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { isRasterBytes } from "@/lib/raster-file";
 
 function safeName(value: string) {
   return value
@@ -21,6 +22,13 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Campanha inválida." }, { status: 400 });
     }
 
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    if (!isRasterBytes(bytes, "image/png")) {
+      return NextResponse.json({ error: "O arquivo não possui uma assinatura PNG válida." }, { status: 400 });
+    }
+    if (!["feed", "story"].includes(format) || !["composed", "background"].includes(mode)) {
+      return NextResponse.json({ error: "Formato ou modalidade inválidos." }, { status: 400 });
+    }
     const supabase = await createClient();
     const { data: campaign, error: campaignError } = await supabase
       .from("campaigns")
@@ -76,7 +84,7 @@ export async function POST(request: Request) {
     const format = String(form.get("format") ?? "feed").trim();
     const mode = String(form.get("mode") ?? "composed").trim();
 
-    if (!(file instanceof File) || file.type !== "image/png") {
+    if (!(file instanceof File) || file.type !== "image/png" || file.size === 0) {
       return NextResponse.json({ error: "Arquivo PNG inválido." }, { status: 400 });
     }
     if (!campaignId) {
@@ -101,7 +109,6 @@ export async function POST(request: Request) {
     const filename = safeName(file.name.endsWith(".png") ? file.name : `${file.name}.png`);
     const path = `${campaignId}/${timestamp}-${crypto.randomUUID()}-${mode}-${format}-${filename}`;
 
-    const bytes = await file.arrayBuffer();
     const { error: uploadError } = await supabase.storage
       .from("digital-materials")
       .upload(path, bytes, { contentType: "image/png", upsert: false });
