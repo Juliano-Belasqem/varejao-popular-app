@@ -184,3 +184,8 @@
 - [CI 37124659169](https://github.com/Juliano-Belasqem/varejao-popular-app/actions/runs/37124659169), HEAD `8a0740d2c60d362d6c103ced275e38aea9e7f733`: `success`.
 - A-017: página `app/app/publicacoes/[id]/page.tsx` agora mostra aviso permanente para `status=publishing` com instrução de conferir a Meta, evitar duplicação e informar o ID local ao administrador. Não depende de `error_message` ter sido persistido. Ações de republicação/reagendamento já são indisponíveis nesse status.
 - Ainda não existe ferramenta administrativa de conciliação remota; operação exige conferência humana e procedimento definido. Novo HEAD aguarda CI.
+
+### 2026-10-03 — visibilidade da fila de conciliação Meta
+- A-017: `app/app/publicacoes/page.tsx` passa a contar `publishing` separadamente, oferece filtro dedicado e apresenta aviso de não republicação em cada registro. A tela de detalhe já contém ID local e instruções.
+- O indicador reúne publicações legitimamente em andamento e publicações cujo resultado é ambíguo; **não** equivale a diagnóstico automático de falha. Conferir horário, histórico e resultado na Meta antes de agir.
+- CI do HEAD anterior `a2ef06496890b19348be8109119fa8011da1db72` estava em execução na consulta; resultado final deve ser verificado. CI do novo HEAD pendente.
