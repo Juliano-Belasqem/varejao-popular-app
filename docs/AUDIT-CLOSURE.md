@@ -52,3 +52,7 @@ A revisão estática inicial das oito etapas está registrada em [AUDIT.md](AUDI
 - `downloadRemoteImage()` agora falha antes de qualquer DNS/conexão se `REMOTE_IMAGE_EGRESS_PROTECTED !== "true"`. A importação de imagem por URL fica **desabilitada por padrão**, sem desativar uploads de arquivos locais. Isto é uma mitigação fail-closed, não prova de eliminação de DNS rebinding.
 - **Não configurar a variável como true apenas para restaurar a função.** Primeiro implementar saída de rede que bloqueie em tempo de conexão IPv4/IPv6 privados, loopback, link-local, metadata e redirecionamentos para destinos proibidos; registrar quem controla DNS e o destino efetivo da conexão. Testar rebinding com DNS controlado e redirects antes de habilitar.
 - A equipe deve comunicar na interface/operacional que a importação por URL depende da proteção de infraestrutura; utilizar upload de arquivo local enquanto estiver bloqueada.
+
+## Evidência e execução A-042 — concorrência (03/10/2026)
+- CI [37130699761](https://github.com/Juliano-Belasqem/varejao-popular-app/actions/runs/37130699761) aprovado no commit `3eeb288f771e6ac2be85629589b204e6fdba254d`, incluindo teste PGlite `tests/publication-media-guard.test.ts` da migration `20261003090000_guard_publication_media_mutation.sql`.
+- Roteiro reproduzível de duas sessões e matriz de aceite em [PUBLICATION-CONCURRENCY-TEST.md](PUBLICATION-CONCURRENCY-TEST.md). **Pendente execução real** em PostgreSQL/Supabase isolado: o teste automatizado atual não prova bloqueio intersessões, permissões/RLS reais ou transações envolvendo Storage.
