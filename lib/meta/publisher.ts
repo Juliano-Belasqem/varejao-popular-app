@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validatePublicationMedia } from "@/lib/publications/validation";
 import { publicationFailureDisposition } from "@/lib/meta/publication-outcome";
+import { assertMetaVideoUploadUrl } from "@/lib/meta/upload-url";
 
 type Publication = {
   id: string;
@@ -63,14 +64,7 @@ async function graphGet(path: string, params: Record<string, string>) {
 }
 
 async function uploadHostedFacebookVideo(uploadUrl: string, fileUrl: string, token: string) {
-  // The URL comes from a remote API response; never forward our OAuth token to
-  // an arbitrary origin, even if the initial Graph request was trusted.
-  const target = new URL(uploadUrl);
-  if (target.protocol !== "https:" || target.username || target.password ||
-      !["rupload.facebook.com", "graph-video.facebook.com"].includes(target.hostname.toLowerCase()) ||
-      (target.port && target.port !== "443")) {
-    throw new Error("Destino de upload de vídeo da Meta não autorizado.");
-  }
+  const target = assertMetaVideoUploadUrl(uploadUrl);
   const response = await fetch(target, {
     redirect: "error",
     method: "POST",
