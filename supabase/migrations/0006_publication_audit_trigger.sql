@@ -64,9 +64,6 @@ begin
 end;
 $$;
 
-revoke all on function public.audit_publication_change() from public, anon, authenticated;
-grant execute on function public.audit_publication_change() to service_role;
-
 drop trigger if exists trg_audit_publication_change on public.publications;
 create trigger trg_audit_publication_change
 after insert or update on public.publications
