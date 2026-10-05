@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { canEdit, requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { isRasterBytes } from "@/lib/raster-file";
 
 function safePathPart(value: string) {
   return value
@@ -71,10 +72,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Não foi possível carregar o material salvo." }, { status: 404 });
     }
 
+    if (source.size === 0 || source.size > 9 * 1024 * 1024) {
+      return NextResponse.json({ error: "Material vazio ou maior que 9 MB." }, { status: 400 });
+    }
+    const bytes = new Uint8Array(await source.arrayBuffer());
+    if (!isRasterBytes(bytes, "image/png")) {
+      return NextResponse.json({ error: "O material salvo não possui uma assinatura PNG válida." }, { status: 400 });
+    }
     const sourceName = materialPath.split("/").pop() || "material.png";
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const publicPath = `${campaignId}/drafts/${timestamp}-${safePathPart(sourceName)}`;
-    const bytes = await source.arrayBuffer();
+    const publicPath = `${campaignId}/drafts/${timestamp}-${crypto.randomUUID()}-${safePathPart(sourceName)}`;
     const { error: uploadError } = await supabase.storage
       .from("social-media")
       .upload(publicPath, bytes, { contentType: "image/png", upsert: false });
@@ -100,7 +107,8 @@ export async function POST(request: Request) {
       .single();
 
     if (publicationError || !publication) {
-      await supabase.storage.from("social-media").remove([publicPath]);
+      const { error: cleanupError } = await supabase.storage.from("social-media").remove([publicPath]);
+      if (cleanupError) console.error("Draft upload compensation failed", { publicPath, error: cleanupError.message });
       return NextResponse.json({ error: publicationError?.message || "Falha ao criar rascunho." }, { status: 500 });
     }
 
@@ -113,8 +121,15 @@ export async function POST(request: Request) {
     });
 
     if (mediaError) {
-      await supabase.from("publications").delete().eq("id", publication.id);
-      await supabase.storage.from("social-media").remove([publicPath]);
+      const { data: deleted, error: deleteError } = await supabase.from("publications")
+        .delete().eq("id", publication.id).eq("status", "draft").select("id").maybeSingle();
+      if (deleteError || !deleted) {
+        // Do not delete Storage if the parent publication might still exist.
+        console.error("Draft compensation failed; Storage retained", { publicationId: publication.id, publicPath, error: deleteError?.message });
+      } else {
+        const { error: cleanupError } = await supabase.storage.from("social-media").remove([publicPath]);
+        if (cleanupError) console.error("Draft Storage compensation failed", { publicationId: publication.id, publicPath, error: cleanupError.message });
+      }
       return NextResponse.json({ error: mediaError.message }, { status: 500 });
     }
 

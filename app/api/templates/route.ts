@@ -40,9 +40,16 @@ export async function GET(request: Request) {
     );
   const config = defaultTemplate(id);
   if (data) {
-    config.layout = Object.keys(data.layout ?? {}).length
-      ? validateLayout(id, data.layout)
-      : config.layout;
+    try {
+      config.layout = Object.keys(data.layout ?? {}).length
+        ? validateLayout(id, data.layout)
+        : config.layout;
+    } catch {
+      return NextResponse.json(
+        { error: "O modelo salvo contém campos inválidos. Solicite a revisão do Template Mestre antes de continuar." },
+        { status: 503, headers: { "Cache-Control": "private, no-store" } },
+      );
+    }
     config.revision = data.revision;
     if (data.background_path) {
       const signed = await supabase.storage

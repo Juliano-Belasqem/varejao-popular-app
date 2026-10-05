@@ -58,6 +58,12 @@ export function imageExtension(contentType: string) {
 }
 
 export async function downloadRemoteImage(sourceUrl: string) {
+  // URL/DNS preflight is not a connection-time guarantee: a hostile hostname can
+  // rebind between lookup() and fetch(). Keep this feature disabled unless the
+  // deployment enforces outbound network restrictions against private/metadata IPs.
+  if (process.env.REMOTE_IMAGE_EGRESS_PROTECTED !== "true") {
+    throw new Error("Importação por URL desativada: configure proteção de saída de rede antes de habilitar.");
+  }
   let current = await assertSafeUrl(sourceUrl);
 
   for (let redirectCount = 0; redirectCount <= 4; redirectCount += 1) {

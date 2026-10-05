@@ -75,13 +75,25 @@ export async function POST(request: Request) {
     const allowedTypes = new Set(["image/png","image/webp","image/svg+xml"]);
     if (!allowedTypes.has(file.type)) return NextResponse.json({ error: "Logo deve ser PNG, WebP ou SVG." }, { status: 400 });
     const ext = file.name.split(".").pop()?.toLowerCase() || "png";
-    const path = `logo/logo-${Date.now()}.${ext}`;
+    const path = `logo/logo-${crypto.randomUUID()}.${ext}`;
     const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: false, contentType: file.type });
     if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 400 });
-    const { data: old } = await supabase.from("brand_settings").select("logo_path").eq("id","default").single();
-    const { error: updateError } = await supabase.from("brand_settings").update({ logo_path: path, updated_by: user.id, updated_at: new Date().toISOString() }).eq("id","default");
-    if (updateError) return NextResponse.json({ error: updateError.message }, { status: 400 });
-    if (old?.logo_path) await supabase.storage.from(BUCKET).remove([old.logo_path]);
+    const { data: old, error: lookupError } = await supabase.from("brand_settings").select("logo_path").eq("id","default").single();
+    if (lookupError || !old) {
+      const { error: cleanupError } = await supabase.storage.from(BUCKET).remove([path]);
+      if (cleanupError) console.error("Unregistered brand logo cleanup failed", { path, error: cleanupError.message });
+      return NextResponse.json({ error: "Não foi possível verificar a configuração atual do logo." }, { status: 503 });
+    }
+    let update = supabase.from("brand_settings")
+      .update({ logo_path: path, updated_by: user.id, updated_at: new Date().toISOString() }).eq("id","default");
+    update = old.logo_path ? update.eq("logo_path",old.logo_path) : update.is("logo_path",null);
+    const { data: saved, error: updateError } = await update.select("id").maybeSingle();
+    if (updateError || !saved) {
+      const { error: cleanupError } = await supabase.storage.from(BUCKET).remove([path]);
+      if (cleanupError) console.error("Conflicted brand logo cleanup failed", { path, error: cleanupError.message });
+      return NextResponse.json({ error: updateError?.message || "O logo foi alterado em outra sessão. Recarregue e tente novamente." }, { status: 409 });
+    }
+    // Preserve the previous logo for recovery; never remove an object another session may reference.
     return NextResponse.json({ ok: true });
   }
 
@@ -108,7 +120,8 @@ export async function POST(request: Request) {
     if (uploadError) return NextResponse.json({ error: `Falha ao armazenar fonte: ${uploadError.message}` }, { status: 400 });
     const { data: inserted, error: insertError } = await supabase.from("brand_fonts").insert({ name, family, storage_path: path, mime_type: contentType, created_by: user.id }).select("id,name,family,storage_path,mime_type,active").single();
     if (insertError) {
-      await supabase.storage.from(BUCKET).remove([path]);
+      const { error: cleanupError } = await supabase.storage.from(BUCKET).remove([path]);
+      if (cleanupError) console.error("Unregistered brand font cleanup failed", { path, error: cleanupError.message });
       return NextResponse.json({ error: `Fonte enviada, mas não foi possível registrá-la: ${insertError.message}` }, { status: 400 });
     }
     return NextResponse.json({ ok: true, font: inserted });
@@ -123,15 +136,27 @@ export async function DELETE(request: Request) {
   if (!allowed) return NextResponse.json({ error: "Sem permissão para editar o kit da marca." }, { status: 403 });
   const { id } = await request.json().catch(() => ({})) as { id?: string };
   if (!id) return NextResponse.json({ error: "Fonte inválida." }, { status: 400 });
-  const { data: font } = await supabase.from("brand_fonts").select("id,storage_path,family").eq("id",id).single();
-  if (!font) return NextResponse.json({ error: "Fonte não encontrada." }, { status: 404 });
-  const { error } = await supabase.from("brand_fonts").update({ active: false }).eq("id",id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-  const { data: settings } = await supabase.from("brand_settings").select("field_fonts").eq("id","default").single();
-  const current = { ...DEFAULT_FONTS, ...(settings?.field_fonts ?? {}) } as Record<string,string>;
+  const { data: font, error: fontError } = await supabase.from("brand_fonts")
+    .select("id,storage_path,family,active").eq("id",id).single();
+  if (fontError || !font) return NextResponse.json({ error: "Fonte não encontrada ou consulta indisponível." }, { status: fontError ? 503 : 404 });
+  const { data: settings, error: settingsError } = await supabase.from("brand_settings")
+    .select("field_fonts").eq("id","default").single();
+  if (settingsError || !settings) return NextResponse.json({ error: "Não foi possível verificar as fontes em uso." }, { status: 503 });
+  const current = { ...DEFAULT_FONTS, ...(settings.field_fonts ?? {}) } as Record<string,string>;
   let changed = false;
   for (const key of FIELD_KEYS) if (current[key] === font.family) { current[key] = DEFAULT_FONTS[key]; changed = true; }
-  if (changed) await supabase.from("brand_settings").update({ field_fonts: current, updated_by: user.id, updated_at: new Date().toISOString() }).eq("id","default");
-  await supabase.storage.from(BUCKET).remove([font.storage_path]);
+  const { data: deactivated, error } = await supabase.from("brand_fonts")
+    .update({ active: false }).eq("id",id).eq("active",true).select("id").maybeSingle();
+  if (error) return NextResponse.json({ error: error.message }, { status: 503 });
+  if (!deactivated) return NextResponse.json({ error: "A fonte já foi desativada ou alterada em outra sessão." }, { status: 409 });
+  if (changed) {
+    const { error: settingsUpdateError } = await supabase.from("brand_settings")
+      .update({ field_fonts: current, updated_by: user.id, updated_at: new Date().toISOString() }).eq("id","default");
+    if (settingsUpdateError) {
+      console.error("Brand font deactivated but field fallback failed; font object retained", { id, error: settingsUpdateError.message });
+      return NextResponse.json({ error: "A fonte foi desativada, mas não foi possível atualizar os campos. O arquivo foi preservado para recuperação." }, { status: 503 });
+    }
+  }
+  // Keep the underlying font file: older saved templates can still reference its family.
   return NextResponse.json({ ok: true });
 }

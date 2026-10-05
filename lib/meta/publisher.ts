@@ -1,5 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validatePublicationMedia } from "@/lib/publications/validation";
+import { publicationFailureDisposition } from "@/lib/meta/publication-outcome";
+import { assertMetaVideoUploadUrl } from "@/lib/meta/upload-url";
 
 type Publication = {
   id: string;
@@ -62,7 +64,9 @@ async function graphGet(path: string, params: Record<string, string>) {
 }
 
 async function uploadHostedFacebookVideo(uploadUrl: string, fileUrl: string, token: string) {
-  const response = await fetch(uploadUrl, {
+  const target = assertMetaVideoUploadUrl(uploadUrl);
+  const response = await fetch(target, {
+    redirect: "error",
     method: "POST",
     headers: {
       Authorization: `OAuth ${token}`,
@@ -97,7 +101,7 @@ async function waitForInstagramVideo(containerId: string, token: string) {
     }
     await sleep(1500);
   }
-  throw new Error("O vídeo ainda está sendo processado pela Meta. Aguarde alguns segundos e tente publicar novamente.");
+  throw new Error("O vídeo ainda está sendo processado pela Meta. Não republique automaticamente: confira o processamento e concilie manualmente antes de uma nova tentativa.");
 }
 
 async function publishInstagram(publication: Publication, media: Media[]) {
@@ -256,6 +260,10 @@ async function publishFacebook(publication: Publication, media: Media[]) {
   return { mediaId: mediaId || null, postId };
 }
 
+class PublishedRemotelyError extends Error {
+  constructor(message: string, readonly postId: string) { super(message); this.name = "PublishedRemotelyError"; }
+}
+
 export async function publishPublication(publicationId: string, allowedStatuses = ["scheduled", "draft", "error"]) {
   const supabase = createAdminClient();
   const { data: publication, error: publicationError } = await supabase
@@ -277,6 +285,7 @@ export async function publishPublication(publicationId: string, allowedStatuses 
 
   if (claimError || !claimed) throw new Error("A publicação já está sendo processada ou mudou de status.");
 
+  let remoteAttempted = false;
   try {
     const { data: media, error: mediaError } = await supabase
       .from("publication_media")
@@ -289,12 +298,17 @@ export async function publishPublication(publicationId: string, allowedStatuses 
     const validation = validatePublicationMedia(publication, media ?? []);
     if (!validation.ok) throw new Error(validation.message);
 
+    // A transport failure after dispatch may mean Meta published but the reply was lost.
+    // Conservatively require reconciliation rather than marking such a request retryable.
+    remoteAttempted = true;
     const result = publication.network === "instagram"
       ? await publishInstagram(publication as Publication, media as Media[])
       : await publishFacebook(publication as Publication, media as Media[]);
 
     const now = new Date().toISOString();
-    await supabase
+    // A successful Meta request must never be reset to a retryable error merely
+    // because the local acknowledgement could not be persisted.
+    const { data: acknowledgement, error: acknowledgementError } = await supabase
       .from("publications")
       .update({
         status: "published",
@@ -304,15 +318,45 @@ export async function publishPublication(publicationId: string, allowedStatuses 
         error_message: null,
         updated_at: now,
       })
-      .eq("id", publicationId);
+      .eq("id", publicationId)
+      .eq("status", "publishing")
+      .select("id")
+      .maybeSingle();
+    if (acknowledgementError || !acknowledgement) {
+      console.error("Meta published, but local acknowledgement failed", { publicationId, postId: result.postId, error: acknowledgementError?.message || "No publishing row was updated" });
+      const warning = `A Meta confirmou a publicação (post ID: ${result.postId}), mas o registro local falhou. NÃO republique; concilie manualmente.`;
+      try {
+        const { error: warningError } = await supabase.from("publications")
+          .update({ error_message: warning.slice(0, 1500), updated_at: new Date().toISOString() })
+          .eq("id", publicationId).eq("status", "publishing");
+        if (warningError) console.error("Could not persist confirmed Meta post ID for reconciliation", { publicationId, postId: result.postId, error: warningError.message });
+      } catch (warningError) {
+        console.error("Could not persist confirmed Meta post ID for reconciliation", { publicationId, postId: result.postId, warningError });
+      }
+      throw new PublishedRemotelyError(warning, result.postId);
+    }
 
     return result;
   } catch (error) {
+    if (error instanceof PublishedRemotelyError) throw error;
     const message = error instanceof Error ? error.message : "Falha desconhecida ao publicar na Meta.";
+    if (publicationFailureDisposition(remoteAttempted) === "reconcile") {
+      const reconciliationMessage = `Resultado da Meta não confirmado. NÃO republique automaticamente; confira a Meta e concilie manualmente. Detalhe: ${message}`;
+      console.error("Meta publication requires manual reconciliation", { publicationId, error: message });
+      try {
+        const { error: warningError } = await supabase.from("publications")
+          .update({ error_message: reconciliationMessage.slice(0, 1500), updated_at: new Date().toISOString() })
+          .eq("id", publicationId).eq("status", "publishing");
+        if (warningError) console.error("Could not persist Meta reconciliation warning", { publicationId, error: warningError.message });
+      } catch (acknowledgementError) {
+        console.error("Could not persist Meta reconciliation warning", { publicationId, acknowledgementError });
+      }
+      throw new Error(reconciliationMessage);
+    }
     await supabase
       .from("publications")
       .update({ status: "error", error_message: message.slice(0, 1500), updated_at: new Date().toISOString() })
-      .eq("id", publicationId);
+      .eq("id", publicationId).eq("status", "publishing");
     throw error;
   }
 }

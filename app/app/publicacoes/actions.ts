@@ -77,11 +77,17 @@ export async function savePublicationAction(formData: FormData) {
   if (!id || !networks.has(network) || !types.has(type)) return;
 
   const supabase = await createClient();
-  await supabase
+  const { data: saved, error: saveError } = await supabase
     .from("publications")
     .update({ network, type, caption: caption || null, updated_by: profile.id, updated_at: new Date().toISOString() })
     .eq("id", id)
-    .in("status", ["draft", "scheduled", "error", "cancelled"]);
+    .in("status", ["draft", "scheduled", "error", "cancelled"])
+    .select("id")
+    .maybeSingle();
+  if (saveError || !saved) {
+    console.error("Publication edit not confirmed", { id, error: saveError?.message });
+    return;
+  }
 
   revalidatePath("/app/publicacoes");
   revalidatePath(`/app/publicacoes/${id}`);
@@ -96,27 +102,36 @@ export async function addPublicationMediaAction(formData: FormData) {
   if (!id || !materialPath) return;
 
   const supabase = await createClient();
-  const { data: publication } = await supabase
+  const { data: publication, error: publicationError } = await supabase
     .from("publications")
     .select("id,campaign_id,status")
     .eq("id", id)
     .maybeSingle();
+  if (publicationError) {
+    console.error("Cannot load publication before adding media", { id, error: publicationError.message });
+    return;
+  }
 
   if (!publication || !publication.campaign_id || !["draft", "scheduled", "error", "cancelled"].includes(publication.status)) return;
   if (!materialPath.startsWith(`${publication.campaign_id}/`)) return;
 
-  const { count } = await supabase
+  const { count, error: countError } = await supabase
     .from("publication_media")
     .select("id", { count: "exact", head: true })
     .eq("publication_id", id);
-  if ((count ?? 0) >= 10) return;
+  if (countError || count === null) {
+    console.error("Cannot verify publication media limit", { id, error: countError?.message });
+    return;
+  }
+  if (count >= 10) return;
 
   const { data: source, error: downloadError } = await supabase.storage.from("digital-materials").download(materialPath);
   if (downloadError || !source) return;
 
   const sourceName = materialPath.split("/").pop() || "material.png";
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const publicPath = `${publication.campaign_id}/drafts/${timestamp}-${safePathPart(sourceName)}`;
+  // A timestamp alone is not unique when two uploads begin within the same millisecond.
+  const publicPath = `${publication.campaign_id}/drafts/${timestamp}-${crypto.randomUUID()}-${safePathPart(sourceName)}`;
   const bytes = await source.arrayBuffer();
   const { error: uploadError } = await supabase.storage
     .from("social-media")
@@ -124,13 +139,19 @@ export async function addPublicationMediaAction(formData: FormData) {
   if (uploadError) return;
 
   const { data: publicUrlData } = supabase.storage.from("social-media").getPublicUrl(publicPath);
-  const { data: lastMedia } = await supabase
+  const { data: lastMedia, error: orderError } = await supabase
     .from("publication_media")
     .select("sort_order")
     .eq("publication_id", id)
     .order("sort_order", { ascending: false })
     .limit(1)
     .maybeSingle();
+  if (orderError) {
+    console.error("Cannot determine publication media ordering", { id, error: orderError.message });
+    const { error: cleanupError } = await supabase.storage.from("social-media").remove([publicPath]);
+    if (cleanupError) console.error("Cannot clean up publication media after ordering failure", { id, publicPath, error: cleanupError.message });
+    return;
+  }
 
   const { error: mediaError } = await supabase.from("publication_media").insert({
     publication_id: id,
@@ -140,7 +161,12 @@ export async function addPublicationMediaAction(formData: FormData) {
     sort_order: (lastMedia?.sort_order ?? -1) + 1,
   });
 
-  if (mediaError) await supabase.storage.from("social-media").remove([publicPath]);
+  if (mediaError) {
+    console.error("Cannot register uploaded publication media", { id, error: mediaError.message });
+    const { error: cleanupError } = await supabase.storage.from("social-media").remove([publicPath]);
+    if (cleanupError) console.error("Cannot clean up unregistered publication media", { id, publicPath, error: cleanupError.message });
+    return;
+  }
   revalidatePath(`/app/publicacoes/${id}`);
 }
 
@@ -153,19 +179,42 @@ export async function removePublicationMediaAction(formData: FormData) {
   if (!id || !mediaId) return;
 
   const supabase = await createClient();
-  const { data: publication } = await supabase.from("publications").select("status").eq("id", id).maybeSingle();
+  const { data: publication, error: publicationError } = await supabase.from("publications").select("status").eq("id", id).maybeSingle();
+  if (publicationError) {
+    console.error("Cannot check publication state before media removal", { id, error: publicationError.message });
+    return;
+  }
   if (!publication || !["draft", "scheduled", "error", "cancelled"].includes(publication.status)) return;
 
-  const { data: media } = await supabase
+  const { data: media, error: mediaError } = await supabase
     .from("publication_media")
     .select("id,storage_path")
     .eq("id", mediaId)
     .eq("publication_id", id)
     .maybeSingle();
+  if (mediaError) {
+    console.error("Cannot load publication media for removal", { id, mediaId, error: mediaError.message });
+    return;
+  }
   if (!media) return;
 
-  await supabase.from("publication_media").delete().eq("id", mediaId).eq("publication_id", id);
-  if (media.storage_path) await supabase.storage.from("social-media").remove([media.storage_path]);
+  // Do not remove the Storage object unless the relational delete succeeded.
+  const { data: deleted, error: deleteError } = await supabase.from("publication_media")
+    .delete().eq("id", mediaId).eq("publication_id", id).select("id").maybeSingle();
+  if (deleteError || !deleted) {
+    console.error("Publication media deletion not confirmed; Storage retained", { id, mediaId, error: deleteError?.message });
+    return;
+  }
+  if (media.storage_path) {
+    const { count: references, error: referenceError } = await supabase.from("publication_media")
+      .select("id", { count: "exact", head: true }).eq("storage_path", media.storage_path);
+    if (referenceError || references === null) {
+      console.error("Cannot verify remaining media references; Storage retained", { id, mediaId, error: referenceError?.message });
+    } else if (references === 0) {
+      const { error: storageError } = await supabase.storage.from("social-media").remove([media.storage_path]);
+      if (storageError) console.error("Publication media Storage cleanup failed", { id, mediaId, error: storageError.message });
+    }
+  }
   revalidatePath(`/app/publicacoes/${id}`);
   revalidatePath(`/app/publicacoes/${id}/midia`);
 }
@@ -180,11 +229,15 @@ export async function schedulePublicationAction(formData: FormData) {
   if (!id || !scheduledAt || new Date(scheduledAt).getTime() <= Date.now()) return;
 
   const supabase = await createClient();
-  const [{ data: publication }, { data: media }] = await Promise.all([
+  const [{ data: publication, error: publicationError }, { data: media, error: mediaError }] = await Promise.all([
     supabase.from("publications").select("network,type,status").eq("id", id).maybeSingle(),
     supabase.from("publication_media").select("media_type,public_url").eq("publication_id", id),
   ]);
 
+  if (publicationError || mediaError) {
+    console.error("Cannot validate publication scheduling prerequisites", { id, publicationError: publicationError?.message, mediaError: mediaError?.message });
+    return;
+  }
   if (!publication || !["draft", "scheduled", "error", "cancelled"].includes(publication.status)) return;
 
   const validation = validatePublicationMedia(publication, media ?? []);
@@ -192,21 +245,28 @@ export async function schedulePublicationAction(formData: FormData) {
     await supabase
       .from("publications")
       .update({ error_message: `Não foi possível agendar: ${validation.message}`, updated_by: profile.id, updated_at: new Date().toISOString() })
-      .eq("id", id);
+      .eq("id", id)
+      .in("status", ["draft", "scheduled", "error", "cancelled"]);
     revalidatePath(`/app/publicacoes/${id}`);
     return;
   }
 
-  const { error } = await supabase
+  const { data: scheduled, error } = await supabase
     .from("publications")
     .update({ status: "scheduled", scheduled_at: scheduledAt, error_message: null, updated_by: profile.id, updated_at: new Date().toISOString() })
     .eq("id", id)
-    .in("status", ["draft", "scheduled", "error", "cancelled"]);
+    .eq("status", publication.status)
+    .eq("network", publication.network)
+    .eq("type", publication.type)
+    .select("id")
+    .maybeSingle();
 
-  if (!error) {
-    revalidatePath("/app/publicacoes");
-    revalidatePath(`/app/publicacoes/${id}`);
+  if (error || !scheduled) {
+    console.error("Publication scheduling not confirmed; state or format may have changed", { id, error: error?.message });
+    return;
   }
+  revalidatePath("/app/publicacoes");
+  revalidatePath(`/app/publicacoes/${id}`);
 }
 
 export async function cancelScheduledPublicationAction(formData: FormData) {
@@ -217,11 +277,17 @@ export async function cancelScheduledPublicationAction(formData: FormData) {
   if (!id) return;
 
   const supabase = await createClient();
-  await supabase
+  const { data: cancelled, error: cancelError } = await supabase
     .from("publications")
     .update({ status: "cancelled", scheduled_at: null, error_message: null, updated_by: profile.id, updated_at: new Date().toISOString() })
     .eq("id", id)
-    .eq("status", "scheduled");
+    .eq("status", "scheduled")
+    .select("id")
+    .maybeSingle();
+  if (cancelError || !cancelled) {
+    console.error("Publication cancellation not confirmed", { id, error: cancelError?.message });
+    return;
+  }
 
   revalidatePath("/app/publicacoes");
   revalidatePath(`/app/publicacoes/${id}`);
@@ -267,11 +333,17 @@ export async function returnToDraftAction(formData: FormData) {
   if (!id) return;
 
   const supabase = await createClient();
-  await supabase
+  const { data: returned, error: returnError } = await supabase
     .from("publications")
     .update({ status: "draft", scheduled_at: null, error_message: null, updated_by: profile.id, updated_at: new Date().toISOString() })
     .eq("id", id)
-    .in("status", ["scheduled", "error", "cancelled"]);
+    .in("status", ["scheduled", "error", "cancelled"])
+    .select("id")
+    .maybeSingle();
+  if (returnError || !returned) {
+    console.error("Return to publication draft not confirmed", { id, error: returnError?.message });
+    return;
+  }
 
   revalidatePath("/app/publicacoes");
   revalidatePath(`/app/publicacoes/${id}`);
@@ -284,14 +356,41 @@ export async function deleteDraftAction(formData: FormData) {
   if (!id) return;
 
   const supabase = await createClient();
-  const { data: publication } = await supabase.from("publications").select("status").eq("id", id).maybeSingle();
+  const { data: publication, error: publicationError } = await supabase.from("publications").select("status").eq("id", id).maybeSingle();
+  if (publicationError) {
+    console.error("Cannot determine publication deletion eligibility", { id, error: publicationError.message });
+    return;
+  }
   if (!publication || !["draft", "cancelled", "error"].includes(publication.status)) return;
 
-  const { data: media } = await supabase.from("publication_media").select("storage_path").eq("publication_id", id);
-  await supabase.from("publication_media").delete().eq("publication_id", id);
-  await supabase.from("publications").delete().eq("id", id);
+  const { data: media, error: mediaError } = await supabase.from("publication_media").select("storage_path").eq("publication_id", id);
+  if (mediaError) {
+    console.error("Cannot safely delete publication without media inventory", { id, error: mediaError.message });
+    return;
+  }
+  // publication_media has an ON DELETE CASCADE foreign key; delete the parent
+  // conditionally and only clean Storage after the database confirms deletion.
+  const { data: deleted, error: deleteError } = await supabase.from("publications")
+    .delete().eq("id", id).in("status", ["draft", "cancelled", "error"]).select("id").maybeSingle();
+  if (deleteError || !deleted) {
+    console.error("Publication deletion not confirmed; media Storage retained", { id, error: deleteError?.message });
+    return;
+  }
   const paths = (media ?? []).map((item) => item.storage_path).filter(Boolean);
-  if (paths.length) await supabase.storage.from("social-media").remove(paths);
+  if (paths.length) {
+    const { data: referenced, error: referenceError } = await supabase.from("publication_media")
+      .select("storage_path").in("storage_path", [...new Set(paths)]);
+    if (referenceError) {
+      console.error("Cannot verify remaining media references; Storage retained", { id, error: referenceError.message });
+    } else {
+      const referencedPaths = new Set((referenced ?? []).map((item) => item.storage_path));
+      const removablePaths = [...new Set(paths)].filter((path) => !referencedPaths.has(path));
+      if (removablePaths.length) {
+        const { error: storageError } = await supabase.storage.from("social-media").remove(removablePaths);
+        if (storageError) console.error("Publication Storage cleanup failed", { id, error: storageError.message });
+      }
+    }
+  }
   revalidatePath("/app/publicacoes");
   redirect("/app/publicacoes");
 }

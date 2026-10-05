@@ -213,6 +213,19 @@ export function validateLayout(
       )
     )
       throw new Error(`Campo inválido: ${fieldLabels[key]}.`);
+    // Optional numeric controls must be finite: NaN bypasses all range comparisons.
+    const optionalNumericKeys: (keyof LayoutField)[] = [
+      "opacity", "rotation", "layer", "strokeWidth", "strokeOpacity",
+      "shadowBlur", "shadowX", "shadowY", "letterSpacing",
+      "strokeOffsetX", "strokeOffsetY", "strokeShadowBlur",
+      "strokeShadowX", "strokeShadowY", "strokeInnerGlowBlur",
+      "strokeInnerGlowWidth", "lineHeight", "padding", "maxLines",
+    ];
+    for (const numericKey of optionalNumericKeys) {
+      const numericValue = f[numericKey];
+      if (numericValue != null && (typeof numericValue !== "number" || !Number.isFinite(numericValue)))
+        throw new Error(`${fieldLabels[key] ?? key}: ${numericKey} deve ser um número válido.`);
+    }
     const fieldName=fieldLabels[key]??key;
     const positionErrors:string[]=[];
     if(f.x<0||f.x>100)positionErrors.push(`X = ${f.x}% (permitido: 0 a 100%)`);

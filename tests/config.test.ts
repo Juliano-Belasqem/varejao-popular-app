@@ -73,6 +73,35 @@ test("layout rejects out-of-bounds, missing and malformed fields", () => {
   assert.deepEqual(previousMigrated.priceCents, defaultTemplate("digital-feed").layout.priceCents);
   assert.throws(() => validateLayout("digital-feed", { brand: legacy.brand }));
 });
+test("optional numeric template fields reject non-finite values", () => {
+  for (const key of [
+    "opacity", "rotation", "layer", "strokeWidth", "strokeOpacity",
+    "shadowBlur", "shadowX", "shadowY", "letterSpacing",
+    "strokeOffsetX", "strokeOffsetY", "strokeShadowBlur",
+    "strokeShadowX", "strokeShadowY", "strokeInnerGlowBlur",
+    "strokeInnerGlowWidth", "lineHeight", "padding", "maxLines",
+  ] as const) {
+    const layout = defaultTemplate("digital-feed").layout;
+    (layout.productLine1 as unknown as Record<string, unknown>)[key] = NaN;
+    assert.throws(() => validateLayout("digital-feed", layout), new RegExp(key));
+    (layout.productLine1 as unknown as Record<string, unknown>)[key] = Infinity;
+    assert.throws(() => validateLayout("digital-feed", layout), new RegExp(key));
+  }
+});
+
+test("physical major price supports extended font range without changing other limits", () => {
+  for (const id of ["physical-one", "physical-four"] as const) {
+    const layout = defaultTemplate(id).layout;
+    layout.physicalPriceReais.fontSize = 1000;
+    assert.equal(validateLayout(id, layout).physicalPriceReais.fontSize, 1000);
+    layout.physicalPriceReais.fontSize = 1001;
+    assert.throws(() => validateLayout(id, layout), /1000/);
+  }
+  const digital = defaultTemplate("digital-feed").layout;
+  digital.priceReais.fontSize = 501;
+  assert.throws(() => validateLayout("digital-feed", digital), /500/);
+});
+
 test("typography outline layer round-trips and rejects invalid values", () => {
   const layout = defaultTemplate("digital-feed").layout;
   layout.productLine1.strokeLayer = "above";
