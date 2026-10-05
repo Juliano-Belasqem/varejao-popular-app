@@ -64,3 +64,8 @@ A revisão estática inicial das oito etapas está registrada em [AUDIT.md](AUDI
 - Performance Advisor: 17 FKs sem índice de cobertura, 10 grupos de políticas permissivas sobrepostas e 1 ocorrência de `auth.uid()` sem initplan em `audit_logs`. Tratar como dívida de desempenho; avisos de índices não usados não são conclusivos neste banco recém-criado.
 - A matriz autenticada editor/viewer/usuário inativo ainda não foi executada: a tentativa de simular JWT/roles por SQL foi bloqueada pela camada de segurança da integração antes de alcançar o banco. Não registrar esse item como aprovado.
 - A execução intersessões com lock mantido ainda permanece pendente; o teste realizado valida a regra do trigger em PostgreSQL real, mas não substitui o cenário concorrente de duas conexões descrito no roteiro.
+
+### Concorrência real em duas sessões — 05/10/2026
+- Cenário claim-first executado com duas conexões simultâneas no projeto isolado: a sessão A alterou a publicação de `draft` para `publishing` e manteve a transação aberta por 5 s; a sessão B tentou excluir a mídia após 1 s. A exclusão não ocorreu e terminou com `Cannot modify media while publication is processing or published`, confirmando que a mutação não atravessa o claim concorrente.
+- Cenário media-first executado em duas conexões: a sessão de exclusão adquiriu primeiro o lock do pai, removeu a mídia e manteve a transação aberta; a tentativa concorrente de claim só concluiu depois da liberação. Estado final confirmado: publicação `publishing`, `media_count=0`. Isso demonstra serialização consistente nos dois sentidos e elimina a pendência de teste intersessões do A-042.
+- CI do HEAD documental anterior `a48e8705cd436d755aa194a19865b351601f0754`: run `37313727196`, conclusão `success`.
