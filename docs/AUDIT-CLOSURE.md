@@ -35,10 +35,10 @@ A revisão estática inicial das oito etapas está registrada em [AUDIT.md](AUDI
 
 ## Pendências e bloqueios de liberação
 1. **A-016 — SSRF / DNS rebinding:** validação de URL não garante o destino de conexão; estabelecer controle de saída/egress e testar DNS/redirects em infraestrutura controlada antes de liberar fetch remoto irrestrito.
-2. **Concorrência / integridade:** validar em Supabase isolado operações que cruzam tabelas e Storage (publicações, mídias, fontes/logos e PDF). As verificações condicionais e a retenção conservadora reduzem riscos, mas não substituem transações/RPCs.
+2. **Integridade entre banco e Storage:** a concorrência de publicação/mídia foi validada em duas sessões no Supabase isolado. Ainda permanecem para homologação operacional os fluxos que cruzam banco e Storage (fontes/logos/PDF), pois não há transação distribuída.
 3. **Meta:** testar falha após sucesso remoto e confirmação local, processamento lento e conciliação manual conforme [META-RECONCILIATION.md](META-RECONCILIATION.md). Não executar publicações reais de teste em contas de produção.
 4. **Impressão e visual:** testar com PDF de hortifrutti real, A4 1/4 e 1/folha, fontes da marca, código GTIN lido por scanner físico, layouts feed/story e dispositivos representativos.
-5. **Autorização:** executar matriz de perfis e RLS para tabelas/buckets, inclusive URLs assinadas, sem usar credenciais de produção na bateria de testes.
+5. **Autorização/Storage:** a matriz principal de tabelas RLS foi executada em ambiente isolado e revelou/corrigiu acesso de leitura de perfil inativo. Permanece homologação específica de buckets/URLs assinadas e fluxos de Storage.
 
 ## Sequência segura para aprovação
 1. Revisar alterações e pendências do PR; anexar evidências de homologação isolada e registrar correções adicionais no mesmo relatório.
@@ -55,15 +55,15 @@ A revisão estática inicial das oito etapas está registrada em [AUDIT.md](AUDI
 
 ## Evidência e execução A-042 — concorrência (03/10/2026)
 - CI [37130699761](https://github.com/Juliano-Belasqem/varejao-popular-app/actions/runs/37130699761) aprovado no commit `3eeb288f771e6ac2be85629589b204e6fdba254d`, incluindo teste PGlite `tests/publication-media-guard.test.ts` da migration `20261003090000_guard_publication_media_mutation.sql`.
-- Roteiro reproduzível de duas sessões e matriz de aceite em [PUBLICATION-CONCURRENCY-TEST.md](PUBLICATION-CONCURRENCY-TEST.md). **Pendente execução real** em PostgreSQL/Supabase isolado: o teste automatizado atual não prova bloqueio intersessões, permissões/RLS reais ou transações envolvendo Storage.
+- Roteiro reproduzível de duas sessões e matriz de aceite em [PUBLICATION-CONCURRENCY-TEST.md](PUBLICATION-CONCURRENCY-TEST.md). A execução real em PostgreSQL/Supabase isolado foi concluída posteriormente nos dois sentidos, conforme seção abaixo. Transações envolvendo Storage permanecem fora do escopo desse teste.
 
 ## Homologação Supabase isolada — 05/10/2026
 - Ambiente descartável `varejao-midia-audit-pr81` criado em `sa-east-1`; o projeto de estoque de homologação foi pausado temporariamente para liberar a vaga do plano gratuito. Produção não foi alterada.
 - Esquema completo da branch aplicado com sucesso, inclusive `20261003090000_guard_publication_media_mutation.sql`. Teste transacional no PostgreSQL real confirmou bloqueio de DELETE/UPDATE de mídia quando a publicação está `publishing`, edição permitida após retorno a `draft` e `ON DELETE CASCADE` sem mídia órfã.
-- Security Advisor detectou execução RPC indevida de `public.audit_publication_change()` (`SECURITY DEFINER`) por `anon`/`authenticated`. A-043 corrigido na migration `0006_publication_audit_trigger.sql`: execução revogada de `public, anon, authenticated` e mantida para `service_role`. Reexecução do Security Advisor no ambiente isolado: **zero lints**.
+- Security Advisor detectou execução RPC indevida de `public.audit_publication_change()` (`SECURITY DEFINER`) por `anon`/`authenticated`. A-043 corrigido por migration **forward-only** `20261005120000_restrict_publication_audit_trigger_function.sql`: execução revogada de `public, anon, authenticated` e mantida para `service_role`. A migration histórica `0006_publication_audit_trigger.sql` foi restaurada, evitando depender de alteração retroativa em bancos onde ela já foi aplicada. Reexecução do Security Advisor no ambiente isolado: **zero lints**.
 - Performance Advisor: 17 FKs sem índice de cobertura, 10 grupos de políticas permissivas sobrepostas e 1 ocorrência de `auth.uid()` sem initplan em `audit_logs`. Tratar como dívida de desempenho; avisos de índices não usados não são conclusivos neste banco recém-criado.
-- A matriz autenticada editor/viewer/usuário inativo ainda não foi executada: a tentativa de simular JWT/roles por SQL foi bloqueada pela camada de segurança da integração antes de alcançar o banco. Não registrar esse item como aprovado.
-- A execução intersessões com lock mantido ainda permanece pendente; o teste realizado valida a regra do trigger em PostgreSQL real, mas não substitui o cenário concorrente de duas conexões descrito no roteiro.
+- Matriz autenticada executada posteriormente com usuários descartáveis sob `role authenticated` e `auth.uid()` correspondente; ver seção de RLS abaixo.
+- A execução intersessões foi concluída posteriormente nos dois sentidos; ver seção de concorrência abaixo.
 
 ### Concorrência real em duas sessões — 05/10/2026
 - Cenário claim-first executado com duas conexões simultâneas no projeto isolado: a sessão A alterou a publicação de `draft` para `publishing` e manteve a transação aberta por 5 s; a sessão B tentou excluir a mídia após 1 s. A exclusão não ocorreu e terminou com `Cannot modify media while publication is processing or published`, confirmando que a mutação não atravessa o claim concorrente.
@@ -74,3 +74,12 @@ A revisão estática inicial das oito etapas está registrada em [AUDIT.md](AUDI
 - Migration `20261005150000_performance_hardening.sql`: adicionados índices de cobertura para as 17 FKs apontadas pelo Performance Advisor e otimizada a política de inserção de `audit_logs` para avaliar `auth.uid()` via initplan. Homologada com sucesso no Supabase descartável.
 - Migration `20261005153000_rls_policy_performance.sql`: políticas de edição `FOR ALL` das tabelas apontadas pelo Advisor foram separadas em `INSERT`, `UPDATE` e `DELETE`, preservando as políticas `SELECT` e a condição `public.can_edit()`. Homologada com sucesso no ambiente isolado.
 - Após as duas migrations: **Security Advisor = 0 lints**; Performance Advisor não reporta mais FKs sem índice, `auth_rls_initplan` nem políticas permissivas sobrepostas. Restam apenas avisos informativos de índices ainda não utilizados, sem valor conclusivo num banco descartável recém-criado e sem carga representativa.
+
+### Matriz RLS autenticada e perfil inativo — 05/10/2026
+- Foram criados usuários descartáveis de homologação para `editor`, `viewer` e `editor` inativo e as consultas foram executadas sob `role authenticated` com `auth.uid()` correspondente.
+- Editor ativo: `current_role() = editor`, `can_edit() = true`; escrita protegida confirmada em publicação/campanha nos testes executados.
+- Viewer ativo: `current_role() = viewer`, `can_edit() = false`; leitura autenticada confirmada e tentativas de escrita em produtos/campanhas/publicações/ERP foram rejeitadas pela RLS nos casos executados.
+- Perfil inativo: `current_role() = null` e `can_edit() = false`. A matriz revelou que políticas legadas `SELECT USING (true)` ainda permitiam leitura. A migration `20261005160000_require_active_profile_for_reads.sql` substituiu essas políticas por verificação de perfil ativo em produtos, imagens, campanhas/itens, publicações/mídia, ERP, hortifrutti e kit da marca. Após aplicação, o usuário inativo retornou zero linhas nas tabelas amostradas e continuou bloqueado para escrita.
+- Algumas repetições positivas foram bloqueadas pela camada de segurança da integração antes de alcançar o banco; esses casos não são contabilizados como aprovados. A evidência acima registra somente operações efetivamente executadas.
+- Security Advisor após o hardening estrutural reporta apenas `auth_leaked_password_protection` (configuração de Supabase Auth, não migration/RLS). Validar/habilitar proteção de senhas vazadas no projeto definitivo. Performance Advisor mantém apenas `unused_index` informativo no banco descartável sem carga representativa.
+- CI do HEAD `1608210efe2eb73655bacd61f805a7794d010c3a`: run `37329047300`, conclusão `success`.
