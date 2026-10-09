@@ -10,6 +10,7 @@ const links = [
   ["⌂", "Visão geral", "/app"],
   ["◆", "Campanhas", "/app/campanhas"],
   ["%", "Central de Ofertas", "/app/ofertas"],
+  ["↔", "Relações", "/app/relacoes"],
   ["✦", "Motor Visual", "/app/editor-visual"],
   ["▦", "Produtos", "/app/produtos"],
   ["!", "Validade Próxima", "/app/validade-proxima"],
